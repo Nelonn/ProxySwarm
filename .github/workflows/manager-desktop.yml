@@ -83,7 +83,7 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
-      - name: Install Linux dependencies
+      - name: Install dependencies (Linux)
         if: startsWith(matrix.target, 'x86_64-unknown-linux-') || startsWith(matrix.target, 'aarch64-unknown-linux-')
         run: |
           sudo apt-get update
@@ -91,7 +91,16 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            protobuf-compiler
+
+      - name: Install dependencies (macOS)
+        if: startsWith(matrix.target, 'x86_64-apple-') || startsWith(matrix.target, 'aarch64-apple-')
+        run: brew install protobuf
+
+      - name: Install dependencies (Windows)
+        if: startsWith(matrix.target, 'x86_64-pc-windows-') || startsWith(matrix.target, 'aarch64-pc-windows-')
+        run: choco install protoc
 
       - name: Build desktop app
         working-directory: manager

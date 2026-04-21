@@ -95,6 +95,22 @@ Open the Trunk URL in your browser, add the node address (e.g. `http://127.0.0.1
 
 ### 3. Run via Docker
 
+> [!CAUTION]
+> Be careful with GRPC_LISTEN! It’s better to listen only on the local network and use a reverse proxy with HTTPS or an SSH tunnel.
+
+```yaml
+services:
+  proxy-node:
+    image: ghcr.io/nelonn/proxyswarm/proxyswarm-node:nightly
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - MASTER_KEY=${MASTER_KEY:-my-secret-key}
+      - GRPC_LISTEN=:9090
+    volumes:
+      - ./data:/data
+```
+
 ```bash
 docker compose up --build
 ```
