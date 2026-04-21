@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -81,10 +81,15 @@ jobs:
           workspaces: manager/src-tauri
           key: ${{ matrix.target }}
 
-      - name: Install Rust tools
+      - name: Install Rust tools (non-macOS)
+        if: ${{ !startsWith(matrix.target, 'x86_64-apple-') && !startsWith(matrix.target, 'aarch64-apple-') }}
         uses: taiki-e/install-action@v2
         with:
           tool: trunk,tauri-cli
+
+      - name: Install Rust tools (macOS)
+        if: startsWith(matrix.target, 'x86_64-apple-') || startsWith(matrix.target, 'aarch64-apple-')
+        run: cargo install trunk tauri-cli --locked
 
       - name: Install dependencies (Linux)
         if: startsWith(matrix.target, 'x86_64-unknown-linux-') || startsWith(matrix.target, 'aarch64-unknown-linux-')
@@ -118,7 +123,7 @@ jobs:
           Compress-Archive -Path $exePath -DestinationPath $zipPath -Force
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.id }}
           path: ${{ matrix.artifact_paths }}
