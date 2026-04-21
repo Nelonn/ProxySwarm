@@ -1,0 +1,18 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+import "common.proto";
+
+message Hysteria2Config {
+    string password = 1;
+    string obfs_type = 2;
+    string obfs_password = 3;
+    uint32 up_mbps = 4;
+    uint32 down_mbps = 5;
+    TLSConfig tls = 6;
+    bool ignore_client_bandwidth = 7;
+    string masquerade = 8;
+    string bbr_profile = 9;
+    bool brutal_debug = 10;
+}

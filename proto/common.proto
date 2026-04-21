@@ -1,0 +1,89 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message Account {
+    string id = 1;
+    string name = 2;
+    repeated string allowed_ips = 3;
+    int64 expiry_time = 4; // Unix timestamp
+    string access_id = 5; // Used as UUID for VLESS/etc
+}
+
+message HardwareStats {
+    double cpu_usage = 1;
+    uint64 ram_used = 2;
+    uint64 ram_total = 3;
+    uint64 uptime = 4;
+    uint32 cpu_cores = 5;
+}
+
+message TrafficStats {
+    uint64 rx = 1;
+    uint64 tx = 2;
+    double rx_rate = 3;
+    double tx_rate = 4;
+}
+
+message ConnectionStats {
+    uint32 tcp = 1;
+    uint32 udp = 2;
+}
+
+message UserSessionStatus {
+    string ip = 1;
+    string user_agent = 2;
+}
+
+message InboundStatus {
+    string name = 1;
+    TrafficStats traffic = 2;
+    ConnectionStats connections = 3;
+}
+
+message AccountStatus {
+    string name = 1;
+    TrafficStats traffic = 2;
+    uint32 online = 3;
+    repeated UserSessionStatus sessions = 4;
+}
+
+message OutboundStatus {
+    string name = 1;
+    string type = 2;
+    TrafficStats traffic = 3;
+    bool excluded_from_totals = 4;
+}
+
+message NodeStatus {
+    HardwareStats hardware = 1;
+    repeated InboundStatus inbounds = 2;
+    repeated AccountStatus accounts = 3;
+    repeated OutboundStatus outbounds = 4;
+    TrafficStats total_inbound_traffic = 5;
+    TrafficStats total_outbound_traffic = 6;
+    ConnectionStats connections = 7;
+    uint32 sample_window_seconds = 8;
+}
+
+message CertificateConfig {
+    string id = 1;
+    string name = 2;
+    string cert_type = 3;
+    string acme_type = 4;
+    string acme_ca = 5;
+    string acme_email = 6;
+    string acme_domain = 7;
+    string certificate_path = 8;
+    string key_path = 9;
+    int32 acme_port = 10;
+    int32 acme_http_port = 11;
+    string certificate_pem = 12;
+    string key_pem = 13;
+}
+
+message TLSConfig {
+    bool enabled = 1;
+    string server_name = 2;
+    string certificate_name = 3;
+}

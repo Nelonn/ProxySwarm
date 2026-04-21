@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  proxy-node:
+    build:
+      context: .
+      dockerfile: node/Dockerfile
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - MASTER_KEY=${MASTER_KEY:-my-secret-key}
+      - GRPC_LISTEN=:9090
+    volumes:
+      - ./data:/data

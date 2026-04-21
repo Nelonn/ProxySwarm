@@ -1,0 +1,187 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+import "common.proto";
+import "vless.proto";
+import "hysteria2.proto";
+import "trusttunnel.proto";
+import "naiveproxy.proto";
+import "wireguard.proto";
+import "socks5.proto";
+
+service NodeService {
+    rpc UpdateConfig(FullConfig) returns (UpdateResponse);
+    rpc GetStatus(StatusRequest) returns (NodeStatus);
+    rpc IssueAcmeCertificate(AcmeIssueRequest) returns (AcmeIssueResponse);
+    rpc RegisterWarp(WarpRegisterRequest) returns (WarpRegisterResponse);
+    rpc UpdateWarpLicense(WarpLicenseUpdateRequest) returns (WarpLicenseUpdateResponse);
+}
+
+message FullConfig {
+    string master_key = 1;
+    repeated InboundConfig inbounds = 2;
+    repeated Account accounts = 3;
+    repeated OutboundConfig outbounds = 4;
+    repeated RoutingRule routing_rules = 5;
+    repeated CertificateConfig certificates = 6;
+    DnsConfig dns = 7;
+}
+
+message InboundConfig {
+    string name = 1;
+    string listen = 2; // e.g., "0.0.0.0"
+    int32 port = 3;
+    CoreType core = 5;
+    bool enabled = 12;
+    oneof protocol {
+        VlessConfig vless = 6;
+        Hysteria2Config hysteria2 = 7;
+        TrustTunnelConfig trusttunnel = 8;
+        NaiveProxyConfig naiveproxy = 9;
+        WireGuardConfig wireguard = 10;
+        Socks5InboundConfig socks5 = 11;
+    }
+}
+
+enum CoreType {
+    SING_BOX = 0;
+    XRAY = 1;
+}
+
+enum OutboundType {
+    DIRECT = 0;
+    BLOCK = 1;
+    VLESS = 2;
+    TRUSTTUNNEL = 3;
+    WIREGUARD = 4;
+    SOCKS5 = 5;
+}
+
+message OutboundConfig {
+    string tag = 1;
+    OutboundType type = 2;
+    oneof settings {
+        VlessOutboundConfig vless = 3;
+        TrustTunnelConfig trusttunnel = 4;
+        WireGuardConfig wireguard = 5;
+        Socks5OutboundConfig socks5 = 6;
+    }
+}
+
+message VlessOutboundConfig {
+    string server = 1;
+    int32 port = 2;
+    string uuid = 3;
+    string flow = 4;
+    SecurityMode security = 5;
+    string transmission = 6;
+}
+
+message RoutingRule {
+    repeated string domain = 1;
+    repeated string ip = 2;
+    repeated string port = 3;
+    repeated string transport = 4;
+    repeated string protocol = 5;
+    string outbound_tag = 6;
+    repeated string inbound_tag = 7;
+    repeated string user = 8;
+}
+
+message DnsConfig {
+    repeated DnsServerConfig servers = 1;
+    repeated DnsHostMapping hosts = 2;
+    string client_ip = 3;
+    string tag = 4;
+    string query_strategy = 5;
+    bool disable_cache = 6;
+    bool serve_stale = 7;
+    uint32 serve_expired_ttl = 8;
+    bool disable_fallback = 9;
+    bool disable_fallback_if_match = 10;
+    bool enable_parallel_query = 11;
+    bool use_system_hosts = 12;
+}
+
+message DnsServerConfig {
+    string address = 1;
+    string client_ip = 2;
+    uint32 port = 3;
+    bool skip_fallback = 4;
+    repeated string domains = 5;
+    repeated string expect_ips = 6;
+    string query_strategy = 7;
+    string tag = 8;
+    uint64 timeout_ms = 9;
+    optional bool disable_cache = 10;
+    optional bool serve_stale = 11;
+    optional uint32 serve_expired_ttl = 12;
+    bool final_query = 13;
+    repeated string unexpected_ips = 14;
+}
+
+message DnsHostMapping {
+    string domain = 1;
+    repeated string values = 2;
+}
+
+message UpdateResponse {
+    bool success = 1;
+    string error = 2;
+}
+
+message StatusRequest {
+    string master_key = 1;
+}
+
+message AcmeIssueRequest {
+    string master_key = 1;
+    string email = 2;
+    string domain = 3;
+    string challenge_type = 4;
+    string ca = 5;
+    int32 port = 6;
+    string certificate_path = 7;
+    string key_path = 8;
+}
+
+message AcmeIssueResponse {
+    bool success = 1;
+    string error = 2;
+    repeated string logs = 3;
+}
+
+message WarpRegisterRequest {
+    string master_key = 1;
+    string public_key = 2;
+}
+
+message WarpRegistration {
+    string id = 1;
+    string token = 2;
+    string license = 3;
+    bytes reserved = 4;
+    repeated string addresses = 5;
+    string endpoint = 6;
+    string peer_public_key = 7;
+}
+
+message WarpRegisterResponse {
+    bool success = 1;
+    string error = 2;
+    WarpRegistration registration = 3;
+}
+
+message WarpLicenseUpdateRequest {
+    string master_key = 1;
+    string device_id = 2;
+    string access_token = 3;
+    string license = 4;
+}
+
+message WarpLicenseUpdateResponse {
+    bool success = 1;
+    string error = 2;
+    string license = 3;
+}

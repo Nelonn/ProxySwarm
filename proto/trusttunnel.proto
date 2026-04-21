@@ -1,0 +1,15 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+import "common.proto";
+
+message TrustTunnelConfig {
+    uint32 http1_upload_buffer_size = 1;
+    uint32 http2_initial_connection_window_size = 2;
+    uint32 http2_initial_stream_window_size = 3;
+    uint32 http2_max_concurrent_streams = 4;
+    uint32 http2_max_frame_size = 5;
+    uint32 http2_header_table_size = 6;
+    TLSConfig tls = 7;
+}

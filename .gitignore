@@ -1,0 +1,6 @@
+.idea
+/reference
+/data
+
+# Common
+.DS_Store

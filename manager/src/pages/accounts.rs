@@ -1,0 +1,455 @@
+use crate::components::{
+    Button, ButtonType, DatePicker, DatePickerType, Popup, PopupSize, TextBox, RichTable,
+};
+use crate::state::{AccountInfo, State};
+use uuid::Uuid;
+use yew::prelude::*;
+
+#[function_component(Accounts)]
+pub fn accounts() -> Html {
+    let state = use_context::<UseStateHandle<State>>().expect("state context");
+    let show_modal = use_state(|| false);
+    let editing_account = use_state(|| Option::<AccountInfo>::None);
+    let pending_delete = use_state(|| Option::<AccountInfo>::None);
+
+    let on_add = {
+        let show_modal = show_modal.clone();
+        let editing_account = editing_account.clone();
+        Callback::from(move |_| {
+            editing_account.set(None);
+            show_modal.set(true);
+        })
+    };
+
+    html! {
+        <div class="p-6 space-y-6">
+            <div class="flex justify-between" style="align-items: baseline;">
+                <h1 class="text-3xl font-bold">{ "Accounts" }</h1>
+                <Button
+                    label="Add Account"
+                    icon={Some("icon-add".to_string())}
+                    button_type={ButtonType::Filled}
+                    onclick={move |_| on_add.emit(())}
+                />
+            </div>
+
+            // Accounts List
+            { if state.accounts.is_empty() {
+                html! {
+                    <div class="md3-card p-12 text-center">
+                        <p class="text-xl opacity-70">{ "No accounts configured" }</p>
+                        <p class="text-sm opacity-50 mt-2">{ "Add your first account to get started" }</p>
+                    </div>
+                }
+            } else {
+                html! {
+                    <RichTable columns={vec![
+                        "Account".to_string(),
+                        "Access ID".to_string(),
+                        "Allowed IPs".to_string(),
+                        "Expires".to_string(),
+                        "Actions".to_string(),
+                    ]}>
+                        { for state.accounts.iter().map(|account| {
+                            let state = state.clone();
+                            let account_id = account.id.clone();
+                            let pending_delete_handle = pending_delete.clone();
+
+                            let on_delete = Callback::from(move |_: MouseEvent| {
+                                if let Some(account) = state.accounts.iter().find(|a| a.id == account_id) {
+                                    pending_delete_handle.set(Some(account.clone()));
+                                }
+                            });
+
+                            html! {
+                                <>
+                                    <AccountRow
+                                        account={account.clone()}
+                                        on_edit={{
+                                            let show_modal = show_modal.clone();
+                                            let editing_account = editing_account.clone();
+                                            let account_for_edit = account.clone();
+                                            Callback::from(move |_| {
+                                                editing_account.set(Some(account_for_edit.clone()));
+                                                show_modal.set(true);
+                                            })
+                                        }}
+                                        on_delete={on_delete}
+                                    />
+                                    <div class="md3-divider"></div>
+                                </>
+                            }
+                        }) }
+                    </RichTable>
+                }
+            } }
+
+            { if *show_modal {
+                html! {
+                    <AccountModal
+                        state={state.clone()}
+                        initial_account={(*editing_account).clone()}
+                        on_close={Callback::from(move |_| show_modal.set(false))}
+                    />
+                }
+            } else {
+                html! {}
+            } }
+
+            { if let Some(account) = &*pending_delete {
+                let state = state.clone();
+                let pending_delete_close = pending_delete.clone();
+                let pending_delete_confirm = pending_delete.clone();
+                let account_id = account.id.clone();
+                html! {
+                    <DeleteConfirmPopup
+                        title={"Delete Account"}
+                        message={format!("Delete account \"{}\"?", account.name)}
+                        on_cancel={Callback::from(move |_| pending_delete_close.set(None))}
+                        on_confirm={Callback::from(move |_| {
+                            let mut new_state = (*state).clone();
+                            new_state.accounts.retain(|a| a.id != account_id);
+                            new_state.save();
+                            state.set(new_state);
+                            pending_delete_confirm.set(None);
+                        })}
+                    />
+                }
+            } else {
+                html! {}
+            } }
+        </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+struct AccountCardProps {
+    account: AccountInfo,
+    on_edit: Callback<MouseEvent>,
+    on_delete: Callback<MouseEvent>,
+}
+
+#[function_component(AccountRow)]
+fn account_row(props: &AccountCardProps) -> Html {
+    let show_access_id = use_state(|| false);
+
+    let expiry_date = if props.account.expiry_date > 0 {
+        chrono::DateTime::from_timestamp(props.account.expiry_date, 0)
+            .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+            .unwrap_or_else(|| "Never".to_string())
+    } else {
+        "Never".to_string()
+    };
+
+    let on_edit_click = props.on_edit.clone();
+    let on_delete_click = props.on_delete.clone();
+    let access_id_click = {
+        let show_access_id = show_access_id.clone();
+        Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            show_access_id.set(!*show_access_id);
+        })
+    };
+
+    let access_id_hidden = "************";
+    let access_id_html = if *show_access_id {
+        html! { <code class="md3-secret md3-secret-revealed break-all">{ &props.account.access_id }</code> }
+    } else {
+        html! { <code class="md3-secret md3-secret-hidden">{ access_id_hidden }</code> }
+    };
+
+    html! {
+        <div class="md3-list-row">
+            <div class="md3-list-col md3-list-col-main">
+                <div class="text-lg font-bold">{ &props.account.name }</div>
+            </div>
+            <div class="md3-list-col md3-list-col-access-id">
+                <button
+                    class="md3-secret-btn"
+                    onclick={access_id_click}
+                    aria-pressed={show_access_id.to_string()}
+                >
+                    { access_id_html }
+                </button>
+            </div>
+            <div class="md3-list-col">
+                <div class="text-sm opacity-70">
+                    {
+                        if props.account.allowed_ips.is_empty() {
+                            "Any".to_string()
+                        } else {
+                            props.account.allowed_ips.len().to_string()
+                        }
+                    }
+                </div>
+            </div>
+            <div class="md3-list-col">
+                <div class="text-sm opacity-70">{ expiry_date }</div>
+            </div>
+            <div class="md3-list-col md3-list-col-actions">
+                <div class="md3-list-actions">
+                    <Button
+                        label="Edit"
+                        button_type={ButtonType::Outlined}
+                        onclick={on_edit_click}
+                    />
+                    <Button
+                        label="Delete"
+                        button_type={ButtonType::Outlined}
+                        color={Some("#F2B8B5".to_string())}
+                        onclick={on_delete_click}
+                    />
+                </div>
+            </div>
+        </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+struct AccountModalProps {
+    state: UseStateHandle<State>,
+    #[prop_or_default]
+    initial_account: Option<AccountInfo>,
+    on_close: Callback<()>,
+}
+
+#[function_component(AccountModal)]
+fn account_modal(props: &AccountModalProps) -> Html {
+    let name = use_state(|| String::new());
+    let access_id = use_state(|| String::new());
+    let allowed_ips = use_state(|| String::new());
+    let expiry_date_str = use_state(|| String::new());
+
+    {
+        let name = name.clone();
+        let access_id = access_id.clone();
+        let allowed_ips = allowed_ips.clone();
+        let expiry_date_str = expiry_date_str.clone();
+        let initial_account = props.initial_account.clone();
+
+        use_effect_with(initial_account, move |initial_account| {
+            if let Some(account) = initial_account {
+                name.set(account.name.clone());
+                access_id.set(account.access_id.clone());
+                allowed_ips.set(account.allowed_ips.join(", "));
+                let dt_str = chrono::DateTime::from_timestamp(account.expiry_date, 0)
+                    .map(|dt| dt.format("%Y-%m-%dT%H:%M").to_string())
+                    .unwrap_or_default();
+                expiry_date_str.set(if account.expiry_date > 0 {
+                    dt_str
+                } else {
+                    String::new()
+                });
+            } else {
+                name.set(String::new());
+                access_id.set(String::new());
+                allowed_ips.set(String::new());
+                expiry_date_str.set(String::new());
+            }
+            || ()
+        });
+    }
+
+    let name_for_change = name.clone();
+    let access_id_for_change = access_id.clone();
+    let allowed_ips_for_change = allowed_ips.clone();
+    let expiry_date_str_for_change = expiry_date_str.clone();
+
+    let on_name_change = Callback::from(move |value: String| {
+        name_for_change.set(value);
+    });
+
+    let on_access_id_change = Callback::from(move |value: String| {
+        access_id_for_change.set(value);
+    });
+
+    let on_allowed_ips_change = Callback::from(move |value: String| {
+        allowed_ips_for_change.set(value);
+    });
+
+    let on_expiry_change = Callback::from(move |value: String| {
+        expiry_date_str_for_change.set(value);
+    });
+
+    let name_for_submit = name.clone();
+    let access_id_for_submit = access_id.clone();
+    let allowed_ips_for_submit = allowed_ips.clone();
+    let expiry_date_str_for_submit = expiry_date_str.clone();
+    let initial_account_for_submit = props.initial_account.clone();
+
+    let on_submit = {
+        let state = props.state.clone();
+        let on_close = props.on_close.clone();
+
+        Callback::from(move |e: SubmitEvent| {
+            e.prevent_default();
+
+            // Parse allowed IPs
+            let allowed_ips_vec: Vec<String> = if allowed_ips_for_submit.is_empty() {
+                Vec::new()
+            } else {
+                allowed_ips_for_submit
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            };
+
+            // Parse expiry date
+            let expiry_date = if expiry_date_str_for_submit.is_empty() {
+                0
+            } else {
+                // `datetime-local` returns `YYYY-MM-DDTHH:MM` (no timezone).
+                chrono::NaiveDateTime::parse_from_str(&expiry_date_str_for_submit, "%Y-%m-%dT%H:%M")
+                    .ok()
+                    .map(|dt| dt.and_utc().timestamp())
+                    .unwrap_or(0)
+            };
+
+            let mut new_state = (*state).clone();
+            if let Some(existing) = &initial_account_for_submit {
+                let mut updated = false;
+                for a in &mut new_state.accounts {
+                    if a.id == existing.id {
+                        a.name = (*name_for_submit).clone();
+                        a.access_id = if access_id_for_submit.is_empty() {
+                            existing.access_id.clone()
+                        } else {
+                            (*access_id_for_submit).clone()
+                        };
+                        a.allowed_ips = allowed_ips_vec.clone();
+                        a.expiry_date = expiry_date;
+                        updated = true;
+                        break;
+                    }
+                }
+                if !updated {
+                    new_state.accounts.push(AccountInfo {
+                        id: existing.id.clone(),
+                        name: (*name_for_submit).clone(),
+                        access_id: if access_id_for_submit.is_empty() {
+                            existing.access_id.clone()
+                        } else {
+                            (*access_id_for_submit).clone()
+                        },
+                        allowed_ips: allowed_ips_vec,
+                        expiry_date,
+                    });
+                }
+            } else {
+                new_state.accounts.push(AccountInfo {
+                    id: Uuid::new_v4().to_string(),
+                    name: (*name_for_submit).clone(),
+                    access_id: if access_id_for_submit.is_empty() {
+                        Uuid::new_v4().to_string()
+                    } else {
+                        (*access_id_for_submit).clone()
+                    },
+                    allowed_ips: allowed_ips_vec,
+                    expiry_date,
+                });
+            }
+            new_state.save();
+            state.set(new_state);
+            on_close.emit(());
+        })
+    };
+
+    let on_close_click = props.on_close.clone();
+    let is_edit = props.initial_account.is_some();
+
+    html! {
+        <Popup
+            title={if is_edit { "Edit Account" } else { "Add New Account" }}
+            size={PopupSize::Lg}
+            on_close={props.on_close.clone()}
+        >
+            <form onsubmit={on_submit} class="space-y-4">
+                <TextBox
+                    label="Account Name"
+                    value={(*name).clone()}
+                    onchange={on_name_change}
+                    placeholder="My Account"
+                />
+                <TextBox
+                    label="Access ID (Password)"
+                    value={(*access_id).clone()}
+                    onchange={on_access_id_change}
+                    placeholder="Auto-generated if empty"
+                    action_icon={Some("icon-sync".to_string())}
+                    action_label={Some("Randomize access ID".to_string())}
+                    action_onclick={Some(Callback::from({
+                        let access_id = access_id.clone();
+                        move |_| access_id.set(Uuid::new_v4().to_string())
+                    }))}
+                />
+                <TextBox
+                    label="Allowed IPs (comma-separated, optional)"
+                    value={(*allowed_ips).clone()}
+                    onchange={on_allowed_ips_change}
+                    placeholder="192.168.1.100, 10.0.0.50"
+                />
+                <DatePicker
+                    label="Expiry Date (optional)"
+                    value={(*expiry_date_str).clone()}
+                    onchange={on_expiry_change}
+                    picker_type={DatePickerType::DateTimeLocal}
+                    show_trigger_button={false}
+                />
+
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button
+                        label={if is_edit { "Save Changes" } else { "Add Account" }}
+                        html_type={"submit"}
+                        button_type={ButtonType::Filled}
+                        onclick={Callback::from(move |_| {})}
+                    />
+                    <Button
+                        label="Cancel"
+                        button_type={ButtonType::Text}
+                        onclick={move |_| on_close_click.emit(())}
+                    />
+                </div>
+            </form>
+        </Popup>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+struct DeleteConfirmPopupProps {
+    title: AttrValue,
+    message: String,
+    on_cancel: Callback<()>,
+    on_confirm: Callback<()>,
+}
+
+#[function_component(DeleteConfirmPopup)]
+fn delete_confirm_popup(props: &DeleteConfirmPopupProps) -> Html {
+    let on_cancel_click = props.on_cancel.clone();
+    let on_confirm_click = props.on_confirm.clone();
+
+    html! {
+        <Popup
+            title={props.title.clone()}
+            size={PopupSize::Sm}
+            on_close={props.on_cancel.clone()}
+        >
+            <div class="space-y-4">
+                <p class="text-sm opacity-80">{ &props.message }</p>
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button
+                        label="Cancel"
+                        button_type={ButtonType::Text}
+                        onclick={move |_| on_cancel_click.emit(())}
+                    />
+                    <Button
+                        label="Delete"
+                        button_type={ButtonType::Outlined}
+                        color={Some("#F2B8B5".to_string())}
+                        onclick={move |_| on_confirm_click.emit(())}
+                    />
+                </div>
+            </div>
+        </Popup>
+    }
+}

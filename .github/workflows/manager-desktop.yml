@@ -1,0 +1,161 @@
+name: Build and publish manager desktop
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: windows-x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+            artifact_paths: |
+              manager/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+              manager/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+              manager/src-tauri/target/x86_64-pc-windows-msvc/release/proxyswarm-desktop-windows-x64-portable.zip
+          - id: windows-arm64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            bundles: nsis,msi
+            artifact_paths: |
+              manager/src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
+              manager/src-tauri/target/aarch64-pc-windows-msvc/release/bundle/msi/*.msi
+              manager/src-tauri/target/aarch64-pc-windows-msvc/release/proxyswarm-desktop-windows-arm64-portable.zip
+          - id: linux-x64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            bundles: appimage,deb
+            artifact_paths: |
+              manager/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+              manager/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+          - id: linux-arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            bundles: appimage,deb
+            artifact_paths: |
+              manager/src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+              manager/src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/*.deb
+          - id: macos-x64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: dmg
+            artifact_paths: |
+              manager/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+          - id: macos-arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            bundles: dmg
+            artifact_paths: |
+              manager/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }},wasm32-unknown-unknown
+
+      - name: Install trunk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: trunk
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Install Linux dependencies
+        if: startsWith(matrix.target, 'x86_64-unknown-linux-') || startsWith(matrix.target, 'aarch64-unknown-linux-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Build desktop app
+        working-directory: manager
+        run: cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Build Windows portable zip
+        if: startsWith(matrix.target, 'x86_64-pc-windows-') || startsWith(matrix.target, 'aarch64-pc-windows-')
+        shell: pwsh
+        run: |
+          $exePath = "manager\src-tauri\target\${{ matrix.target }}\release\proxyswarm-desktop.exe"
+          $zipPath = "manager\src-tauri\target\${{ matrix.target }}\release\proxyswarm-desktop-${{ matrix.id }}-portable.zip"
+          Compress-Archive -Path $exePath -DestinationPath $zipPath -Force
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.id }}
+          path: ${{ matrix.artifact_paths }}
+          if-no-files-found: error
+
+  publish-nightly:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Recreate nightly prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete nightly --yes --cleanup-tag || true
+          gh release create nightly release-assets/* \
+            --title "Desktop Nightly" \
+            --notes "Automated nightly desktop build from \`${{ github.sha }}\`." \
+            --prerelease
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} release-assets/* \
+            --title "Desktop ${{ github.ref_name }}" \
+            --generate-notes

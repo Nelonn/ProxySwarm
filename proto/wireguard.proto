@@ -1,0 +1,22 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message WireGuardConfig {
+    string private_key = 1;
+    repeated string addresses = 2;
+    repeated WireGuardPeer peers = 3;
+    int32 mtu = 4;
+    int32 workers = 5;
+    repeated uint32 reserved = 6; // 3 bytes
+    string domain_strategy = 7;
+}
+
+message WireGuardPeer {
+    string public_key = 1;
+    string endpoint = 2;
+    repeated string allowed_ips = 3;
+    repeated uint32 reserved = 4;
+    uint32 keepalive = 5;
+    string pre_shared_key = 6;
+}

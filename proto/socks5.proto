@@ -1,0 +1,16 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message Socks5InboundConfig {
+    string username = 1;
+    string password = 2;
+    bool udp_enabled = 3;
+}
+
+message Socks5OutboundConfig {
+    string server = 1;
+    int32 port = 2;
+    string username = 3;
+    string password = 4;
+}

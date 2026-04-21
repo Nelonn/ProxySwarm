@@ -1,0 +1,13 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+import "common.proto";
+
+message NaiveProxyConfig {
+    string username = 1;
+    string password = 2;
+    string protocol = 3; // "h2" or "h3"
+    string target = 4;
+    TLSConfig tls = 5;
+}

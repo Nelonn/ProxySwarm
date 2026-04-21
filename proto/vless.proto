@@ -1,0 +1,30 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+import "common.proto";
+
+message VlessRealityConfig {
+    string dest = 1;
+    string private_key = 2;
+    repeated string short_id = 3;
+    string public_key = 4;
+    string sni = 5;
+    string utls = 6;
+    string spider_x = 7;
+}
+
+message VlessConfig {
+    string uuid = 1;
+    string flow = 2;
+    SecurityMode security = 3;
+    string transmission = 4;
+    TLSConfig tls = 5;
+    VlessRealityConfig reality = 6;
+}
+
+enum SecurityMode {
+    NONE = 0;
+    TLS = 1;
+    REALITY = 2;
+}
