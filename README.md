@@ -4,12 +4,10 @@
 
 <h1 align="center">ProxySwarm</h1>
 
-> Deterministic proxy infrastructure - one manager, many nodes, zero config drift.
-
 ProxySwarm lets you run a fleet of self-hosted proxy nodes from a single control plane. The manager owns all
 configuration state; nodes consume it and converge to it. Same config in, same behavior out - every time.
 
----
+> Deterministic proxy infrastructure - one manager, many nodes, zero config drift.
 
 ## What's included
 
