@@ -139,12 +139,13 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Recreate nightly prerelease
+      - name: Create nightly prerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          files=$(find release-assets -type f | tr '\n' ' ')
           gh release delete nightly --yes --cleanup-tag || true
-          gh release create nightly release-assets/* \
+          gh release create nightly $files \
             --title "Desktop Nightly" \
             --notes "Automated nightly desktop build from \`${{ github.sha }}\`." \
             --prerelease
@@ -168,6 +169,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create ${{ github.ref_name }} release-assets/* \
+          files=$(find release-assets -type f | tr '\n' ' ')
+          gh release create ${{ github.ref_name }} $files \
             --title "Desktop ${{ github.ref_name }}" \
             --generate-notes
