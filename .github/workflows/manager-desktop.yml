@@ -75,13 +75,16 @@ jobs:
         with:
           targets: ${{ matrix.target }},wasm32-unknown-unknown
 
-      - name: Install trunk
+      - name: Cache Rust toolchain & registry
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: manager/src-tauri
+          key: ${{ matrix.target }}
+
+      - name: Install Rust tools
         uses: taiki-e/install-action@v2
         with:
-          tool: trunk
-
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
+          tool: trunk,tauri-cli
 
       - name: Install dependencies (Linux)
         if: startsWith(matrix.target, 'x86_64-unknown-linux-') || startsWith(matrix.target, 'aarch64-unknown-linux-')
