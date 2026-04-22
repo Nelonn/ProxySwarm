@@ -1,16 +1,21 @@
+use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::components::{Button, ButtonType, Popup, PopupSize, RichTable, Switch, TextBox};
+use crate::components::{Button, ButtonType, Popup, PopupSize, RichTable, SnackbarBus, Switch, TextBox};
+use crate::services::registry_deploy::deploy_all_registries;
 use crate::state::{RegistryInfo, State};
 
 #[function_component(Registries)]
 pub fn registries() -> Html {
     let state = use_context::<UseStateHandle<State>>().expect("state context");
+    let snackbar = use_context::<SnackbarBus>();
     let show_modal = use_state(|| false);
     let editing_registry = use_state(|| Option::<RegistryInfo>::None);
     let pending_delete = use_state(|| Option::<RegistryInfo>::None);
+    let pending_deploy = use_state(|| false);
+    let deploy_loading = use_state(|| false);
 
     let on_open_modal = {
         let show_modal = show_modal.clone();
@@ -21,15 +26,74 @@ pub fn registries() -> Html {
         })
     };
 
+    let on_deploy_all = {
+        let pending_deploy = pending_deploy.clone();
+        Callback::from(move |_| pending_deploy.set(true))
+    };
+
+    let on_confirm_deploy_all = {
+        let deploy_loading = deploy_loading.clone();
+        let pending_deploy = pending_deploy.clone();
+        let snackbar = snackbar.clone();
+        let state = state.clone();
+        Callback::from(move |_| {
+            if *deploy_loading {
+                return;
+            }
+
+            pending_deploy.set(false);
+            let state_snapshot = (*state).clone();
+            deploy_loading.set(true);
+            let deploy_loading = deploy_loading.clone();
+            let snackbar = snackbar.clone();
+
+            spawn_local(async move {
+                let loading_id = snackbar
+                    .as_ref()
+                    .map(|bus| bus.push("Deploying registry services..."));
+                let summary = deploy_all_registries(&state_snapshot).await;
+
+                if let (Some(bus), Some(id)) = (&snackbar, loading_id) {
+                    bus.hide(id);
+                }
+
+                if let Some(bus) = &snackbar {
+                    if summary.registries_total == 0 {
+                        bus.push("No enabled registries to deploy.");
+                    } else if !summary.failures.is_empty() {
+                        bus.push(format!(
+                            "Registry deploy finished with issues. {} of {} registries ok, {} services upserted, {} deleted, {} inbounds skipped.",
+                            summary.registries_succeeded,
+                            summary.registries_total,
+                            summary.services_deployed,
+                            summary.services_deleted,
+                            summary.skipped_inbounds
+                        ));
+                    } else {
+                        bus.push(format!(
+                            "Registry deploy complete. {} registries synced, {} services upserted, {} deleted.",
+                            summary.registries_succeeded,
+                            summary.services_deployed,
+                            summary.services_deleted
+                        ));
+                    }
+                }
+
+                deploy_loading.set(false);
+            });
+        })
+    };
+
     html! {
         <div class="p-6 space-y-6">
             <div class="flex justify-between" style="align-items: baseline;">
                 <h1 class="text-3xl font-bold">{ "Registries" }</h1>
                 <div class="flex items-center" style="gap: 0.5rem;">
                     <Button
-                        label="Deploy All"
+                        label={if *deploy_loading { "Deploying..." } else { "Deploy All" }}
                         button_type={ButtonType::Outlined}
-                        onclick={Callback::from(move |_| {})}
+                        disabled={*deploy_loading}
+                        onclick={on_deploy_all}
                     />
                     <Button
                         label="Add Registry"
@@ -122,6 +186,23 @@ pub fn registries() -> Html {
                                 let show_modal = show_modal.clone();
                                 move |_| show_modal.set(false)
                             })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
+                if *pending_deploy {
+                    let pending_deploy_cancel = pending_deploy.clone();
+                    html! {
+                        <DeleteConfirmPopup
+                            title={"Deploy Registry Services"}
+                            message={"Deploy all enabled node inbounds and accounts to every enabled registry?".to_string()}
+                            confirm_label={"Deploy"}
+                            on_cancel={Callback::from(move |_| pending_deploy_cancel.set(false))}
+                            on_confirm={on_confirm_deploy_all.clone()}
                         />
                     }
                 } else {
@@ -402,6 +483,8 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
 struct DeleteConfirmPopupProps {
     title: AttrValue,
     message: String,
+    #[prop_or(AttrValue::from("Delete"))]
+    confirm_label: AttrValue,
     on_cancel: Callback<()>,
     on_confirm: Callback<()>,
 }
@@ -426,7 +509,7 @@ fn delete_confirm_popup(props: &DeleteConfirmPopupProps) -> Html {
                         onclick={move |_| on_cancel_click.emit(())}
                     />
                     <Button
-                        label="Delete"
+                        label={props.confirm_label.to_string()}
                         button_type={ButtonType::Outlined}
                         color={Some("#F2B8B5".to_string())}
                         onclick={move |_| on_confirm_click.emit(())}

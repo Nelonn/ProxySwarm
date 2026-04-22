@@ -142,12 +142,12 @@ docker compose up --build
 Run from the repository root:
 
 ```bash
-make proto-go       # Generate Go protobuf bindings
+make proto-node-go     # Generate Go protobuf bindings
 make proto-registry-go # Generate registry Go protobuf bindings
-make proto-rust     # Regenerate Rust protobuf bindings (via manager build)
-make build-node     # Build node binary → gateway-node
-make build-registry # Build registry binary → proxyswarm-registry
-make build-manager  # Build manager web bundle
+make proto-rust        # Regenerate Rust protobuf bindings (via manager build)
+make build-node        # Build node binary → gateway-node
+make build-registry    # Build registry binary → proxyswarm-registry
+make build-manager     # Build manager web bundle
 ```
 
 > The current `Makefile` references a Windows `PROTOC` path. Adjust the `PROTOC` variable if your environment differs.
