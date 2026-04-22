@@ -39,7 +39,7 @@ type XrayEngine struct {
 	lastConfig            *pb.InboundConfig
 	lastDnsConfig         *pb.DnsConfig
 	lastRules             []*pb.RoutingRule
-	lastAccounts          map[string]string // email -> access_id
+	lastAccounts          map[string]string // email -> token
 	lastOutboundsSnapshot []*pb.OutboundConfig
 	lastOutbounds         map[string]*pb.OutboundStatus
 }
@@ -133,7 +133,7 @@ func (e *XrayEngine) restart(config *pb.InboundConfig, accounts []*pb.Account, o
 	e.lastAccounts = make(map[string]string)
 	e.lastOutbounds = make(map[string]*pb.OutboundStatus)
 	for _, acc := range accounts {
-		e.lastAccounts[acc.Name] = acc.AccessId
+		e.lastAccounts[acc.Name] = acc.Token
 	}
 	for _, outbound := range outbounds {
 		if outbound == nil || strings.TrimSpace(outbound.Tag) == "" {
@@ -196,7 +196,7 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 
 	newAccounts := make(map[string]string)
 	for _, acc := range accounts {
-		credential := strings.TrimSpace(acc.AccessId)
+		credential := strings.TrimSpace(acc.Token)
 		if hy2Cfg := config.GetHysteria2(); hy2Cfg != nil && credential == "" {
 			credential = strings.TrimSpace(hy2Cfg.Password)
 		}
@@ -209,8 +209,8 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 	}
 
 	// Add new or updated accounts
-	for email, accessId := range newAccounts {
-		if oldId, ok := e.lastAccounts[email]; !ok || oldId != accessId {
+	for email, token := range newAccounts {
+		if oldId, ok := e.lastAccounts[email]; !ok || oldId != token {
 			if ok {
 				// Remove old one first if ID changed
 				client.AlterInbound(ctx, &command.AlterInboundRequest{
@@ -225,11 +225,11 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 			var account *serial.TypedMessage
 			if config.GetHysteria2() != nil {
 				account = serial.ToTypedMessage(&hyaccount.Account{
-					Auth: accessId,
+					Auth: token,
 				})
 			} else {
 				account = serial.ToTypedMessage(&vless.Account{
-					Id:   accessId,
+					Id:   token,
 					Flow: flow,
 				})
 			}
@@ -713,7 +713,7 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 		var clients []map[string]any
 		for _, acc := range accounts {
 			clients = append(clients, map[string]any{
-				"id":    acc.AccessId,
+				"id":    acc.Token,
 				"email": acc.Name,
 				"flow":  p.Vless.Flow,
 			})
@@ -728,7 +728,7 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 		for _, acc := range accounts {
 			allowedIPs := append([]string{}, acc.AllowedIps...)
 			peers = append(peers, &conf.WireGuardPeerConfig{
-				PublicKey:  acc.AccessId,
+				PublicKey:  acc.Token,
 				AllowedIPs: allowedIPs,
 			})
 		}
@@ -743,7 +743,7 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 		inbound.Protocol = "hysteria"
 		clients := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			auth := strings.TrimSpace(acc.AccessId)
+			auth := strings.TrimSpace(acc.Token)
 			if auth == "" {
 				auth = strings.TrimSpace(p.Hysteria2.Password)
 			}

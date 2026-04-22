@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: node/common.proto
+// source: common.proto
 
 package pb
 
@@ -21,6 +21,82 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type Account struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`                              // Used as UUID for VLESS/etc
+	ExpiryTime    int64                  `protobuf:"varint,4,opt,name=expiry_time,json=expiryTime,proto3" json:"expiry_time,omitempty"` // Unix timestamp
+	AllowedIps    []string               `protobuf:"bytes,5,rep,name=allowed_ips,json=allowedIps,proto3" json:"allowed_ips,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Account) Reset() {
+	*x = Account{}
+	mi := &file_common_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Account) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Account) ProtoMessage() {}
+
+func (x *Account) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Account.ProtoReflect.Descriptor instead.
+func (*Account) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Account) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Account) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Account) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *Account) GetExpiryTime() int64 {
+	if x != nil {
+		return x.ExpiryTime
+	}
+	return 0
+}
+
+func (x *Account) GetAllowedIps() []string {
+	if x != nil {
+		return x.AllowedIps
+	}
+	return nil
+}
+
 type HardwareStats struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CpuUsage      float64                `protobuf:"fixed64,1,opt,name=cpu_usage,json=cpuUsage,proto3" json:"cpu_usage,omitempty"`
@@ -34,7 +110,7 @@ type HardwareStats struct {
 
 func (x *HardwareStats) Reset() {
 	*x = HardwareStats{}
-	mi := &file_node_common_proto_msgTypes[0]
+	mi := &file_common_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +122,7 @@ func (x *HardwareStats) String() string {
 func (*HardwareStats) ProtoMessage() {}
 
 func (x *HardwareStats) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[0]
+	mi := &file_common_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +135,7 @@ func (x *HardwareStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HardwareStats.ProtoReflect.Descriptor instead.
 func (*HardwareStats) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{0}
+	return file_common_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *HardwareStats) GetCpuUsage() float64 {
@@ -109,7 +185,7 @@ type TrafficStats struct {
 
 func (x *TrafficStats) Reset() {
 	*x = TrafficStats{}
-	mi := &file_node_common_proto_msgTypes[1]
+	mi := &file_common_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -121,7 +197,7 @@ func (x *TrafficStats) String() string {
 func (*TrafficStats) ProtoMessage() {}
 
 func (x *TrafficStats) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[1]
+	mi := &file_common_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -134,7 +210,7 @@ func (x *TrafficStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrafficStats.ProtoReflect.Descriptor instead.
 func (*TrafficStats) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{1}
+	return file_common_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *TrafficStats) GetRx() uint64 {
@@ -175,7 +251,7 @@ type ConnectionStats struct {
 
 func (x *ConnectionStats) Reset() {
 	*x = ConnectionStats{}
-	mi := &file_node_common_proto_msgTypes[2]
+	mi := &file_common_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -187,7 +263,7 @@ func (x *ConnectionStats) String() string {
 func (*ConnectionStats) ProtoMessage() {}
 
 func (x *ConnectionStats) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[2]
+	mi := &file_common_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -200,7 +276,7 @@ func (x *ConnectionStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionStats.ProtoReflect.Descriptor instead.
 func (*ConnectionStats) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{2}
+	return file_common_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ConnectionStats) GetTcp() uint32 {
@@ -227,7 +303,7 @@ type UserSessionStatus struct {
 
 func (x *UserSessionStatus) Reset() {
 	*x = UserSessionStatus{}
-	mi := &file_node_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -239,7 +315,7 @@ func (x *UserSessionStatus) String() string {
 func (*UserSessionStatus) ProtoMessage() {}
 
 func (x *UserSessionStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -252,7 +328,7 @@ func (x *UserSessionStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserSessionStatus.ProtoReflect.Descriptor instead.
 func (*UserSessionStatus) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UserSessionStatus) GetIp() string {
@@ -280,7 +356,7 @@ type InboundStatus struct {
 
 func (x *InboundStatus) Reset() {
 	*x = InboundStatus{}
-	mi := &file_node_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +368,7 @@ func (x *InboundStatus) String() string {
 func (*InboundStatus) ProtoMessage() {}
 
 func (x *InboundStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +381,7 @@ func (x *InboundStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InboundStatus.ProtoReflect.Descriptor instead.
 func (*InboundStatus) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{4}
+	return file_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *InboundStatus) GetName() string {
@@ -341,7 +417,7 @@ type AccountStatus struct {
 
 func (x *AccountStatus) Reset() {
 	*x = AccountStatus{}
-	mi := &file_node_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -353,7 +429,7 @@ func (x *AccountStatus) String() string {
 func (*AccountStatus) ProtoMessage() {}
 
 func (x *AccountStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -366,7 +442,7 @@ func (x *AccountStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountStatus.ProtoReflect.Descriptor instead.
 func (*AccountStatus) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{5}
+	return file_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AccountStatus) GetName() string {
@@ -409,7 +485,7 @@ type OutboundStatus struct {
 
 func (x *OutboundStatus) Reset() {
 	*x = OutboundStatus{}
-	mi := &file_node_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +497,7 @@ func (x *OutboundStatus) String() string {
 func (*OutboundStatus) ProtoMessage() {}
 
 func (x *OutboundStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +510,7 @@ func (x *OutboundStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OutboundStatus.ProtoReflect.Descriptor instead.
 func (*OutboundStatus) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{6}
+	return file_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *OutboundStatus) GetName() string {
@@ -481,7 +557,7 @@ type NodeStatus struct {
 
 func (x *NodeStatus) Reset() {
 	*x = NodeStatus{}
-	mi := &file_node_common_proto_msgTypes[7]
+	mi := &file_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -493,7 +569,7 @@ func (x *NodeStatus) String() string {
 func (*NodeStatus) ProtoMessage() {}
 
 func (x *NodeStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[7]
+	mi := &file_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +582,7 @@ func (x *NodeStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeStatus.ProtoReflect.Descriptor instead.
 func (*NodeStatus) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{7}
+	return file_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *NodeStatus) GetHardware() *HardwareStats {
@@ -586,7 +662,7 @@ type CertificateConfig struct {
 
 func (x *CertificateConfig) Reset() {
 	*x = CertificateConfig{}
-	mi := &file_node_common_proto_msgTypes[8]
+	mi := &file_common_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -598,7 +674,7 @@ func (x *CertificateConfig) String() string {
 func (*CertificateConfig) ProtoMessage() {}
 
 func (x *CertificateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[8]
+	mi := &file_common_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -611,7 +687,7 @@ func (x *CertificateConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificateConfig.ProtoReflect.Descriptor instead.
 func (*CertificateConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{8}
+	return file_common_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CertificateConfig) GetId() string {
@@ -716,7 +792,7 @@ type TLSConfig struct {
 
 func (x *TLSConfig) Reset() {
 	*x = TLSConfig{}
-	mi := &file_node_common_proto_msgTypes[9]
+	mi := &file_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +804,7 @@ func (x *TLSConfig) String() string {
 func (*TLSConfig) ProtoMessage() {}
 
 func (x *TLSConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[9]
+	mi := &file_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +817,7 @@ func (x *TLSConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLSConfig.ProtoReflect.Descriptor instead.
 func (*TLSConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{9}
+	return file_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *TLSConfig) GetEnabled() bool {
@@ -765,12 +841,20 @@ func (x *TLSConfig) GetCertificateName() string {
 	return ""
 }
 
-var File_node_common_proto protoreflect.FileDescriptor
+var File_common_proto protoreflect.FileDescriptor
 
-const file_node_common_proto_rawDesc = "" +
+const file_common_proto_rawDesc = "" +
 	"\n" +
-	"\x11node/common.proto\x12\n" +
-	"proxyswarm\"\x99\x01\n" +
+	"\fcommon.proto\x12\n" +
+	"proxyswarm\"\x85\x01\n" +
+	"\aAccount\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05token\x18\x03 \x01(\tR\x05token\x12\x1f\n" +
+	"\vexpiry_time\x18\x04 \x01(\x03R\n" +
+	"expiryTime\x12\x1f\n" +
+	"\vallowed_ips\x18\x05 \x03(\tR\n" +
+	"allowedIps\"\x99\x01\n" +
 	"\rHardwareStats\x12\x1b\n" +
 	"\tcpu_usage\x18\x01 \x01(\x01R\bcpuUsage\x12\x19\n" +
 	"\bram_used\x18\x02 \x01(\x04R\aramUsed\x12\x1b\n" +
@@ -837,43 +921,44 @@ const file_node_common_proto_rawDesc = "" +
 	"\x10certificate_name\x18\x03 \x01(\tR\x0fcertificateNameB\x06Z\x04./pbb\x06proto3"
 
 var (
-	file_node_common_proto_rawDescOnce sync.Once
-	file_node_common_proto_rawDescData []byte
+	file_common_proto_rawDescOnce sync.Once
+	file_common_proto_rawDescData []byte
 )
 
-func file_node_common_proto_rawDescGZIP() []byte {
-	file_node_common_proto_rawDescOnce.Do(func() {
-		file_node_common_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_node_common_proto_rawDesc), len(file_node_common_proto_rawDesc)))
+func file_common_proto_rawDescGZIP() []byte {
+	file_common_proto_rawDescOnce.Do(func() {
+		file_common_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)))
 	})
-	return file_node_common_proto_rawDescData
+	return file_common_proto_rawDescData
 }
 
-var file_node_common_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_node_common_proto_goTypes = []any{
-	(*HardwareStats)(nil),     // 0: proxyswarm.HardwareStats
-	(*TrafficStats)(nil),      // 1: proxyswarm.TrafficStats
-	(*ConnectionStats)(nil),   // 2: proxyswarm.ConnectionStats
-	(*UserSessionStatus)(nil), // 3: proxyswarm.UserSessionStatus
-	(*InboundStatus)(nil),     // 4: proxyswarm.InboundStatus
-	(*AccountStatus)(nil),     // 5: proxyswarm.AccountStatus
-	(*OutboundStatus)(nil),    // 6: proxyswarm.OutboundStatus
-	(*NodeStatus)(nil),        // 7: proxyswarm.NodeStatus
-	(*CertificateConfig)(nil), // 8: proxyswarm.CertificateConfig
-	(*TLSConfig)(nil),         // 9: proxyswarm.TLSConfig
+var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_common_proto_goTypes = []any{
+	(*Account)(nil),           // 0: proxyswarm.Account
+	(*HardwareStats)(nil),     // 1: proxyswarm.HardwareStats
+	(*TrafficStats)(nil),      // 2: proxyswarm.TrafficStats
+	(*ConnectionStats)(nil),   // 3: proxyswarm.ConnectionStats
+	(*UserSessionStatus)(nil), // 4: proxyswarm.UserSessionStatus
+	(*InboundStatus)(nil),     // 5: proxyswarm.InboundStatus
+	(*AccountStatus)(nil),     // 6: proxyswarm.AccountStatus
+	(*OutboundStatus)(nil),    // 7: proxyswarm.OutboundStatus
+	(*NodeStatus)(nil),        // 8: proxyswarm.NodeStatus
+	(*CertificateConfig)(nil), // 9: proxyswarm.CertificateConfig
+	(*TLSConfig)(nil),         // 10: proxyswarm.TLSConfig
 }
-var file_node_common_proto_depIdxs = []int32{
-	1,  // 0: proxyswarm.InboundStatus.traffic:type_name -> proxyswarm.TrafficStats
-	2,  // 1: proxyswarm.InboundStatus.connections:type_name -> proxyswarm.ConnectionStats
-	1,  // 2: proxyswarm.AccountStatus.traffic:type_name -> proxyswarm.TrafficStats
-	3,  // 3: proxyswarm.AccountStatus.sessions:type_name -> proxyswarm.UserSessionStatus
-	1,  // 4: proxyswarm.OutboundStatus.traffic:type_name -> proxyswarm.TrafficStats
-	0,  // 5: proxyswarm.NodeStatus.hardware:type_name -> proxyswarm.HardwareStats
-	4,  // 6: proxyswarm.NodeStatus.inbounds:type_name -> proxyswarm.InboundStatus
-	5,  // 7: proxyswarm.NodeStatus.accounts:type_name -> proxyswarm.AccountStatus
-	6,  // 8: proxyswarm.NodeStatus.outbounds:type_name -> proxyswarm.OutboundStatus
-	1,  // 9: proxyswarm.NodeStatus.total_inbound_traffic:type_name -> proxyswarm.TrafficStats
-	1,  // 10: proxyswarm.NodeStatus.total_outbound_traffic:type_name -> proxyswarm.TrafficStats
-	2,  // 11: proxyswarm.NodeStatus.connections:type_name -> proxyswarm.ConnectionStats
+var file_common_proto_depIdxs = []int32{
+	2,  // 0: proxyswarm.InboundStatus.traffic:type_name -> proxyswarm.TrafficStats
+	3,  // 1: proxyswarm.InboundStatus.connections:type_name -> proxyswarm.ConnectionStats
+	2,  // 2: proxyswarm.AccountStatus.traffic:type_name -> proxyswarm.TrafficStats
+	4,  // 3: proxyswarm.AccountStatus.sessions:type_name -> proxyswarm.UserSessionStatus
+	2,  // 4: proxyswarm.OutboundStatus.traffic:type_name -> proxyswarm.TrafficStats
+	1,  // 5: proxyswarm.NodeStatus.hardware:type_name -> proxyswarm.HardwareStats
+	5,  // 6: proxyswarm.NodeStatus.inbounds:type_name -> proxyswarm.InboundStatus
+	6,  // 7: proxyswarm.NodeStatus.accounts:type_name -> proxyswarm.AccountStatus
+	7,  // 8: proxyswarm.NodeStatus.outbounds:type_name -> proxyswarm.OutboundStatus
+	2,  // 9: proxyswarm.NodeStatus.total_inbound_traffic:type_name -> proxyswarm.TrafficStats
+	2,  // 10: proxyswarm.NodeStatus.total_outbound_traffic:type_name -> proxyswarm.TrafficStats
+	3,  // 11: proxyswarm.NodeStatus.connections:type_name -> proxyswarm.ConnectionStats
 	12, // [12:12] is the sub-list for method output_type
 	12, // [12:12] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
@@ -881,26 +966,26 @@ var file_node_common_proto_depIdxs = []int32{
 	0,  // [0:12] is the sub-list for field type_name
 }
 
-func init() { file_node_common_proto_init() }
-func file_node_common_proto_init() {
-	if File_node_common_proto != nil {
+func init() { file_common_proto_init() }
+func file_common_proto_init() {
+	if File_common_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_node_common_proto_rawDesc), len(file_node_common_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_node_common_proto_goTypes,
-		DependencyIndexes: file_node_common_proto_depIdxs,
-		MessageInfos:      file_node_common_proto_msgTypes,
+		GoTypes:           file_common_proto_goTypes,
+		DependencyIndexes: file_common_proto_depIdxs,
+		MessageInfos:      file_common_proto_msgTypes,
 	}.Build()
-	File_node_common_proto = out.File
-	file_node_common_proto_goTypes = nil
-	file_node_common_proto_depIdxs = nil
+	File_common_proto = out.File
+	file_common_proto_goTypes = nil
+	file_common_proto_depIdxs = nil
 }

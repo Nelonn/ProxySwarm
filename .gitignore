@@ -1,6 +1,7 @@
 .idea
 /reference
 /data
+.gocache
 
 # Common
 .DS_Store

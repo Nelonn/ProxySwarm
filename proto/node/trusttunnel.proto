@@ -2,7 +2,7 @@ syntax = "proto3";
 package proxyswarm;
 option go_package = "./pb";
 
-import "common.proto";
+import "node/common.proto";
 
 message TrustTunnelConfig {
     uint32 http1_upload_buffer_size = 1;

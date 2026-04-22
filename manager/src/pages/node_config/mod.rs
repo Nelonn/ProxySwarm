@@ -23,7 +23,7 @@ use crate::pb::proxyswarm::{
     TrustTunnelConfig, VlessConfig, VlessOutboundConfig, VlessRealityConfig, WireGuardConfig,
     WireGuardPeer,
 };
-use crate::services::api::{AcmeIssueRequest, AcmeIssueResponse};
+use crate::services::node_api::{AcmeIssueRequest, AcmeIssueResponse};
 use crate::services::warp::{generate_wireguard_keypair, register_warp_with_keypair, update_warp_license};
 use crate::services::ApiService;
 use crate::state::{
@@ -1676,7 +1676,7 @@ fn build_full_config(draft: &NodeConfigDraft, accounts: &[AccountInfo]) -> FullC
                 name: account.name.clone(),
                 allowed_ips: account.allowed_ips.clone(),
                 expiry_time: account.expiry_date,
-                access_id: account.access_id.clone(),
+                token: account.token.clone(),
             })
             .collect(),
         outbounds,
@@ -1739,13 +1739,13 @@ fn build_vless_access_link(
         return Err("Selected inbound is not VLESS".to_string());
     }
 
-    let access_id = if !account.access_id.trim().is_empty() {
-        account.access_id.trim().to_string()
+    let token = if !account.token.trim().is_empty() {
+        account.token.trim().to_string()
     } else {
         account.id.trim().to_string()
     };
-    if access_id.is_empty() {
-        return Err("User access ID is empty".to_string());
+    if token.is_empty() {
+        return Err("User token is empty".to_string());
     }
 
     let mut host = normalized_public_ip_host(node)?;
@@ -1833,7 +1833,7 @@ fn build_vless_access_link(
 
     Ok(format!(
         "vless://{}@{}:{}?{}#{}",
-        access_id,
+        token,
         host,
         inbound.port,
         query_string,
@@ -1918,13 +1918,13 @@ fn build_trusttunnel_access_link(
         return Err("User name is empty".to_string());
     }
 
-    let password = if !account.access_id.trim().is_empty() {
-        account.access_id.trim().to_string()
+    let password = if !account.token.trim().is_empty() {
+        account.token.trim().to_string()
     } else {
         account.id.trim().to_string()
     };
     if password.is_empty() {
-        return Err("User access ID is empty".to_string());
+        return Err("User token is empty".to_string());
     }
 
     let custom_sni = inbound.tls.server_name.trim().to_string();
@@ -2766,7 +2766,7 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                         match data.protocol.as_str() {
                                             "HYSTERIA2" => html! {
                                                 <ConfigSection title="Hysteria2">
-                                                    <TextBox label="Default Password" value={data.hysteria2.password.clone()} onchange={update_text(|inbound, value| inbound.hysteria2.password = value)} placeholder="Fallback if account Access ID is empty" />
+                                                    <TextBox label="Default Password" value={data.hysteria2.password.clone()} onchange={update_text(|inbound, value| inbound.hysteria2.password = value)} placeholder="Fallback if account token is empty" />
                                                     <Dropdown
                                                         label="Obfuscation Type"
                                                         value={data.hysteria2.obfs_type.clone()}
@@ -2826,7 +2826,7 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                             "WIREGUARD" => html! {
                                                 <ConfigSection title="WireGuard">
                                                     <div class="text-sm mb-4" style="color: var(--md-sys-color-on-surface-variant);">
-                                                        { "WireGuard inbound uses Xray. Each account Access ID must be peer public key, and Allowed IPs become peer routes." }
+                                                        { "WireGuard inbound uses Xray. Each account token must be peer public key, and Allowed IPs become peer routes." }
                                                     </div>
                                                     <TextBox label="Private Key" value={data.wireguard.private_key.clone()} onchange={update_text(|inbound, value| inbound.wireguard.private_key = value)} />
                                                     <TextBox label="MTU" value={data.wireguard.mtu.to_string()} onchange={update_text(|inbound, value| inbound.wireguard.mtu = value.parse().unwrap_or(0))} input_type="number" />
@@ -3162,7 +3162,7 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                     match data.protocol.as_str() {
                         "HYSTERIA2" => html! {
                             <ConfigSection title="Hysteria2">
-                                <TextBox label="Default Password" value={data.hysteria2.password.clone()} onchange={update_text(|inbound, value| inbound.hysteria2.password = value)} placeholder="Fallback if account Access ID is empty" />
+                                <TextBox label="Default Password" value={data.hysteria2.password.clone()} onchange={update_text(|inbound, value| inbound.hysteria2.password = value)} placeholder="Fallback if account token is empty" />
                                 <Dropdown
                                     label="Obfuscation Type"
                                     value={data.hysteria2.obfs_type.clone()}
@@ -3222,7 +3222,7 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                         "WIREGUARD" => html! {
                             <ConfigSection title="WireGuard">
                                 <div class="text-sm mb-4" style="color: var(--md-sys-color-on-surface-variant);">
-                                    { "WireGuard inbound uses Xray. Each account Access ID must be peer public key, and Allowed IPs become peer routes." }
+                                    { "WireGuard inbound uses Xray. Each account token must be peer public key, and Allowed IPs become peer routes." }
                                 </div>
                                 <TextBox label="Private Key" value={data.wireguard.private_key.clone()} onchange={update_text(|inbound, value| inbound.wireguard.private_key = value)} />
                                 <TextBox label="MTU" value={data.wireguard.mtu.to_string()} onchange={update_text(|inbound, value| inbound.wireguard.mtu = value.parse().unwrap_or(0))} input_type="number" />

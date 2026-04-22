@@ -4,14 +4,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.out_dir("src/pb");
 
     let proto_files = vec![
-        "../proto/common.proto",
-        "../proto/vless.proto",
-        "../proto/hysteria2.proto",
-        "../proto/trusttunnel.proto",
-        "../proto/naiveproxy.proto",
-        "../proto/wireguard.proto",
-        "../proto/socks5.proto",
-        "../proto/service.proto",
+        "../proto/account.proto",
+        "../proto/node/common.proto",
+        "../proto/node/vless.proto",
+        "../proto/node/hysteria2.proto",
+        "../proto/node/trusttunnel.proto",
+        "../proto/node/naiveproxy.proto",
+        "../proto/node/wireguard.proto",
+        "../proto/node/socks5.proto",
+        "../proto/node/service.proto",
+        "../proto/registry/registry.proto",
     ];
 
     let existing_files: Vec<&str> = proto_files
@@ -21,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     if !existing_files.is_empty() {
-        config.compile_protos(&existing_files, &["../proto"])?;
+        config.compile_protos(&existing_files, &["../proto", "../proto/node", "../proto/registry"])?;
     }
 
     Ok(())

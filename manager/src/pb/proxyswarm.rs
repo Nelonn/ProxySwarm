@@ -5,14 +5,14 @@ pub struct Account {
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub name: ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "3")]
-    pub allowed_ips: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Used as UUID for VLESS/etc
+    #[prost(string, tag = "3")]
+    pub token: ::prost::alloc::string::String,
     /// Unix timestamp
     #[prost(int64, tag = "4")]
     pub expiry_time: i64,
-    /// Used as UUID for VLESS/etc
-    #[prost(string, tag = "5")]
-    pub access_id: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "5")]
+    pub allowed_ips: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct HardwareStats {
@@ -638,3 +638,61 @@ impl OutboundType {
         }
     }
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RegistryService {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub subscription_url: ::prost::alloc::string::String,
+    #[prost(bool, tag = "4")]
+    pub enabled: bool,
+    #[prost(int32, tag = "5")]
+    pub refresh_interval_seconds: i32,
+    #[prost(int64, tag = "6")]
+    pub updated_at_unix: i64,
+    #[prost(message, repeated, tag = "7")]
+    pub accounts: ::prost::alloc::vec::Vec<Account>,
+    #[prost(message, repeated, tag = "8")]
+    pub template_links: ::prost::alloc::vec::Vec<RegistryTemplateLink>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RegistryTemplateLink {
+    #[prost(string, tag = "1")]
+    pub node_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub node_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub inbound_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub inbound_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub protocol: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub template: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RegistryListServicesRequest {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RegistryListServicesResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub services: ::prost::alloc::vec::Vec<RegistryService>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RegistryUpsertServiceRequest {
+    #[prost(message, optional, tag = "1")]
+    pub service: ::core::option::Option<RegistryService>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RegistryUpsertServiceResponse {
+    #[prost(message, optional, tag = "1")]
+    pub service: ::core::option::Option<RegistryService>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RegistryDeleteServiceRequest {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RegistryDeleteServiceResponse {}

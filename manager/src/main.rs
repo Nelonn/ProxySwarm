@@ -2,6 +2,7 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 mod components;
+mod country;
 mod pages;
 pub mod pb;
 mod services;
@@ -18,6 +19,8 @@ enum Route {
     NodeConfig { id: String },
     #[at("/accounts")]
     Accounts,
+    #[at("/registries")]
+    Registries,
     #[at("/save-data")]
     SaveData,
     #[not_found]
@@ -30,6 +33,7 @@ use pages::accounts::Accounts;
 use pages::dashboard::Dashboard;
 use pages::node_config::NodeConfigPage;
 use pages::nodes::Nodes;
+use pages::registry::Registries;
 use pages::save_data::SaveData;
 use state::State;
 
@@ -39,6 +43,7 @@ fn switch(routes: Route) -> Html {
         Route::Nodes => html! { <Nodes /> },
         Route::NodeConfig { id } => html! { <NodeConfigPage id={id} /> },
         Route::Accounts => html! { <Accounts /> },
+        Route::Registries => html! { <Registries /> },
         Route::SaveData => html! { <SaveData /> },
         Route::NotFound => html! { <div class="p-6"><h1>{ "404 Not Found" }</h1></div> },
     }
@@ -79,6 +84,11 @@ fn app() -> Html {
                                 to={Route::Accounts}
                                 icon_name={"icon-groups"}
                                 label={"Accounts"}
+                            />
+                            <NavItem
+                                to={Route::Registries}
+                                icon_name={"icon-assignment"}
+                                label={"Registries"}
                             />
                             <NavItem
                                 to={Route::SaveData}
@@ -122,7 +132,7 @@ fn app() -> Html {
                     --md-sys-color-error-soft: #F1A7B3;
                     --md-sys-color-error-soft-surface: rgba(241, 167, 179, 0.10);
                 }
-                body { margin: 0; font-family: AppFont, system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+                body { margin: 0; font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
                 button, input, textarea, select { font-family: inherit; }
                 * {
                     scrollbar-width: thin;
@@ -374,7 +384,7 @@ fn app() -> Html {
                 }
                 .nav-item-label {
                     display: block;
-                    line-height: 24px;
+                    line-height: 1;
                 }
                 
                 /* Effects */
@@ -410,7 +420,7 @@ fn app() -> Html {
                 }
                 .md3-list-col { min-width: 0; }
                 .md3-list-col-main,
-                .md3-list-col-access-id,
+                .md3-list-col-token,
                 .md3-list-col-actions { min-width: 0; }
                 .md3-list-actions { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; }
                 @media (max-width: 900px) {

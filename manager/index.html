@@ -4,27 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ProxySwarm Manager</title>
-    <link data-trunk rel="copy-file" href="assets/fonts/Roboto-VariableFont_wdth,wght.ttf">
-    <link data-trunk rel="copy-file" href="assets/fonts/Roboto-Italic-VariableFont_wdth,wght.ttf">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <style>
-        /* Local app font (avoid Google Fonts dependency). */
-        @font-face {
-            font-family: "AppFont";
-            src: url("/assets/fonts/Roboto-VariableFont_wdth,wght.ttf") format("truetype");
-            font-style: normal;
-            font-weight: 100 1000;
-            font-stretch: 75% 125%;
-            font-display: swap;
-        }
-        @font-face {
-            font-family: "AppFont";
-            src: url("/assets/fonts/Roboto-Italic-VariableFont_wdth,wght.ttf") format("truetype");
-            font-style: italic;
-            font-weight: 100 1000;
-            font-stretch: 75% 125%;
-            font-display: swap;
-        }
-
         :root {
             --bg-color: #0f172a;
             --card-bg: #1e293b;
@@ -44,7 +27,7 @@
         }
 
         body {
-            font-family: "AppFont", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+            font-family: "Roboto", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-primary);
             overflow: hidden;

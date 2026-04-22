@@ -47,7 +47,7 @@ const BUTTON_CSS: &str = r#"
 .md3-btn-outlined {
     background-color: transparent;
     color: var(--md3-btn-accent, var(--md-sys-color-primary));
-    border: 2px solid var(--md3-btn-border-color, color-mix(in srgb, var(--md-sys-color-primary) 28%, var(--md-sys-color-surface) 72%));
+    box-shadow: inset 0 0 0 2px var(--md3-btn-border-color, color-mix(in srgb, var(--md-sys-color-primary) 28%, var(--md-sys-color-surface) 72%));
 }
 .md3-btn-outlined:hover:not(:disabled) {
     background-color: var(--md3-btn-hover-color, rgba(208, 188, 255, 0.08));

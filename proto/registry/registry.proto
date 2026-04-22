@@ -1,0 +1,51 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+import "account.proto";
+import "node/common.proto";
+
+service RegistryManagementService {
+    rpc ListServices(RegistryListServicesRequest) returns (RegistryListServicesResponse);
+    rpc UpsertService(RegistryUpsertServiceRequest) returns (RegistryUpsertServiceResponse);
+    rpc DeleteService(RegistryDeleteServiceRequest) returns (RegistryDeleteServiceResponse);
+}
+
+message RegistryService {
+    string id = 1;
+    string name = 2;
+    string subscription_url = 3;
+    bool enabled = 4;
+    int32 refresh_interval_seconds = 5;
+    int64 updated_at_unix = 6;
+    repeated Account accounts = 7;
+    repeated RegistryTemplateLink template_links = 8;
+}
+
+message RegistryTemplateLink {
+    string node_id = 1;
+    string node_name = 2;
+    string inbound_id = 3;
+    string inbound_name = 4;
+    string protocol = 5;
+    string template = 6;
+}
+
+message RegistryListServicesRequest {}
+
+message RegistryListServicesResponse {
+    repeated RegistryService services = 1;
+}
+
+message RegistryUpsertServiceRequest {
+    RegistryService service = 1;
+}
+
+message RegistryUpsertServiceResponse {
+    RegistryService service = 1;
+}
+
+message RegistryDeleteServiceRequest {
+    string id = 1;
+}
+
+message RegistryDeleteServiceResponse {}

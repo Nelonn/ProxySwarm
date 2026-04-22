@@ -87,7 +87,7 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, config *pb.Inbound
 			continue
 		}
 
-		password := strings.TrimSpace(acc.AccessId)
+		password := strings.TrimSpace(acc.Token)
 		if password == "" {
 			password = strings.TrimSpace(acc.Id)
 		}

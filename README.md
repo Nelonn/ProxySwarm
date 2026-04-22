@@ -11,11 +11,11 @@ configuration state; nodes consume it and converge to it. Same config in, same b
 
 ## What's included
 
-| Component            | Stack            | Role                                                                    |
-|----------------------|------------------|-------------------------------------------------------------------------|
-| **Node runtime**     | Go + gRPC        | Runs proxy engines, applies configs, reports live telemetry             |
-| **Manager UI**       | Rust + Yew/WASM  | Browser app for config, certificates, routing, accounts, and deployment |
-| **Shared contracts** | Protocol Buffers | All config and RPC schemas in `proto/`                                  |
+| Component            | Stack           | Role                                                                    |
+|----------------------|-----------------|-------------------------------------------------------------------------|
+| **Node runtime**     | Go + gRPC       | Runs proxy engines, applies configs, reports live telemetry             |
+| **Registry service** | Go + gRPC-Web   | Stores subscription services and exposes registry management RPCs       |
+| **Manager UI**       | Rust + Yew/WASM | Browser app for config, certificates, routing, accounts, and deployment |
 
 **Supported inbound protocols:** VLESS, Hysteria2  
 **Proxy engines:** xray-core, sing-box, TrustTunnel  
@@ -29,6 +29,7 @@ configuration state; nodes consume it and converge to it. Same config in, same b
 proxyswarm/
 ├── manager/  # Web UI (Yew + Trunk)
 ├── node/     # Runtime node service (Go)
+├── registry/ # Subscription registry service (Go)
 └── proto/    # Shared gRPC protocol
 ```
 
@@ -39,7 +40,8 @@ proxyswarm/
 **Single source of truth.** The manager builds one `FullConfig` model covering inbounds, outbounds, routing, accounts,
 certificates, and DNS. Nodes never hold their own state.
 
-**Deterministic nodes.** Each node receives its config via the `NodeService` RPC (`proto/service.proto`) and applies it
+**Deterministic nodes.** Each node receives its config via the `NodeService` RPC (`proto/node/service.proto`) and
+applies it
 exactly as declared - no local overrides.
 
 **Multi-engine execution.** The node selects the right engine implementation per inbound core: `XRAY` or `SING_BOX`.
@@ -74,12 +76,12 @@ Manager deploys config  →  Node applies config  →  Manager reads status / tr
 
 ```bash
 cd node
-MASTER_KEY = "change-me" go run .\cmd\node
+PS_MASTER_KEY = "change-me" go run .\cmd\node
 ```
 
 | Variable      | Default      | Description                            |
 |---------------|--------------|----------------------------------------|
-| `MASTER_KEY`  | *(required)* | Shared secret between manager and node |
+| `PS_MASTER_KEY`  | *(required)* | Shared secret between manager and node |
 | `GRPC_LISTEN` | `:9090`      | gRPC-Web listen address                |
 
 The node exposes gRPC-Web on the same port.
@@ -93,10 +95,25 @@ trunk serve --config Trunk.toml
 
 Open the Trunk URL in your browser, add the node address (e.g. `http://127.0.0.1:9090`) and the matching master key.
 
-### 3. Run via Docker
+### 3. Run the registry service (local)
+
+```bash
+cd registry
+PS_MASTER_KEY="change-me" go run .\cmd\registry
+```
+
+| Variable                 | Default | Description                                        |
+|--------------------------|---------|----------------------------------------------------|
+| `PS_MASTER_KEY`          | *(required)* | Shared secret between manager and registry manage API |
+| `REGISTRY_MODE`          | `1`     | `1`: user + manage on same port, `2`: split ports  |
+| `REGISTRY_LISTEN`        | `:9191` | User API listen address (mode `1`: shared address) |
+| `REGISTRY_MANAGE_LISTEN` | `:9291` | Manage gRPC-Web listen address (mode `2` only)     |
+
+### 4. Run via Docker
 
 > [!CAUTION]
-> Be careful with GRPC_LISTEN! It’s better to listen only on the local network and use a reverse proxy with HTTPS or an SSH tunnel.
+> Be careful with GRPC_LISTEN! It’s better to listen only on the local network and use a reverse proxy with HTTPS or an
+> SSH tunnel.
 
 ```yaml
 services:
@@ -105,7 +122,7 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
-      - MASTER_KEY=${MASTER_KEY:-my-secret-key}
+      - PS_MASTER_KEY=${PS_MASTER_KEY:-my-secret-key}
       - GRPC_LISTEN=:9090
     volumes:
       - ./data:/data
@@ -115,8 +132,8 @@ services:
 docker compose up --build
 ```
 
-`docker-compose.yaml` starts `proxy-node` with `MASTER_KEY`, `GRPC_LISTEN=:9090`, and host networking. The default
-`MASTER_KEY` in the compose file is for local testing only - override it in production.
+`docker-compose.yaml` starts `proxy-node` with `PS_MASTER_KEY`, `GRPC_LISTEN=:9090`, and host networking. The default
+`PS_MASTER_KEY` in the compose file is for local testing only - override it in production.
 
 ---
 
@@ -126,8 +143,10 @@ Run from the repository root:
 
 ```bash
 make proto-go       # Generate Go protobuf bindings
+make proto-registry-go # Generate registry Go protobuf bindings
 make proto-rust     # Regenerate Rust protobuf bindings (via manager build)
 make build-node     # Build node binary → gateway-node
+make build-registry # Build registry binary → proxyswarm-registry
 make build-manager  # Build manager web bundle
 ```
 
@@ -146,6 +165,14 @@ make build-manager  # Build manager web bundle
 | `IssueAcmeCertificate` | `AcmeIssueRequest`         | Trigger ACME certificate issuance |
 | `RegisterWarp`         | `WarpRegisterRequest`      | Register a WARP identity          |
 | `UpdateWarpLicense`    | `WarpLicenseUpdateRequest` | Update the WARP license           |
+
+### RegistryManagementService RPC methods
+
+| Method          | Request type                   | Description                           |
+|-----------------|--------------------------------|---------------------------------------|
+| `ListServices`  | `RegistryListServicesRequest`  | List configured subscription services |
+| `UpsertService` | `RegistryUpsertServiceRequest` | Create/update subscription service    |
+| `DeleteService` | `RegistryDeleteServiceRequest` | Delete subscription service by ID     |
 
 ---
 

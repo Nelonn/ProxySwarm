@@ -45,7 +45,7 @@ pub fn accounts() -> Html {
                 html! {
                     <RichTable columns={vec![
                         "Account".to_string(),
-                        "Access ID".to_string(),
+                        "Token".to_string(),
                         "Allowed IPs".to_string(),
                         "Expires".to_string(),
                         "Actions".to_string(),
@@ -131,7 +131,7 @@ struct AccountCardProps {
 
 #[function_component(AccountRow)]
 fn account_row(props: &AccountCardProps) -> Html {
-    let show_access_id = use_state(|| false);
+    let show_token = use_state(|| false);
 
     let expiry_date = if props.account.expiry_date > 0 {
         chrono::DateTime::from_timestamp(props.account.expiry_date, 0)
@@ -143,19 +143,19 @@ fn account_row(props: &AccountCardProps) -> Html {
 
     let on_edit_click = props.on_edit.clone();
     let on_delete_click = props.on_delete.clone();
-    let access_id_click = {
-        let show_access_id = show_access_id.clone();
+    let token_click = {
+        let show_token = show_token.clone();
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
-            show_access_id.set(!*show_access_id);
+            show_token.set(!*show_token);
         })
     };
 
-    let access_id_hidden = "************";
-    let access_id_html = if *show_access_id {
-        html! { <code class="md3-secret md3-secret-revealed break-all">{ &props.account.access_id }</code> }
+    let token_hidden = "************";
+    let token_html = if *show_token {
+        html! { <code class="md3-secret md3-secret-revealed break-all">{ &props.account.token }</code> }
     } else {
-        html! { <code class="md3-secret md3-secret-hidden">{ access_id_hidden }</code> }
+        html! { <code class="md3-secret md3-secret-hidden">{ token_hidden }</code> }
     };
 
     html! {
@@ -163,13 +163,13 @@ fn account_row(props: &AccountCardProps) -> Html {
             <div class="md3-list-col md3-list-col-main">
                 <div class="text-lg font-bold">{ &props.account.name }</div>
             </div>
-            <div class="md3-list-col md3-list-col-access-id">
+            <div class="md3-list-col md3-list-col-token">
                 <button
                     class="md3-secret-btn"
-                    onclick={access_id_click}
-                    aria-pressed={show_access_id.to_string()}
+                    onclick={token_click}
+                    aria-pressed={show_token.to_string()}
                 >
-                    { access_id_html }
+                    { token_html }
                 </button>
             </div>
             <div class="md3-list-col">
@@ -216,13 +216,13 @@ struct AccountModalProps {
 #[function_component(AccountModal)]
 fn account_modal(props: &AccountModalProps) -> Html {
     let name = use_state(|| String::new());
-    let access_id = use_state(|| String::new());
+    let token = use_state(|| String::new());
     let allowed_ips = use_state(|| String::new());
     let expiry_date_str = use_state(|| String::new());
 
     {
         let name = name.clone();
-        let access_id = access_id.clone();
+        let token = token.clone();
         let allowed_ips = allowed_ips.clone();
         let expiry_date_str = expiry_date_str.clone();
         let initial_account = props.initial_account.clone();
@@ -230,7 +230,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
         use_effect_with(initial_account, move |initial_account| {
             if let Some(account) = initial_account {
                 name.set(account.name.clone());
-                access_id.set(account.access_id.clone());
+                token.set(account.token.clone());
                 allowed_ips.set(account.allowed_ips.join(", "));
                 let dt_str = chrono::DateTime::from_timestamp(account.expiry_date, 0)
                     .map(|dt| dt.format("%Y-%m-%dT%H:%M").to_string())
@@ -242,7 +242,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 });
             } else {
                 name.set(String::new());
-                access_id.set(String::new());
+                token.set(String::new());
                 allowed_ips.set(String::new());
                 expiry_date_str.set(String::new());
             }
@@ -251,7 +251,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
     }
 
     let name_for_change = name.clone();
-    let access_id_for_change = access_id.clone();
+    let token_for_change = token.clone();
     let allowed_ips_for_change = allowed_ips.clone();
     let expiry_date_str_for_change = expiry_date_str.clone();
 
@@ -259,8 +259,8 @@ fn account_modal(props: &AccountModalProps) -> Html {
         name_for_change.set(value);
     });
 
-    let on_access_id_change = Callback::from(move |value: String| {
-        access_id_for_change.set(value);
+    let on_token_change = Callback::from(move |value: String| {
+        token_for_change.set(value);
     });
 
     let on_allowed_ips_change = Callback::from(move |value: String| {
@@ -272,7 +272,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
     });
 
     let name_for_submit = name.clone();
-    let access_id_for_submit = access_id.clone();
+    let token_for_submit = token.clone();
     let allowed_ips_for_submit = allowed_ips.clone();
     let expiry_date_str_for_submit = expiry_date_str.clone();
     let initial_account_for_submit = props.initial_account.clone();
@@ -312,10 +312,10 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 for a in &mut new_state.accounts {
                     if a.id == existing.id {
                         a.name = (*name_for_submit).clone();
-                        a.access_id = if access_id_for_submit.is_empty() {
-                            existing.access_id.clone()
+                        a.token = if token_for_submit.is_empty() {
+                            existing.token.clone()
                         } else {
-                            (*access_id_for_submit).clone()
+                            (*token_for_submit).clone()
                         };
                         a.allowed_ips = allowed_ips_vec.clone();
                         a.expiry_date = expiry_date;
@@ -327,10 +327,10 @@ fn account_modal(props: &AccountModalProps) -> Html {
                     new_state.accounts.push(AccountInfo {
                         id: existing.id.clone(),
                         name: (*name_for_submit).clone(),
-                        access_id: if access_id_for_submit.is_empty() {
-                            existing.access_id.clone()
+                        token: if token_for_submit.is_empty() {
+                            existing.token.clone()
                         } else {
-                            (*access_id_for_submit).clone()
+                            (*token_for_submit).clone()
                         },
                         allowed_ips: allowed_ips_vec,
                         expiry_date,
@@ -340,10 +340,10 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 new_state.accounts.push(AccountInfo {
                     id: Uuid::new_v4().to_string(),
                     name: (*name_for_submit).clone(),
-                    access_id: if access_id_for_submit.is_empty() {
+                    token: if token_for_submit.is_empty() {
                         Uuid::new_v4().to_string()
                     } else {
-                        (*access_id_for_submit).clone()
+                        (*token_for_submit).clone()
                     },
                     allowed_ips: allowed_ips_vec,
                     expiry_date,
@@ -372,15 +372,15 @@ fn account_modal(props: &AccountModalProps) -> Html {
                     placeholder="My Account"
                 />
                 <TextBox
-                    label="Access ID (Password)"
-                    value={(*access_id).clone()}
-                    onchange={on_access_id_change}
+                    label="Token (Password)"
+                    value={(*token).clone()}
+                    onchange={on_token_change}
                     placeholder="Auto-generated if empty"
                     action_icon={Some("icon-sync".to_string())}
-                    action_label={Some("Randomize access ID".to_string())}
+                    action_label={Some("Randomize token".to_string())}
                     action_onclick={Some(Callback::from({
-                        let access_id = access_id.clone();
-                        move |_| access_id.set(Uuid::new_v4().to_string())
+                        let token = token.clone();
+                        move |_| token.set(Uuid::new_v4().to_string())
                     }))}
                 />
                 <TextBox

@@ -5,14 +5,10 @@ use sha2::{Digest, Sha256};
 use wasm_bindgen::JsValue;
 
 use crate::pb::proxyswarm::{
-    FullConfig, NodeStatus, StatusRequest, UpdateResponse, WarpRegisterRequest,
-    WarpLicenseUpdateRequest, WarpLicenseUpdateResponse, WarpRegisterResponse, WarpRegistration,
+    RegistryDeleteServiceRequest, RegistryDeleteServiceResponse, RegistryListServicesRequest,
+    RegistryListServicesResponse, RegistryService, RegistryUpsertServiceRequest,
+    RegistryUpsertServiceResponse,
 };
-pub use crate::pb::proxyswarm::{AcmeIssueRequest, AcmeIssueResponse};
-
-pub struct ApiService {
-    base_url: String,
-}
 
 struct GrpcWebResponse {
     message: Vec<u8>,
@@ -86,75 +82,27 @@ fn parse_grpc_web_response(bytes: &[u8]) -> Result<GrpcWebResponse, String> {
     })
 }
 
-impl ApiService {
-    pub fn new(base_url: String) -> Self {
+pub struct RegistryApiService {
+    base_url: String,
+    master_key_hash: String,
+}
+
+impl RegistryApiService {
+    pub fn new(base_url: String, master_key: String) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
+            master_key_hash: hash_master_key(&master_key),
         }
     }
 
-    pub async fn update_config(&self, mut config: FullConfig) -> Result<UpdateResponse, String> {
-        config.master_key = hash_master_key(&config.master_key);
-        let encoded = config.encode_to_vec();
-        let framed = frame_grpc_web_message(&encoded);
-        let url = format!("{}/proxyswarm.NodeService/UpdateConfig", self.base_url);
-        let js_body = Uint8Array::from(framed.as_slice());
-
-        let resp = Request::post(&url)
-            .header("Content-Type", "application/grpc-web+proto")
-            .header("Accept", "application/grpc-web+proto")
-            .header("X-Grpc-Web", "1")
-            .header("X-User-Agent", "grpc-web-javascript/0.1")
-            .body(JsValue::from(js_body))
-            .map_err(|e| format!("Failed to create request: {}", e))?;
-
-        let resp = resp
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
-
-        let bytes = resp
-            .binary()
-            .await
-            .map_err(|e| format!("Failed to get response bytes: {}", e))?;
-        let header_error = resp
-            .headers()
-            .get("grpc-message")
-            .map(|value| decode_grpc_message(value.as_str()));
-        let parsed = parse_grpc_web_response(&bytes)?;
-        let grpc_status = parsed.grpc_status.unwrap_or(0);
-        let grpc_error = parsed.grpc_error.or(header_error);
-
-        if !resp.ok() {
-            return Err(grpc_error
-                .unwrap_or_else(|| format!("Request failed with status: {}", resp.status())));
-        }
-
-        if grpc_status != 0 {
-            return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
-        }
-
-        let response = UpdateResponse::decode(&parsed.message[..])
-            .map_err(|e| format!("Failed to decode response: {}", e))?;
-
-        if !response.success {
-            return Err(if response.error.trim().is_empty() {
-                grpc_error.unwrap_or_else(|| "Unknown apply error".to_string())
-            } else {
-                response.error.clone()
-            });
-        }
-
-        Ok(response)
-    }
-
-    pub async fn get_status(&self, master_key: String) -> Result<NodeStatus, String> {
-        let request = StatusRequest {
-            master_key: hash_master_key(&master_key),
-        };
+    pub async fn list_services(&self) -> Result<Vec<RegistryService>, String> {
+        let request = RegistryListServicesRequest {};
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);
-        let url = format!("{}/proxyswarm.NodeService/GetStatus", self.base_url);
+        let url = format!(
+            "{}/proxyswarm.RegistryManagementService/ListServices",
+            self.base_url
+        );
         let js_body = Uint8Array::from(framed.as_slice());
 
         let resp = Request::post(&url)
@@ -162,55 +110,7 @@ impl ApiService {
             .header("Accept", "application/grpc-web+proto")
             .header("X-Grpc-Web", "1")
             .header("X-User-Agent", "grpc-web-javascript/0.1")
-            .body(JsValue::from(js_body))
-            .map_err(|e| format!("Failed to create request: {}", e))?;
-
-        let resp = resp
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
-        let bytes = resp
-            .binary()
-            .await
-            .map_err(|e| format!("Failed to get response bytes: {}", e))?;
-        let header_error = resp
-            .headers()
-            .get("grpc-message")
-            .map(|value| decode_grpc_message(value.as_str()));
-        let parsed = parse_grpc_web_response(&bytes)?;
-        let grpc_status = parsed.grpc_status.unwrap_or(0);
-        let grpc_error = parsed.grpc_error.or(header_error);
-
-        if !resp.ok() {
-            return Err(grpc_error
-                .unwrap_or_else(|| format!("Request failed with status: {}", resp.status())));
-        }
-
-        if grpc_status != 0 {
-            return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
-        }
-
-        let status = NodeStatus::decode(&parsed.message[..])
-            .map_err(|e| format!("Failed to decode response: {}", e))?;
-
-        Ok(status)
-    }
-
-    pub async fn issue_acme_certificate(
-        &self,
-        mut request: AcmeIssueRequest,
-    ) -> Result<AcmeIssueResponse, String> {
-        request.master_key = hash_master_key(&request.master_key);
-        let encoded = request.encode_to_vec();
-        let framed = frame_grpc_web_message(&encoded);
-        let url = format!("{}/proxyswarm.NodeService/IssueAcmeCertificate", self.base_url);
-        let js_body = Uint8Array::from(framed.as_slice());
-
-        let resp = Request::post(&url)
-            .header("Content-Type", "application/grpc-web+proto")
-            .header("Accept", "application/grpc-web+proto")
-            .header("X-Grpc-Web", "1")
-            .header("X-User-Agent", "grpc-web-javascript/0.1")
+            .header("X-Registry-Master-Key", &self.master_key_hash)
             .body(JsValue::from(js_body))
             .map_err(|e| format!("Failed to create request: {}", e))?
             .send()
@@ -233,37 +133,25 @@ impl ApiService {
             return Err(grpc_error
                 .unwrap_or_else(|| format!("Request failed with status: {}", resp.status())));
         }
-
         if grpc_status != 0 {
             return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
         }
 
-        let response = AcmeIssueResponse::decode(&parsed.message[..])
+        let response = RegistryListServicesResponse::decode(&parsed.message[..])
             .map_err(|e| format!("Failed to decode response: {}", e))?;
-
-        if !response.success {
-            return Err(if response.error.trim().is_empty() {
-                grpc_error.unwrap_or_else(|| "Unknown ACME issuance error".to_string())
-            } else {
-                response.error.clone()
-            });
-        }
-
-        Ok(response)
+        Ok(response.services)
     }
 
-    pub async fn register_warp(
-        &self,
-        master_key: String,
-        public_key: String,
-    ) -> Result<WarpRegistration, String> {
-        let request = WarpRegisterRequest {
-            master_key: hash_master_key(&master_key),
-            public_key,
+    pub async fn upsert_service(&self, service: RegistryService) -> Result<RegistryService, String> {
+        let request = RegistryUpsertServiceRequest {
+            service: Some(service),
         };
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);
-        let url = format!("{}/proxyswarm.NodeService/RegisterWarp", self.base_url);
+        let url = format!(
+            "{}/proxyswarm.RegistryManagementService/UpsertService",
+            self.base_url
+        );
         let js_body = Uint8Array::from(framed.as_slice());
 
         let resp = Request::post(&url)
@@ -271,6 +159,7 @@ impl ApiService {
             .header("Accept", "application/grpc-web+proto")
             .header("X-Grpc-Web", "1")
             .header("X-User-Agent", "grpc-web-javascript/0.1")
+            .header("X-Registry-Master-Key", &self.master_key_hash)
             .body(JsValue::from(js_body))
             .map_err(|e| format!("Failed to create request: {}", e))?
             .send()
@@ -293,43 +182,25 @@ impl ApiService {
             return Err(grpc_error
                 .unwrap_or_else(|| format!("Request failed with status: {}", resp.status())));
         }
-
         if grpc_status != 0 {
             return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
         }
 
-        let response = WarpRegisterResponse::decode(&parsed.message[..])
+        let response = RegistryUpsertServiceResponse::decode(&parsed.message[..])
             .map_err(|e| format!("Failed to decode response: {}", e))?;
-
-        if !response.success {
-            return Err(if response.error.trim().is_empty() {
-                grpc_error.unwrap_or_else(|| "Unknown WARP registration error".to_string())
-            } else {
-                response.error.clone()
-            });
-        }
-
         response
-            .registration
-            .ok_or_else(|| "Missing WARP registration payload".to_string())
+            .service
+            .ok_or_else(|| "Missing registry service payload".to_string())
     }
 
-    pub async fn update_warp_license(
-        &self,
-        master_key: String,
-        device_id: String,
-        access_token: String,
-        license: String,
-    ) -> Result<String, String> {
-        let request = WarpLicenseUpdateRequest {
-            master_key: hash_master_key(&master_key),
-            device_id,
-            access_token,
-            license,
-        };
+    pub async fn delete_service(&self, id: String) -> Result<(), String> {
+        let request = RegistryDeleteServiceRequest { id };
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);
-        let url = format!("{}/proxyswarm.NodeService/UpdateWarpLicense", self.base_url);
+        let url = format!(
+            "{}/proxyswarm.RegistryManagementService/DeleteService",
+            self.base_url
+        );
         let js_body = Uint8Array::from(framed.as_slice());
 
         let resp = Request::post(&url)
@@ -337,6 +208,7 @@ impl ApiService {
             .header("Accept", "application/grpc-web+proto")
             .header("X-Grpc-Web", "1")
             .header("X-User-Agent", "grpc-web-javascript/0.1")
+            .header("X-Registry-Master-Key", &self.master_key_hash)
             .body(JsValue::from(js_body))
             .map_err(|e| format!("Failed to create request: {}", e))?
             .send()
@@ -359,27 +231,17 @@ impl ApiService {
             return Err(grpc_error
                 .unwrap_or_else(|| format!("Request failed with status: {}", resp.status())));
         }
-
         if grpc_status != 0 {
             return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
         }
 
-        let response = WarpLicenseUpdateResponse::decode(&parsed.message[..])
+        let _ = RegistryDeleteServiceResponse::decode(&parsed.message[..])
             .map_err(|e| format!("Failed to decode response: {}", e))?;
-
-        if !response.success {
-            return Err(if response.error.trim().is_empty() {
-                grpc_error.unwrap_or_else(|| "Unknown WARP license update error".to_string())
-            } else {
-                response.error.clone()
-            });
-        }
-
-        Ok(response.license)
+        Ok(())
     }
 }
 
-pub fn hash_master_key(master_key: &str) -> String {
+fn hash_master_key(master_key: &str) -> String {
     let digest = Sha256::digest(master_key.as_bytes());
     let mut output = String::with_capacity(digest.len() * 2);
     for byte in digest {

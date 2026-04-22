@@ -2,13 +2,14 @@ syntax = "proto3";
 package proxyswarm;
 option go_package = "./pb";
 
-import "common.proto";
-import "vless.proto";
-import "hysteria2.proto";
-import "trusttunnel.proto";
-import "naiveproxy.proto";
-import "wireguard.proto";
-import "socks5.proto";
+import "account.proto";
+import "node/common.proto";
+import "node/vless.proto";
+import "node/hysteria2.proto";
+import "node/trusttunnel.proto";
+import "node/naiveproxy.proto";
+import "node/wireguard.proto";
+import "node/socks5.proto";
 
 service NodeService {
     rpc UpdateConfig(FullConfig) returns (UpdateResponse);

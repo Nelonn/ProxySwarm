@@ -1,4 +1,5 @@
-pub mod api;
+pub mod node_api;
+pub mod registry_api;
 pub mod warp;
 
-pub use api::ApiService;
+pub use node_api::ApiService;

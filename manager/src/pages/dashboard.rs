@@ -1,4 +1,6 @@
-use crate::pb::proxyswarm::{AccountStatus, InboundStatus, NodeStatus};
+use crate::components::{Button, ButtonType};
+use crate::country::{country_name, flag_emoji, normalize_country_code};
+use crate::pb::proxyswarm::{NodeStatus, TrafficStats};
 use crate::services::ApiService;
 use crate::state::State;
 use wasm_bindgen_futures::spawn_local;
@@ -32,10 +34,9 @@ pub fn dashboard() -> Html {
                 { for state.nodes.iter().map(|node| {
                     html! {
                         <NodeStatusCard
-                            node_id={node.id.clone()}
+                            country={node.country.clone()}
                             node_name={node.name.clone()}
                             address={node.address.clone()}
-                            public_ip={node.public_ip.clone()}
                             master_key={node.master_key.clone()}
                         />
                     }
@@ -63,10 +64,9 @@ fn stat_card(props: &StatCardProps) -> Html {
 
 #[derive(Properties, PartialEq)]
 struct NodeStatusCardProps {
-    node_id: String,
+    country: String,
     node_name: String,
     address: String,
-    public_ip: String,
     master_key: String,
 }
 
@@ -112,24 +112,16 @@ fn node_status_card(props: &NodeStatusCardProps) -> Html {
     html! {
         <div class="md3-card bg-surface-container">
             <div class="flex justify-between items-center mb-4">
-                <div>
+                <div class="space-y-1">
                     <h3 class="font-bold text-lg">{ &props.node_name }</h3>
-                    <p class="text-sm opacity-70">{ format!("Access: {}", &props.address) }</p>
-                    {
-                        if props.public_ip.trim().is_empty() {
-                            html! {}
-                        } else {
-                            html! { <p class="text-sm opacity-70">{ format!("Public IP: {}", &props.public_ip) }</p> }
-                        }
-                    }
+                    { render_country(&props.country) }
                 </div>
-                <button
-                    onclick={fetch_status}
+                <Button
+                    label={if *loading { "Loading...".to_string() } else { "Refresh".to_string() }}
+                    button_type={ButtonType::Filled}
                     disabled={*loading}
-                    class="md3-btn md3-btn-filled text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
-                >
-                    { if *loading { "Loading..." } else { "Refresh" } }
-                </button>
+                    onclick={fetch_status}
+                />
             </div>
 
             if let Some(err) = &*error {
@@ -154,91 +146,25 @@ struct NodeStatusDisplayProps {
 
 #[function_component(NodeStatusDisplay)]
 fn node_status_display(props: &NodeStatusDisplayProps) -> Html {
+    let current_traffic = current_traffic_usage(
+        props.status.total_inbound_traffic.as_ref(),
+        props.status.total_outbound_traffic.as_ref(),
+    );
+    let total_traffic = total_traffic_usage(
+        props.status.total_inbound_traffic.as_ref(),
+        props.status.total_outbound_traffic.as_ref(),
+    );
+
     html! {
-        <div class="space-y-4">
-            // Hardware Stats
-            if let Some(hw) = &props.status.hardware {
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-surface-container p-3 rounded-lg">
-                        <div class="text-xs opacity-70 uppercase">{"CPU Usage"}</div>
-                        <div class="text-xl font-bold">{ format!("{:.1}%", hw.cpu_usage) }</div>
-                    </div>
-                    <div class="bg-surface-container p-3 rounded-lg">
-                        <div class="text-xs opacity-70 uppercase">{"RAM Usage"}</div>
-                        <div class="text-xl font-bold">{ format!("{} / {}", format_bytes(hw.ram_used), format_bytes(hw.ram_total)) }</div>
-                    </div>
-                    <div class="bg-surface-container p-3 rounded-lg">
-                        <div class="text-xs opacity-70 uppercase">{"Uptime"}</div>
-                        <div class="text-xl font-bold">{ format_uptime(hw.uptime) }</div>
-                    </div>
-                </div>
-            }
-
-            // Inbound Status
-            if !props.status.inbounds.is_empty() {
-                <div>
-                    <h4 class="font-semibold text-sm mb-2 uppercase opacity-70">{"Inbounds"}</h4>
-                    <div class="space-y-2">
-                        { for props.status.inbounds.iter().map(|inbound| {
-                            html! {
-                                <InboundRow inbound={inbound.clone()} />
-                            }
-                        }) }
-                    </div>
-                </div>
-            }
-
-            // Account Status
-            if !props.status.accounts.is_empty() {
-                <div>
-                    <h4 class="font-semibold text-sm mb-2 uppercase opacity-70">{"Accounts"}</h4>
-                    <div class="space-y-2">
-                        { for props.status.accounts.iter().map(|account| {
-                            html! {
-                                <AccountRow account={account.clone()} />
-                            }
-                        }) }
-                    </div>
-                </div>
-            }
-        </div>
-    }
-}
-
-#[derive(Properties, PartialEq)]
-struct InboundRowProps {
-    inbound: InboundStatus,
-}
-
-#[function_component(InboundRow)]
-fn inbound_row(props: &InboundRowProps) -> Html {
-    html! {
-        <div class="flex justify-between items-center bg-surface-container p-3 rounded-lg">
-            <span class="font-medium">{ &props.inbound.name }</span>
-            if let Some(traffic) = &props.inbound.traffic {
-                <span class="text-sm opacity-70">
-                    { format!("↓ {} ↑ {}", format_bytes(traffic.rx), format_bytes(traffic.tx)) }
-                </span>
-            }
-        </div>
-    }
-}
-
-#[derive(Properties, PartialEq)]
-struct AccountRowProps {
-    account: AccountStatus,
-}
-
-#[function_component(AccountRow)]
-fn account_row(props: &AccountRowProps) -> Html {
-    html! {
-        <div class="flex justify-between items-center bg-surface-container p-3 rounded-lg">
-            <span class="font-medium">{ &props.account.name }</span>
-            if let Some(traffic) = &props.account.traffic {
-                <span class="text-sm opacity-70">
-                    { format!("↓ {} ↑ {}", format_bytes(traffic.rx), format_bytes(traffic.tx)) }
-                </span>
-            }
+        <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
+            <div class="bg-surface-container p-3 rounded-lg">
+                <div class="text-xs opacity-70 uppercase">{ "Current Traffic Usage" }</div>
+                <div class="text-xl font-bold">{ current_traffic }</div>
+            </div>
+            <div class="bg-surface-container p-3 rounded-lg">
+                <div class="text-xs opacity-70 uppercase">{ "Total Traffic Usage" }</div>
+                <div class="text-xl font-bold">{ total_traffic }</div>
+            </div>
         </div>
     }
 }
@@ -267,4 +193,49 @@ fn format_uptime(seconds: u64) -> String {
     } else {
         format!("{}m", minutes)
     }
+}
+
+fn render_country(country: &str) -> Html {
+    let normalized = normalize_country_code(country);
+    let flag = flag_emoji(country);
+
+    if normalized.is_empty() || flag.is_empty() {
+        html! {
+            <div class="flex items-center gap-2" style="min-height: 1.5rem;">
+                <span class="text-sm opacity-70">{ "Not set" }</span>
+            </div>
+        }
+    } else {
+        let label = country_name(country)
+            .map(|name| format!("{} ({})", name, normalized))
+            .unwrap_or_else(|| normalized.clone());
+        html! {
+            <div
+                class="flex items-center gap-2 text-sm opacity-70"
+                style="line-height: 1; min-height: 1.5rem; column-gap: 0.625rem;"
+            >
+                <span
+                    class="text-2xl leading-none"
+                    style="display: inline-flex; align-items: center; line-height: 1;"
+                >
+                    { flag }
+                </span>
+                <span style="display: inline-flex; align-items: center; line-height: 1;">
+                    { label }
+                </span>
+            </div>
+        }
+    }
+}
+
+fn current_traffic_usage(inbound: Option<&TrafficStats>, outbound: Option<&TrafficStats>) -> String {
+    let inbound_rate = inbound.map(|traffic| traffic.rx_rate + traffic.tx_rate).unwrap_or(0.0);
+    let outbound_rate = outbound.map(|traffic| traffic.rx_rate + traffic.tx_rate).unwrap_or(0.0);
+    format!("{}/s", format_bytes((inbound_rate + outbound_rate).round() as u64))
+}
+
+fn total_traffic_usage(inbound: Option<&TrafficStats>, outbound: Option<&TrafficStats>) -> String {
+    let inbound_total = inbound.map(|traffic| traffic.rx.saturating_add(traffic.tx)).unwrap_or(0);
+    let outbound_total = outbound.map(|traffic| traffic.rx.saturating_add(traffic.tx)).unwrap_or(0);
+    format_bytes(inbound_total.saturating_add(outbound_total))
 }

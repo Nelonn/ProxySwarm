@@ -59,6 +59,12 @@ fn build_sprite_defs() -> String {
             ),
         ),
         symbol(
+            "icon-assignment",
+            include_str!(
+                "../../assets/icons/assignment_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"
+            ),
+        ),
+        symbol(
             "icon-call-made",
             include_str!("../../assets/icons/call_made_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"),
         ),

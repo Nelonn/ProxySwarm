@@ -24,7 +24,7 @@ func TestPersistedConfigRoundTrip(t *testing.T) {
 			{
 				Id:       "1",
 				Name:     "user",
-				AccessId: "access",
+				Token: "access",
 			},
 		},
 	}
@@ -46,7 +46,7 @@ func TestPersistedConfigRoundTrip(t *testing.T) {
 	if loaded.Inbounds[0].Name != "main" || loaded.Inbounds[0].Port != 443 || !loaded.Inbounds[0].Enabled {
 		t.Fatalf("unexpected inbound contents: %#v", loaded.Inbounds[0])
 	}
-	if got := len(loaded.Accounts); got != 1 || loaded.Accounts[0].AccessId != "access" {
+	if got := len(loaded.Accounts); got != 1 || loaded.Accounts[0].Token != "access" {
 		t.Fatalf("unexpected accounts: %#v", loaded.Accounts)
 	}
 }

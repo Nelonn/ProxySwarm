@@ -118,11 +118,7 @@ pub(super) fn render_status_tab(
                                         />
                                     }
                                 } else {
-                                    html! {
-                                        <div class="md3-card bg-surface-container">
-                                            <div class="text-sm opacity-70">{ "Open this tab to start live sampling. The node updates status every 2 seconds while this tab is visible." }</div>
-                                        </div>
-                                    }
+                                    html! { <StatusSkeletonPanel /> }
                                 }
                             }
                         </div>

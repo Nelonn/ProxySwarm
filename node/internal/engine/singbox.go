@@ -235,7 +235,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		for _, acc := range accounts {
 			users = append(users, map[string]any{
 				"name": acc.Name,
-				"uuid": acc.AccessId,
+				"uuid": acc.Token,
 			})
 		}
 		inbound["users"] = users
@@ -273,7 +273,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		for _, acc := range accounts {
 			password := p.Hysteria2.Password
 			if password == "" {
-				password = acc.AccessId
+				password = acc.Token
 			}
 			users = append(users, map[string]any{
 				"name":     acc.Name,
@@ -294,7 +294,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		for _, acc := range accounts {
 			users = append(users, map[string]any{
 				"username": acc.Name,
-				"password": acc.AccessId,
+				"password": acc.Token,
 			})
 		}
 		inbound["users"] = users

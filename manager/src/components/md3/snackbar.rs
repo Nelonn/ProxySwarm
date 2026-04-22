@@ -2,6 +2,8 @@ use gloo_timers::callback::Timeout;
 use std::rc::Rc;
 use yew::prelude::*;
 
+use crate::components::FixedHeightText;
+
 #[derive(Clone)]
 pub struct SnackbarBus {
     push_text_fn: Rc<dyn Fn(String) -> u64>,
@@ -252,7 +254,9 @@ pub fn snackbar_provider(props: &SnackbarProviderProps) -> Html {
                                     {
                                         if let (Some(label), Some(cb)) = (action_label, action_cb) {
                                             html! {
-                                                <button type="button" class="md3-snackbar-action" onclick={Callback::from(move |_| cb.emit(()))}>{ label }</button>
+                                                <button type="button" class="md3-snackbar-action" onclick={Callback::from(move |_| cb.emit(()))}>
+                                                    <FixedHeightText text={AttrValue::from(label)} />
+                                                </button>
                                             }
                                         } else {
                                             html! {}

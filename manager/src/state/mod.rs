@@ -6,6 +6,8 @@ use crate::storage;
 pub struct State {
     pub nodes: Vec<ProxyNode>,
     pub accounts: Vec<AccountInfo>,
+    #[serde(default)]
+    pub registries: Vec<RegistryInfo>,
 }
 
 impl State {
@@ -558,9 +560,24 @@ pub struct DnsHostDraft {
 pub struct AccountInfo {
     pub id: String,
     pub name: String,
-    pub access_id: String,
+    #[serde(alias = "access_id")]
+    pub token: String,
     pub allowed_ips: Vec<String>,
     pub expiry_date: i64,
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RegistryInfo {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub public_endpoint: String,
+    #[serde(default)]
+    pub manage_endpoint: String,
+    #[serde(default)]
+    pub master_key: String,
+    #[serde(default)]
+    pub enabled: bool,
 }
 
 fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {

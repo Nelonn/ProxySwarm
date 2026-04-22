@@ -2,14 +2,6 @@ syntax = "proto3";
 package proxyswarm;
 option go_package = "./pb";
 
-message Account {
-    string id = 1;
-    string name = 2;
-    repeated string allowed_ips = 3;
-    int64 expiry_time = 4; // Unix timestamp
-    string access_id = 5; // Used as UUID for VLESS/etc
-}
-
 message HardwareStats {
     double cpu_usage = 1;
     uint64 ram_used = 2;

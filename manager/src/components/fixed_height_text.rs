@@ -8,6 +8,8 @@ pub struct FixedHeightTextProps {
 #[function_component(FixedHeightText)]
 pub fn fixed_height_text(props: &FixedHeightTextProps) -> Html {
     html! {
-        <span style="display:block; height:20px; line-height:20px; overflow:hidden;">{ props.text.clone() }</span>
+        <span style="height:20px;">
+            { props.text.clone() }
+        </span>
     }
 }

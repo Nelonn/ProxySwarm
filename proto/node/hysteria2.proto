@@ -2,7 +2,7 @@ syntax = "proto3";
 package proxyswarm;
 option go_package = "./pb";
 
-import "common.proto";
+import "node/common.proto";
 
 message Hysteria2Config {
     string password = 1;

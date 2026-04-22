@@ -28,9 +28,9 @@ func main() {
 		listenAddr = fmt.Sprintf(":%d", *port)
 	}
 
-	masterKey := os.Getenv("MASTER_KEY")
+	masterKey := os.Getenv("PS_MASTER_KEY")
 	if masterKey == "" {
-		log.Fatal("MASTER_KEY environment variable is required")
+		log.Fatal("PS_MASTER_KEY environment variable is required")
 	}
 
 	lis, err := net.Listen("tcp", listenAddr)

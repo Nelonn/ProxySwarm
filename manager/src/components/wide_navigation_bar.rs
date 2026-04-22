@@ -1,6 +1,6 @@
 use yew::prelude::*;
 
-use crate::components::SvgIcon;
+use crate::components::{FixedHeightText, SvgIcon};
 
 #[derive(Clone, PartialEq)]
 pub struct WideNavigationBarItem {
@@ -35,7 +35,9 @@ pub fn wide_navigation_bar(props: &WideNavigationBarProps) -> Html {
                             <span class="md3-config-nav-icon">
                                 <SvgIcon name={item.icon_name.clone()} size={20} />
                             </span>
-                            <span class="md3-config-nav-label">{ item.label.clone() }</span>
+                            <span class="md3-config-nav-label">
+                                <FixedHeightText text={item.label.clone()} />
+                            </span>
                         </button>
                     }
                 })
