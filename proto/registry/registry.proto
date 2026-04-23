@@ -1,24 +1,17 @@
 syntax = "proto3";
 package proxyswarm;
 option go_package = "./pb";
+
 import "account.proto";
-import "node/common.proto";
 
 service RegistryManagementService {
-    rpc ListServices(RegistryListServicesRequest) returns (RegistryListServicesResponse);
-    rpc UpsertService(RegistryUpsertServiceRequest) returns (RegistryUpsertServiceResponse);
-    rpc DeleteService(RegistryDeleteServiceRequest) returns (RegistryDeleteServiceResponse);
+    rpc UpdateConfig(RegistryUpdateConfigRequest) returns (RegistryUpdateConfigResponse);
+    rpc Status(RegistryStatusRequest) returns (RegistryStatusResponse);
 }
 
-message RegistryService {
-    string id = 1;
-    string name = 2;
-    string subscription_url = 3;
-    bool enabled = 4;
-    int32 refresh_interval_seconds = 5;
-    int64 updated_at_unix = 6;
-    repeated Account accounts = 7;
-    repeated RegistryTemplateLink template_links = 8;
+message RegistryServiceConfig {
+    repeated Account accounts = 1;
+    repeated RegistryTemplateLink template_links = 2;
 }
 
 message RegistryTemplateLink {
@@ -30,22 +23,19 @@ message RegistryTemplateLink {
     string template = 6;
 }
 
-message RegistryListServicesRequest {}
-
-message RegistryListServicesResponse {
-    repeated RegistryService services = 1;
+message RegistryUpdateConfigRequest {
+    RegistryServiceConfig config = 1;
 }
 
-message RegistryUpsertServiceRequest {
-    RegistryService service = 1;
+message RegistryUpdateConfigResponse {
+    RegistryServiceConfig config = 1;
 }
 
-message RegistryUpsertServiceResponse {
-    RegistryService service = 1;
-}
+message RegistryStatusRequest {}
 
-message RegistryDeleteServiceRequest {
-    string id = 1;
+message RegistryStatusResponse {
+    bool configured = 1;
+    uint32 accounts = 2;
+    uint32 template_links = 3;
+    int64 updated_at_unix = 4;
 }
-
-message RegistryDeleteServiceResponse {}

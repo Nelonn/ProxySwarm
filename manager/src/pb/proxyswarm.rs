@@ -639,22 +639,10 @@ impl OutboundType {
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RegistryService {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub subscription_url: ::prost::alloc::string::String,
-    #[prost(bool, tag = "4")]
-    pub enabled: bool,
-    #[prost(int32, tag = "5")]
-    pub refresh_interval_seconds: i32,
-    #[prost(int64, tag = "6")]
-    pub updated_at_unix: i64,
-    #[prost(message, repeated, tag = "7")]
+pub struct RegistryServiceConfig {
+    #[prost(message, repeated, tag = "1")]
     pub accounts: ::prost::alloc::vec::Vec<Account>,
-    #[prost(message, repeated, tag = "8")]
+    #[prost(message, repeated, tag = "2")]
     pub template_links: ::prost::alloc::vec::Vec<RegistryTemplateLink>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -672,27 +660,26 @@ pub struct RegistryTemplateLink {
     #[prost(string, tag = "6")]
     pub template: ::prost::alloc::string::String,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct RegistryListServicesRequest {}
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RegistryListServicesResponse {
-    #[prost(message, repeated, tag = "1")]
-    pub services: ::prost::alloc::vec::Vec<RegistryService>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RegistryUpsertServiceRequest {
+pub struct RegistryUpdateConfigRequest {
     #[prost(message, optional, tag = "1")]
-    pub service: ::core::option::Option<RegistryService>,
+    pub config: ::core::option::Option<RegistryServiceConfig>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RegistryUpsertServiceResponse {
+pub struct RegistryUpdateConfigResponse {
     #[prost(message, optional, tag = "1")]
-    pub service: ::core::option::Option<RegistryService>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct RegistryDeleteServiceRequest {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    pub config: ::core::option::Option<RegistryServiceConfig>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct RegistryDeleteServiceResponse {}
+pub struct RegistryStatusRequest {}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RegistryStatusResponse {
+    #[prost(bool, tag = "1")]
+    pub configured: bool,
+    #[prost(uint32, tag = "2")]
+    pub accounts: u32,
+    #[prost(uint32, tag = "3")]
+    pub template_links: u32,
+    #[prost(int64, tag = "4")]
+    pub updated_at_unix: i64,
+}

@@ -5,9 +5,8 @@ use sha2::{Digest, Sha256};
 use wasm_bindgen::JsValue;
 
 use crate::pb::proxyswarm::{
-    RegistryDeleteServiceRequest, RegistryDeleteServiceResponse, RegistryListServicesRequest,
-    RegistryListServicesResponse, RegistryService, RegistryUpsertServiceRequest,
-    RegistryUpsertServiceResponse,
+    RegistryServiceConfig, RegistryStatusRequest, RegistryStatusResponse, RegistryUpdateConfigRequest,
+    RegistryUpdateConfigResponse,
 };
 
 struct GrpcWebResponse {
@@ -95,61 +94,17 @@ impl RegistryApiService {
         }
     }
 
-    pub async fn list_services(&self) -> Result<Vec<RegistryService>, String> {
-        let request = RegistryListServicesRequest {};
-        let encoded = request.encode_to_vec();
-        let framed = frame_grpc_web_message(&encoded);
-        let url = format!(
-            "{}/proxyswarm.RegistryManagementService/ListServices",
-            self.base_url
-        );
-        let js_body = Uint8Array::from(framed.as_slice());
-
-        let resp = Request::post(&url)
-            .header("Content-Type", "application/grpc-web+proto")
-            .header("Accept", "application/grpc-web+proto")
-            .header("X-Grpc-Web", "1")
-            .header("X-User-Agent", "grpc-web-javascript/0.1")
-            .header("X-Registry-Master-Key", &self.master_key_hash)
-            .body(JsValue::from(js_body))
-            .map_err(|e| format!("Failed to create request: {}", e))?
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
-
-        let bytes = resp
-            .binary()
-            .await
-            .map_err(|e| format!("Failed to get response bytes: {}", e))?;
-        let header_error = resp
-            .headers()
-            .get("grpc-message")
-            .map(|value| decode_grpc_message(value.as_str()));
-        let parsed = parse_grpc_web_response(&bytes)?;
-        let grpc_status = parsed.grpc_status.unwrap_or(0);
-        let grpc_error = parsed.grpc_error.or(header_error);
-
-        if !resp.ok() {
-            return Err(grpc_error
-                .unwrap_or_else(|| format!("Request failed with status: {}", resp.status())));
-        }
-        if grpc_status != 0 {
-            return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
-        }
-
-        let response = RegistryListServicesResponse::decode(&parsed.message[..])
-            .map_err(|e| format!("Failed to decode response: {}", e))?;
-        Ok(response.services)
-    }
-
-    pub async fn upsert_service(&self, service: RegistryService) -> Result<RegistryService, String> {
-        let request = RegistryUpsertServiceRequest {
-            service: Some(service),
+    pub async fn update_config(
+        &self,
+        config: RegistryServiceConfig,
+    ) -> Result<RegistryServiceConfig, String> {
+        let request = RegistryUpdateConfigRequest {
+            config: Some(config),
         };
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);
         let url = format!(
-            "{}/proxyswarm.RegistryManagementService/UpsertService",
+            "{}/proxyswarm.RegistryManagementService/UpdateConfig",
             self.base_url
         );
         let js_body = Uint8Array::from(framed.as_slice());
@@ -186,21 +141,18 @@ impl RegistryApiService {
             return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
         }
 
-        let response = RegistryUpsertServiceResponse::decode(&parsed.message[..])
+        let response = RegistryUpdateConfigResponse::decode(&parsed.message[..])
             .map_err(|e| format!("Failed to decode response: {}", e))?;
         response
-            .service
-            .ok_or_else(|| "Missing registry service payload".to_string())
+            .config
+            .ok_or_else(|| "Missing registry config payload".to_string())
     }
 
-    pub async fn delete_service(&self, id: String) -> Result<(), String> {
-        let request = RegistryDeleteServiceRequest { id };
+    pub async fn status(&self) -> Result<RegistryStatusResponse, String> {
+        let request = RegistryStatusRequest {};
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);
-        let url = format!(
-            "{}/proxyswarm.RegistryManagementService/DeleteService",
-            self.base_url
-        );
+        let url = format!("{}/proxyswarm.RegistryManagementService/Status", self.base_url);
         let js_body = Uint8Array::from(framed.as_slice());
 
         let resp = Request::post(&url)
@@ -235,9 +187,8 @@ impl RegistryApiService {
             return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
         }
 
-        let _ = RegistryDeleteServiceResponse::decode(&parsed.message[..])
-            .map_err(|e| format!("Failed to decode response: {}", e))?;
-        Ok(())
+        RegistryStatusResponse::decode(&parsed.message[..])
+            .map_err(|e| format!("Failed to decode response: {}", e))
     }
 }
 

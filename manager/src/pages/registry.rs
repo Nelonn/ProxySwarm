@@ -1,9 +1,13 @@
-use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::components::{Button, ButtonType, Popup, PopupSize, RichTable, SnackbarBus, Switch, TextBox};
+use crate::components::{
+    Button, ButtonType, Popup, PopupSize, RichTable, SnackbarBus, Switch, TextBox,
+};
+use crate::pb::proxyswarm::RegistryStatusResponse;
+use crate::services::registry_api::RegistryApiService;
 use crate::services::registry_deploy::deploy_all_registries;
 use crate::state::{RegistryInfo, State};
 
@@ -16,6 +20,7 @@ pub fn registries() -> Html {
     let pending_delete = use_state(|| Option::<RegistryInfo>::None);
     let pending_deploy = use_state(|| false);
     let deploy_loading = use_state(|| false);
+    let status_registry = use_state(|| Option::<RegistryInfo>::None);
 
     let on_open_modal = {
         let show_modal = show_modal.clone();
@@ -62,19 +67,17 @@ pub fn registries() -> Html {
                         bus.push("No enabled registries to deploy.");
                     } else if !summary.failures.is_empty() {
                         bus.push(format!(
-                            "Registry deploy finished with issues. {} of {} registries ok, {} services upserted, {} deleted, {} inbounds skipped.",
+                            "Registry deploy finished with issues. {} of {} registries updated, {} configs pushed, {} inbounds skipped.",
                             summary.registries_succeeded,
                             summary.registries_total,
                             summary.services_deployed,
-                            summary.services_deleted,
                             summary.skipped_inbounds
                         ));
                     } else {
                         bus.push(format!(
-                            "Registry deploy complete. {} registries synced, {} services upserted, {} deleted.",
+                            "Registry deploy complete. {} registries synced, {} configs pushed.",
                             summary.registries_succeeded,
-                            summary.services_deployed,
-                            summary.services_deleted
+                            summary.services_deployed
                         ));
                     }
                 }
@@ -124,6 +127,7 @@ pub fn registries() -> Html {
                             { for state.registries.iter().map(|registry| {
                                 let registry_for_edit = registry.clone();
                                 let registry_for_delete = registry.clone();
+                                let registry_for_status = registry.clone();
                                 html! {
                                     <>
                                         <div class="md3-list-row">
@@ -143,6 +147,14 @@ pub fn registries() -> Html {
                                             </div>
                                             <div class="md3-list-col md3-list-col-actions">
                                                 <div class="md3-list-actions">
+                                                    <Button
+                                                        label="Status"
+                                                        button_type={ButtonType::Outlined}
+                                                        onclick={{
+                                                            let status_registry = status_registry.clone();
+                                                            Callback::from(move |_| status_registry.set(Some(registry_for_status.clone())))
+                                                        }}
+                                                    />
                                                     <Button
                                                         label="Edit"
                                                         button_type={ButtonType::Outlined}
@@ -234,7 +246,123 @@ pub fn registries() -> Html {
                     html! {}
                 }
             }
+
+            {
+                if let Some(registry) = &*status_registry {
+                    html! {
+                        <RegistryStatusPopup
+                            registry={registry.clone()}
+                            on_close={Callback::from({
+                                let status_registry = status_registry.clone();
+                                move |_| status_registry.set(None)
+                            })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
         </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+struct RegistryStatusPopupProps {
+    registry: RegistryInfo,
+    on_close: Callback<()>,
+}
+
+#[function_component(RegistryStatusPopup)]
+fn registry_status_popup(props: &RegistryStatusPopupProps) -> Html {
+    let status = use_state(|| Option::<RegistryStatusResponse>::None);
+    let loading = use_state(|| true);
+    let error = use_state(|| Option::<String>::None);
+
+    {
+        let registry = props.registry.clone();
+        let status = status.clone();
+        let loading = loading.clone();
+        let error = error.clone();
+        use_effect_with(props.registry.id.clone(), move |_| {
+            loading.set(true);
+            status.set(None);
+            error.set(None);
+
+            spawn_local(async move {
+                let api = RegistryApiService::new(
+                    registry.manage_endpoint.clone(),
+                    registry.master_key.clone(),
+                );
+                match api.status().await {
+                    Ok(response) => status.set(Some(response)),
+                    Err(err) => error.set(Some(err)),
+                }
+                loading.set(false);
+            });
+
+            || ()
+        });
+    }
+
+    html! {
+        <Popup
+            title={format!("Registry Status: {}", props.registry.name)}
+            size={PopupSize::Sm}
+            on_close={props.on_close.clone()}
+        >
+            <div class="space-y-4">
+                {
+                    if *loading {
+                        html! { <p class="text-sm opacity-80">{ "Loading status..." }</p> }
+                    } else if let Some(error) = &*error {
+                        html! { <p class="text-sm" style="color: #F2B8B5;">{ error.clone() }</p> }
+                    } else if let Some(status) = &*status {
+                        let updated_at = if status.updated_at_unix > 0 {
+                            js_sys::Date::new(&(status.updated_at_unix as f64 * 1000.0).into())
+                                .to_locale_string("en-US", &wasm_bindgen::JsValue::UNDEFINED)
+                                .as_string()
+                                .unwrap_or_else(|| status.updated_at_unix.to_string())
+                        } else {
+                            "Never".to_string()
+                        };
+                        html! {
+                            <>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between" style="gap: 1rem;">
+                                        <span class="opacity-70">{ "Configured" }</span>
+                                        <span>{ if status.configured { "Yes" } else { "No" } }</span>
+                                    </div>
+                                    <div class="flex justify-between" style="gap: 1rem;">
+                                        <span class="opacity-70">{ "Accounts" }</span>
+                                        <span>{ status.accounts }</span>
+                                    </div>
+                                    <div class="flex justify-between" style="gap: 1rem;">
+                                        <span class="opacity-70">{ "Templates" }</span>
+                                        <span>{ status.template_links }</span>
+                                    </div>
+                                    <div class="flex justify-between" style="gap: 1rem;">
+                                        <span class="opacity-70">{ "Updated" }</span>
+                                        <span class="text-right">{ updated_at }</span>
+                                    </div>
+                                </div>
+                            </>
+                        }
+                    } else {
+                        html! { <p class="text-sm opacity-80">{ "No status available." }</p> }
+                    }
+                }
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button
+                        label="Close"
+                        button_type={ButtonType::Text}
+                        onclick={{
+                            let on_close = props.on_close.clone();
+                            Callback::from(move |_| on_close.emit(()))
+                        }}
+                    />
+                </div>
+            </div>
+        </Popup>
     }
 }
 

@@ -1,13 +1,8 @@
-use std::collections::{HashMap, HashSet};
-
 use trusttunnel_deeplink::{encode, DeepLinkConfig};
 
-use crate::pb::proxyswarm::{Account, RegistryService, RegistryTemplateLink};
+use crate::pb::proxyswarm::{Account, RegistryServiceConfig, RegistryTemplateLink};
 use crate::services::registry_api::RegistryApiService;
 use crate::state::{AccountInfo, InboundEntryDraft, ProxyNode, RegistryInfo, State};
-
-const MANAGED_SERVICE_ID_PREFIX: &str = "ps-managed:";
-const DEFAULT_REFRESH_INTERVAL_SECONDS: i32 = 3600;
 
 #[derive(Default, Clone)]
 pub struct DeployAllSummary {
@@ -19,14 +14,6 @@ pub struct DeployAllSummary {
     pub failures: Vec<String>,
 }
 
-#[derive(Clone)]
-struct DesiredService {
-    id: String,
-    name: String,
-    accounts: Vec<Account>,
-    template_links: Vec<RegistryTemplateLink>,
-}
-
 pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
     let enabled_registries: Vec<RegistryInfo> = state
         .registries
@@ -34,7 +21,7 @@ pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
         .filter(|registry| registry.enabled)
         .cloned()
         .collect();
-    let generated = build_desired_services(state);
+    let generated = build_registry_config(state);
 
     let mut summary = DeployAllSummary {
         registries_total: enabled_registries.len(),
@@ -44,11 +31,10 @@ pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
     };
 
     for registry in enabled_registries {
-        match deploy_registry(&registry, &generated.services).await {
-            Ok(result) => {
+        match deploy_registry(&registry, generated.config.clone()).await {
+            Ok(()) => {
                 summary.registries_succeeded += 1;
-                summary.services_deployed += result.services_deployed;
-                summary.services_deleted += result.services_deleted;
+                summary.services_deployed += 1;
             }
             Err(error) => summary
                 .failures
@@ -60,15 +46,20 @@ pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
 }
 
 #[derive(Default)]
-struct BuildServicesResult {
-    services: Vec<DesiredService>,
+struct BuildConfigResult {
+    config: RegistryServiceConfig,
     skipped_inbounds: usize,
     failures: Vec<String>,
 }
 
-fn build_desired_services(state: &State) -> BuildServicesResult {
-    let mut result = BuildServicesResult::default();
-    let accounts = registry_accounts(&state.accounts);
+fn build_registry_config(state: &State) -> BuildConfigResult {
+    let mut result = BuildConfigResult {
+        config: RegistryServiceConfig {
+            accounts: registry_accounts(&state.accounts),
+            template_links: Vec::new(),
+        },
+        ..BuildConfigResult::default()
+    };
 
     for node in &state.nodes {
         for inbound in &node.config.inbounds {
@@ -78,18 +69,13 @@ fn build_desired_services(state: &State) -> BuildServicesResult {
 
             match build_template_link(node, inbound) {
                 Ok(template) => {
-                    result.services.push(DesiredService {
-                        id: managed_service_id(node, inbound),
-                        name: display_service_name(node, inbound),
-                        accounts: accounts.clone(),
-                        template_links: vec![RegistryTemplateLink {
-                            node_id: node.id.clone(),
-                            node_name: node.name.clone(),
-                            inbound_id: inbound.id.clone(),
-                            inbound_name: inbound.name.clone(),
-                            protocol: inbound.protocol.trim().to_uppercase(),
-                            template,
-                        }],
+                    result.config.template_links.push(RegistryTemplateLink {
+                        node_id: node.id.clone(),
+                        node_name: node.name.clone(),
+                        inbound_id: inbound.id.clone(),
+                        inbound_name: inbound.name.clone(),
+                        protocol: inbound.protocol.trim().to_uppercase(),
+                        template,
                     });
                 }
                 Err(error) => {
@@ -108,70 +94,16 @@ fn build_desired_services(state: &State) -> BuildServicesResult {
     result
 }
 
-#[derive(Default)]
-struct RegistryDeployResult {
-    services_deployed: usize,
-    services_deleted: usize,
-}
-
 async fn deploy_registry(
     registry: &RegistryInfo,
-    desired_services: &[DesiredService],
-) -> Result<RegistryDeployResult, String> {
+    desired_config: RegistryServiceConfig,
+) -> Result<(), String> {
     let api = RegistryApiService::new(
         registry.manage_endpoint.clone(),
         registry.master_key.clone(),
     );
-    let existing_services = api.list_services().await?;
-    let existing_by_id: HashMap<String, RegistryService> = existing_services
-        .into_iter()
-        .map(|service| (service.id.clone(), service))
-        .collect();
-    let desired_ids: HashSet<String> = desired_services.iter().map(|service| service.id.clone()).collect();
-    let subscription_url = build_subscription_url(registry);
-
-    let mut result = RegistryDeployResult::default();
-
-    for desired in desired_services {
-        let refresh_interval_seconds = existing_by_id
-            .get(&desired.id)
-            .map(|service| service.refresh_interval_seconds)
-            .filter(|interval| *interval > 0)
-            .unwrap_or(DEFAULT_REFRESH_INTERVAL_SECONDS);
-
-        api.upsert_service(RegistryService {
-            id: desired.id.clone(),
-            name: desired.name.clone(),
-            subscription_url: subscription_url.clone(),
-            enabled: true,
-            refresh_interval_seconds,
-            updated_at_unix: 0,
-            accounts: desired.accounts.clone(),
-            template_links: desired.template_links.clone(),
-        })
-        .await?;
-        result.services_deployed += 1;
-    }
-
-    for existing in existing_by_id.values() {
-        if !existing.id.starts_with(MANAGED_SERVICE_ID_PREFIX) {
-            continue;
-        }
-        if desired_ids.contains(&existing.id) {
-            continue;
-        }
-        api.delete_service(existing.id.clone()).await?;
-        result.services_deleted += 1;
-    }
-
-    Ok(result)
-}
-
-fn build_subscription_url(registry: &RegistryInfo) -> String {
-    format!(
-        "{}/v1/subscription",
-        registry.public_endpoint.trim_end_matches('/')
-    )
+    api.update_config(desired_config).await?;
+    Ok(())
 }
 
 fn registry_accounts(accounts: &[AccountInfo]) -> Vec<Account> {
@@ -185,14 +117,6 @@ fn registry_accounts(accounts: &[AccountInfo]) -> Vec<Account> {
             allowed_ips: account.allowed_ips.clone(),
         })
         .collect()
-}
-
-fn managed_service_id(node: &ProxyNode, inbound: &InboundEntryDraft) -> String {
-    format!("{}{}:{}", MANAGED_SERVICE_ID_PREFIX, node.id, inbound.id)
-}
-
-fn display_service_name(node: &ProxyNode, inbound: &InboundEntryDraft) -> String {
-    format!("{} / {}", node.name.trim(), inbound_display_name(inbound))
 }
 
 fn inbound_display_name(inbound: &InboundEntryDraft) -> String {

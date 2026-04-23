@@ -16,63 +16,38 @@ import (
 	"proxyswarm/registry/internal/pb"
 )
 
-func TestFindAccountByToken_EnabledOnly(t *testing.T) {
-	services := []*pb.RegistryService{
-		{
-			Id:      "disabled",
-			Name:    "disabled",
-			Enabled: false,
-			Accounts: []*pb.Account{
-				{Id: "a1", Name: "u1", Token: "tok-disabled"},
-			},
-		},
-		{
-			Id:      "enabled",
-			Name:    "enabled",
-			Enabled: true,
-			Accounts: []*pb.Account{
-				{Id: "a2", Name: "u2", Token: "tok-enabled"},
-			},
+func TestFindAccountByToken(t *testing.T) {
+	config := &pb.RegistryServiceConfig{
+		Accounts: []*pb.Account{
+			{Id: "a1", Name: "u1", Token: "tok-1"},
+			{Id: "a2", Name: "u2", Token: "tok-2"},
 		},
 	}
 
-	account, ok := findAccountByToken(services, "tok-enabled")
+	account, ok := findAccountByToken(config, "tok-2")
 	if !ok {
-		t.Fatal("expected token to be found in enabled service")
+		t.Fatal("expected token to be found")
 	}
 	if account.GetId() != "a2" {
 		t.Fatalf("unexpected account id: %q", account.GetId())
 	}
 
-	if _, ok := findAccountByToken(services, "tok-disabled"); ok {
-		t.Fatal("expected token from disabled service to be ignored")
+	if _, ok := findAccountByToken(config, "missing"); ok {
+		t.Fatal("expected missing token to be ignored")
 	}
 }
 
 func TestBuildSubscriptionLinks_RendersAndDeduplicates(t *testing.T) {
 	account := &pb.Account{Id: "acc-1", Name: "alice", Token: "tok-1"}
-	services := []*pb.RegistryService{
-		{
-			Id:      "s1",
-			Name:    "svc-1",
-			Enabled: true,
-			TemplateLinks: []*pb.RegistryTemplateLink{
-				{Template: "vless://{{token}}@host:443#{{name}}"},
-				{Template: "vless://{{token}}@host:443#{{name}}"}, // duplicate
-				{Template: "trojan://{token}@node:443#{id}"},
-			},
-		},
-		{
-			Id:      "s2",
-			Name:    "svc-2",
-			Enabled: false,
-			TemplateLinks: []*pb.RegistryTemplateLink{
-				{Template: "vless://{{token}}@disabled:443"},
-			},
+	config := &pb.RegistryServiceConfig{
+		TemplateLinks: []*pb.RegistryTemplateLink{
+			{Template: "vless://{{token}}@host:443#{{name}}"},
+			{Template: "vless://{{token}}@host:443#{{name}}"},
+			{Template: "trojan://{token}@node:443#{id}"},
 		},
 	}
 
-	links := buildSubscriptionLinks(services, account)
+	links := buildSubscriptionLinks(config, account)
 	if len(links) != 2 {
 		t.Fatalf("expected 2 unique links, got %d: %#v", len(links), links)
 	}
@@ -85,17 +60,12 @@ func TestBuildSubscriptionLinks_RendersAndDeduplicates(t *testing.T) {
 }
 
 func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
-	handler := makeUserAPIHandler(testStore([]*pb.RegistryService{
-		{
-			Id:      "s1",
-			Name:    "svc",
-			Enabled: true,
-			Accounts: []*pb.Account{
-				{Id: "a1", Name: "alice", Token: "tok-1"},
-			},
-			TemplateLinks: []*pb.RegistryTemplateLink{
-				{Template: "vless://{{token}}@host:443"},
-			},
+	handler := makeUserAPIHandler(testStore(&pb.RegistryServiceConfig{
+		Accounts: []*pb.Account{
+			{Id: "a1", Name: "alice", Token: "tok-1"},
+		},
+		TemplateLinks: []*pb.RegistryTemplateLink{
+			{Template: "vless://{{token}}@host:443"},
 		},
 	}))
 
@@ -117,18 +87,13 @@ func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
 }
 
 func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
-	handler := makeUserAPIHandler(testStore([]*pb.RegistryService{
-		{
-			Id:      "s1",
-			Name:    "svc",
-			Enabled: true,
-			Accounts: []*pb.Account{
-				{Id: "a1", Name: "alice", Token: "tok-1", ExpiryTime: 1735689600},
-			},
-			TemplateLinks: []*pb.RegistryTemplateLink{
-				{Template: "vless://{{token}}@host-a:443#{{name}}"},
-				{Template: "trojan://{token}@host-b:443#{id}"},
-			},
+	handler := makeUserAPIHandler(testStore(&pb.RegistryServiceConfig{
+		Accounts: []*pb.Account{
+			{Id: "a1", Name: "alice", Token: "tok-1", ExpiryTime: 1735689600},
+		},
+		TemplateLinks: []*pb.RegistryTemplateLink{
+			{Template: "vless://{{token}}@host-a:443#{{name}}"},
+			{Template: "trojan://{token}@host-b:443#{id}"},
 		},
 	}))
 
@@ -174,15 +139,10 @@ func TestOnlySubscriptionEndpointExposed(t *testing.T) {
 	}
 }
 
-func testStore(services []*pb.RegistryService) *registryStore {
-	items := make(map[string]*pb.RegistryService, len(services))
-	for _, service := range services {
-		if service == nil {
-			continue
-		}
-		items[service.Id] = cloneRegistryService(service)
+func testStore(config *pb.RegistryServiceConfig) *registryStore {
+	return &registryStore{
+		config: cloneRegistryConfig(config),
 	}
-	return &registryStore{services: items}
 }
 
 func TestRegistryManagementAuthorize_RejectsMissingOrWrongKey(t *testing.T) {

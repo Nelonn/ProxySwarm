@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.1
-// source: registry.proto
+// source: registry/registry.proto
 
 package pb
 
@@ -19,18 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RegistryManagementService_ListServices_FullMethodName  = "/proxyswarm.RegistryManagementService/ListServices"
-	RegistryManagementService_UpsertService_FullMethodName = "/proxyswarm.RegistryManagementService/UpsertService"
-	RegistryManagementService_DeleteService_FullMethodName = "/proxyswarm.RegistryManagementService/DeleteService"
+	RegistryManagementService_UpdateConfig_FullMethodName = "/proxyswarm.RegistryManagementService/UpdateConfig"
+	RegistryManagementService_Status_FullMethodName       = "/proxyswarm.RegistryManagementService/Status"
 )
 
 // RegistryManagementServiceClient is the client API for RegistryManagementService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RegistryManagementServiceClient interface {
-	ListServices(ctx context.Context, in *RegistryListServicesRequest, opts ...grpc.CallOption) (*RegistryListServicesResponse, error)
-	UpsertService(ctx context.Context, in *RegistryUpsertServiceRequest, opts ...grpc.CallOption) (*RegistryUpsertServiceResponse, error)
-	DeleteService(ctx context.Context, in *RegistryDeleteServiceRequest, opts ...grpc.CallOption) (*RegistryDeleteServiceResponse, error)
+	UpdateConfig(ctx context.Context, in *RegistryUpdateConfigRequest, opts ...grpc.CallOption) (*RegistryUpdateConfigResponse, error)
+	Status(ctx context.Context, in *RegistryStatusRequest, opts ...grpc.CallOption) (*RegistryStatusResponse, error)
 }
 
 type registryManagementServiceClient struct {
@@ -41,30 +39,20 @@ func NewRegistryManagementServiceClient(cc grpc.ClientConnInterface) RegistryMan
 	return &registryManagementServiceClient{cc}
 }
 
-func (c *registryManagementServiceClient) ListServices(ctx context.Context, in *RegistryListServicesRequest, opts ...grpc.CallOption) (*RegistryListServicesResponse, error) {
+func (c *registryManagementServiceClient) UpdateConfig(ctx context.Context, in *RegistryUpdateConfigRequest, opts ...grpc.CallOption) (*RegistryUpdateConfigResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegistryListServicesResponse)
-	err := c.cc.Invoke(ctx, RegistryManagementService_ListServices_FullMethodName, in, out, cOpts...)
+	out := new(RegistryUpdateConfigResponse)
+	err := c.cc.Invoke(ctx, RegistryManagementService_UpdateConfig_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *registryManagementServiceClient) UpsertService(ctx context.Context, in *RegistryUpsertServiceRequest, opts ...grpc.CallOption) (*RegistryUpsertServiceResponse, error) {
+func (c *registryManagementServiceClient) Status(ctx context.Context, in *RegistryStatusRequest, opts ...grpc.CallOption) (*RegistryStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegistryUpsertServiceResponse)
-	err := c.cc.Invoke(ctx, RegistryManagementService_UpsertService_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *registryManagementServiceClient) DeleteService(ctx context.Context, in *RegistryDeleteServiceRequest, opts ...grpc.CallOption) (*RegistryDeleteServiceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegistryDeleteServiceResponse)
-	err := c.cc.Invoke(ctx, RegistryManagementService_DeleteService_FullMethodName, in, out, cOpts...)
+	out := new(RegistryStatusResponse)
+	err := c.cc.Invoke(ctx, RegistryManagementService_Status_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +63,8 @@ func (c *registryManagementServiceClient) DeleteService(ctx context.Context, in 
 // All implementations must embed UnimplementedRegistryManagementServiceServer
 // for forward compatibility.
 type RegistryManagementServiceServer interface {
-	ListServices(context.Context, *RegistryListServicesRequest) (*RegistryListServicesResponse, error)
-	UpsertService(context.Context, *RegistryUpsertServiceRequest) (*RegistryUpsertServiceResponse, error)
-	DeleteService(context.Context, *RegistryDeleteServiceRequest) (*RegistryDeleteServiceResponse, error)
+	UpdateConfig(context.Context, *RegistryUpdateConfigRequest) (*RegistryUpdateConfigResponse, error)
+	Status(context.Context, *RegistryStatusRequest) (*RegistryStatusResponse, error)
 	mustEmbedUnimplementedRegistryManagementServiceServer()
 }
 
@@ -88,14 +75,11 @@ type RegistryManagementServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedRegistryManagementServiceServer struct{}
 
-func (UnimplementedRegistryManagementServiceServer) ListServices(context.Context, *RegistryListServicesRequest) (*RegistryListServicesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListServices not implemented")
+func (UnimplementedRegistryManagementServiceServer) UpdateConfig(context.Context, *RegistryUpdateConfigRequest) (*RegistryUpdateConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateConfig not implemented")
 }
-func (UnimplementedRegistryManagementServiceServer) UpsertService(context.Context, *RegistryUpsertServiceRequest) (*RegistryUpsertServiceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpsertService not implemented")
-}
-func (UnimplementedRegistryManagementServiceServer) DeleteService(context.Context, *RegistryDeleteServiceRequest) (*RegistryDeleteServiceResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeleteService not implemented")
+func (UnimplementedRegistryManagementServiceServer) Status(context.Context, *RegistryStatusRequest) (*RegistryStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Status not implemented")
 }
 func (UnimplementedRegistryManagementServiceServer) mustEmbedUnimplementedRegistryManagementServiceServer() {
 }
@@ -119,56 +103,38 @@ func RegisterRegistryManagementServiceServer(s grpc.ServiceRegistrar, srv Regist
 	s.RegisterService(&RegistryManagementService_ServiceDesc, srv)
 }
 
-func _RegistryManagementService_ListServices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegistryListServicesRequest)
+func _RegistryManagementService_UpdateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegistryUpdateConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RegistryManagementServiceServer).ListServices(ctx, in)
+		return srv.(RegistryManagementServiceServer).UpdateConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: RegistryManagementService_ListServices_FullMethodName,
+		FullMethod: RegistryManagementService_UpdateConfig_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RegistryManagementServiceServer).ListServices(ctx, req.(*RegistryListServicesRequest))
+		return srv.(RegistryManagementServiceServer).UpdateConfig(ctx, req.(*RegistryUpdateConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RegistryManagementService_UpsertService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegistryUpsertServiceRequest)
+func _RegistryManagementService_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegistryStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RegistryManagementServiceServer).UpsertService(ctx, in)
+		return srv.(RegistryManagementServiceServer).Status(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: RegistryManagementService_UpsertService_FullMethodName,
+		FullMethod: RegistryManagementService_Status_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RegistryManagementServiceServer).UpsertService(ctx, req.(*RegistryUpsertServiceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RegistryManagementService_DeleteService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegistryDeleteServiceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RegistryManagementServiceServer).DeleteService(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RegistryManagementService_DeleteService_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RegistryManagementServiceServer).DeleteService(ctx, req.(*RegistryDeleteServiceRequest))
+		return srv.(RegistryManagementServiceServer).Status(ctx, req.(*RegistryStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -181,18 +147,14 @@ var RegistryManagementService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*RegistryManagementServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListServices",
-			Handler:    _RegistryManagementService_ListServices_Handler,
+			MethodName: "UpdateConfig",
+			Handler:    _RegistryManagementService_UpdateConfig_Handler,
 		},
 		{
-			MethodName: "UpsertService",
-			Handler:    _RegistryManagementService_UpsertService_Handler,
-		},
-		{
-			MethodName: "DeleteService",
-			Handler:    _RegistryManagementService_DeleteService_Handler,
+			MethodName: "Status",
+			Handler:    _RegistryManagementService_Status_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "registry.proto",
+	Metadata: "registry/registry.proto",
 }

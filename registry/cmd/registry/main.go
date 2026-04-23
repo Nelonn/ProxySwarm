@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -15,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"proxyswarm/registry/internal/pb"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -29,7 +27,6 @@ import (
 
 const defaultListenAddr = ":9191"
 const defaultManageListenAddr = ":9291"
-const defaultRefreshIntervalSeconds = int32(3600)
 const modeSharedPort = "1"
 const modeSplitPorts = "2"
 const registryMasterKeyHeader = "x-registry-master-key"
@@ -37,13 +34,15 @@ const registryMasterKeyHeader = "x-registry-master-key"
 var defaultDataDir = "/var/proxyswarm/registry"
 
 type registryStore struct {
-	mu       sync.Mutex
-	path     string
-	services map[string]*pb.RegistryService
+	mu        sync.Mutex
+	path      string
+	config    *pb.RegistryServiceConfig
+	updatedAt int64
 }
 
 type persistedRegistryState struct {
-	Services []*pb.RegistryService `json:"services"`
+	Config        *pb.RegistryServiceConfig `json:"config"`
+	UpdatedAtUnix int64                     `json:"updated_at_unix"`
 }
 
 type registryManagementServer struct {
@@ -171,17 +170,17 @@ func makeUserAPIHandler(store *registryStore) http.Handler {
 			writeErrorJSON(res, http.StatusForbidden, "invalid token")
 			return
 		}
-		services, err := store.list()
+		config, _, err := store.get()
 		if err != nil {
 			writeErrorJSON(res, http.StatusInternalServerError, err.Error())
 			return
 		}
-		account, ok := findAccountByToken(services, token)
+		account, ok := findAccountByToken(config, token)
 		if !ok {
 			writeErrorJSON(res, http.StatusForbidden, "invalid token")
 			return
 		}
-		links := buildSubscriptionLinks(services, account)
+		links := buildSubscriptionLinks(config, account)
 		if len(links) == 0 {
 			writeErrorJSON(res, http.StatusNotFound, "no templates available")
 			return
@@ -203,48 +202,44 @@ func makeUserAPIHandler(store *registryStore) http.Handler {
 	})
 }
 
-func findAccountByToken(services []*pb.RegistryService, token string) (*pb.Account, bool) {
-	for _, service := range services {
-		if service == nil || !service.Enabled {
+func findAccountByToken(config *pb.RegistryServiceConfig, token string) (*pb.Account, bool) {
+	if config == nil {
+		return nil, false
+	}
+	for _, account := range config.Accounts {
+		if account == nil {
 			continue
 		}
-		for _, account := range service.Accounts {
-			if account == nil {
-				continue
-			}
-			if strings.TrimSpace(account.Token) == token {
-				return account, true
-			}
+		if strings.TrimSpace(account.Token) == token {
+			return account, true
 		}
 	}
 	return nil, false
 }
 
-func buildSubscriptionLinks(services []*pb.RegistryService, account *pb.Account) []string {
+func buildSubscriptionLinks(config *pb.RegistryServiceConfig, account *pb.Account) []string {
+	if config == nil {
+		return nil
+	}
 	links := make([]string, 0)
 	seen := make(map[string]struct{})
-	for _, service := range services {
-		if service == nil || !service.Enabled {
+	for _, templateLink := range config.TemplateLinks {
+		if templateLink == nil {
 			continue
 		}
-		for _, templateLink := range service.TemplateLinks {
-			if templateLink == nil {
-				continue
-			}
-			template := strings.TrimSpace(templateLink.Template)
-			if template == "" {
-				continue
-			}
-			link := renderTemplateLink(template, account)
-			if strings.TrimSpace(link) == "" {
-				continue
-			}
-			if _, exists := seen[link]; exists {
-				continue
-			}
-			seen[link] = struct{}{}
-			links = append(links, link)
+		template := strings.TrimSpace(templateLink.Template)
+		if template == "" {
+			continue
 		}
+		link := renderTemplateLink(template, account)
+		if strings.TrimSpace(link) == "" {
+			continue
+		}
+		if _, exists := seen[link]; exists {
+			continue
+		}
+		seen[link] = struct{}{}
+		links = append(links, link)
 	}
 	return links
 }
@@ -321,45 +316,37 @@ func writeJSON(res http.ResponseWriter, statusCode int, payload any) {
 	_ = json.NewEncoder(res).Encode(payload)
 }
 
-func (s *registryManagementServer) ListServices(ctx context.Context, _ *pb.RegistryListServicesRequest) (*pb.RegistryListServicesResponse, error) {
+func (s *registryManagementServer) UpdateConfig(ctx context.Context, req *pb.RegistryUpdateConfigRequest) (*pb.RegistryUpdateConfigResponse, error) {
 	if err := s.authorize(ctx); err != nil {
 		return nil, err
 	}
-	services, err := s.store.list()
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+	if req == nil || req.Config == nil {
+		return nil, status.Error(codes.InvalidArgument, "config is required")
 	}
-	return &pb.RegistryListServicesResponse{Services: services}, nil
-}
-
-func (s *registryManagementServer) UpsertService(ctx context.Context, req *pb.RegistryUpsertServiceRequest) (*pb.RegistryUpsertServiceResponse, error) {
-	if err := s.authorize(ctx); err != nil {
-		return nil, err
-	}
-	if req == nil || req.Service == nil {
-		return nil, status.Error(codes.InvalidArgument, "service is required")
-	}
-	service, err := s.store.upsert(req.Service)
+	config, err := s.store.update(req.Config)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	return &pb.RegistryUpsertServiceResponse{Service: service}, nil
+	return &pb.RegistryUpdateConfigResponse{Config: config}, nil
 }
 
-func (s *registryManagementServer) DeleteService(ctx context.Context, req *pb.RegistryDeleteServiceRequest) (*pb.RegistryDeleteServiceResponse, error) {
+func (s *registryManagementServer) Status(ctx context.Context, _ *pb.RegistryStatusRequest) (*pb.RegistryStatusResponse, error) {
 	if err := s.authorize(ctx); err != nil {
 		return nil, err
 	}
-	if req == nil || strings.TrimSpace(req.Id) == "" {
-		return nil, status.Error(codes.InvalidArgument, "id is required")
-	}
-	if err := s.store.delete(req.Id); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, status.Error(codes.NotFound, "service not found")
-		}
+	config, updatedAtUnix, err := s.store.get()
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &pb.RegistryDeleteServiceResponse{}, nil
+	response := &pb.RegistryStatusResponse{
+		UpdatedAtUnix: updatedAtUnix,
+	}
+	if config != nil {
+		response.Configured = true
+		response.Accounts = uint32(len(config.Accounts))
+		response.TemplateLinks = uint32(len(config.TemplateLinks))
+	}
+	return response, nil
 }
 
 func (s *registryManagementServer) authorize(ctx context.Context) error {
@@ -382,8 +369,7 @@ func (s *registryManagementServer) authorize(ctx context.Context) error {
 
 func newRegistryStore() (*registryStore, error) {
 	store := &registryStore{
-		path:     defaultStorePath(),
-		services: make(map[string]*pb.RegistryService),
+		path: defaultStorePath(),
 	}
 	if err := store.load(); err != nil {
 		return nil, err
@@ -408,89 +394,32 @@ func defaultDataRoot() string {
 	return ""
 }
 
-func (s *registryStore) list() ([]*pb.RegistryService, error) {
+func (s *registryStore) get() (*pb.RegistryServiceConfig, int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	out := make([]*pb.RegistryService, 0, len(s.services))
-	for _, service := range s.services {
-		out = append(out, cloneRegistryService(service))
-	}
-	sort.Slice(out, func(i, j int) bool {
-		left := strings.ToLower(strings.TrimSpace(out[i].Name))
-		right := strings.ToLower(strings.TrimSpace(out[j].Name))
-		if left == right {
-			return out[i].Id < out[j].Id
-		}
-		return left < right
-	})
-	return out, nil
+	return cloneRegistryConfig(s.config), s.updatedAt, nil
 }
 
-func (s *registryStore) upsert(in *pb.RegistryService) (*pb.RegistryService, error) {
+func (s *registryStore) update(in *pb.RegistryServiceConfig) (*pb.RegistryServiceConfig, error) {
 	if in == nil {
-		return nil, errors.New("service is required")
+		return nil, errors.New("config is required")
 	}
 
-	name := strings.TrimSpace(in.Name)
-	if name == "" {
-		return nil, errors.New("name is required")
-	}
-	subscriptionURL := strings.TrimSpace(in.SubscriptionUrl)
-	if subscriptionURL == "" {
-		return nil, errors.New("subscription_url is required")
-	}
-
-	id := strings.TrimSpace(in.Id)
-	if id == "" {
-		randomID, err := newID()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate id: %w", err)
-		}
-		id = randomID
-	}
-
-	interval := in.RefreshIntervalSeconds
-	if interval <= 0 {
-		interval = defaultRefreshIntervalSeconds
-	}
-
-	service := &pb.RegistryService{
-		Id:                     id,
-		Name:                   name,
-		SubscriptionUrl:        subscriptionURL,
-		Enabled:                in.Enabled,
-		RefreshIntervalSeconds: interval,
-		UpdatedAtUnix:          time.Now().Unix(),
-		Accounts:               cloneRegistryAccounts(in.Accounts),
-		TemplateLinks:          cloneRegistryTemplateLinks(in.TemplateLinks),
+	config := &pb.RegistryServiceConfig{
+		Accounts:      cloneRegistryAccounts(in.Accounts),
+		TemplateLinks: cloneRegistryTemplateLinks(in.TemplateLinks),
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.services[id] = cloneRegistryService(service)
+	s.config = cloneRegistryConfig(config)
+	s.updatedAt = time.Now().Unix()
 	if err := s.persistLocked(); err != nil {
 		return nil, err
 	}
-	return cloneRegistryService(service), nil
-}
-
-func (s *registryStore) delete(id string) error {
-	trimmed := strings.TrimSpace(id)
-	if trimmed == "" {
-		return errors.New("id is required")
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, exists := s.services[trimmed]; !exists {
-		return os.ErrNotExist
-	}
-
-	delete(s.services, trimmed)
-	return s.persistLocked()
+	return cloneRegistryConfig(config), nil
 }
 
 func (s *registryStore) load() error {
@@ -507,39 +436,19 @@ func (s *registryStore) load() error {
 		return err
 	}
 
-	for _, service := range state.Services {
-		if service == nil {
-			continue
-		}
-		if strings.TrimSpace(service.Id) == "" ||
-			strings.TrimSpace(service.Name) == "" ||
-			strings.TrimSpace(service.SubscriptionUrl) == "" {
-			continue
-		}
-		if service.RefreshIntervalSeconds <= 0 {
-			service.RefreshIntervalSeconds = defaultRefreshIntervalSeconds
-		}
-		s.services[service.Id] = cloneRegistryService(service)
+	s.config = cloneRegistryConfig(state.Config)
+	s.updatedAt = state.UpdatedAtUnix
+	if s.config == nil {
+		s.updatedAt = 0
 	}
 	return nil
 }
 
 func (s *registryStore) persistLocked() error {
 	state := persistedRegistryState{
-		Services: make([]*pb.RegistryService, 0, len(s.services)),
+		Config:        cloneRegistryConfig(s.config),
+		UpdatedAtUnix: s.updatedAt,
 	}
-	for _, service := range s.services {
-		state.Services = append(state.Services, cloneRegistryService(service))
-	}
-
-	sort.Slice(state.Services, func(i, j int) bool {
-		left := strings.ToLower(strings.TrimSpace(state.Services[i].Name))
-		right := strings.ToLower(strings.TrimSpace(state.Services[j].Name))
-		if left == right {
-			return state.Services[i].Id < state.Services[j].Id
-		}
-		return left < right
-	})
 
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
@@ -560,14 +469,6 @@ func (s *registryStore) persistLocked() error {
 	return os.Rename(tmpPath, s.path)
 }
 
-func newID() (string, error) {
-	var bytes [16]byte
-	if _, err := rand.Read(bytes[:]); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes[:]), nil
-}
-
 func hashMasterKey(masterKey string) string {
 	if strings.TrimSpace(masterKey) == "" {
 		return ""
@@ -576,19 +477,13 @@ func hashMasterKey(masterKey string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func cloneRegistryService(in *pb.RegistryService) *pb.RegistryService {
+func cloneRegistryConfig(in *pb.RegistryServiceConfig) *pb.RegistryServiceConfig {
 	if in == nil {
 		return nil
 	}
-	return &pb.RegistryService{
-		Id:                     in.Id,
-		Name:                   in.Name,
-		SubscriptionUrl:        in.SubscriptionUrl,
-		Enabled:                in.Enabled,
-		RefreshIntervalSeconds: in.RefreshIntervalSeconds,
-		UpdatedAtUnix:          in.UpdatedAtUnix,
-		Accounts:               cloneRegistryAccounts(in.Accounts),
-		TemplateLinks:          cloneRegistryTemplateLinks(in.TemplateLinks),
+	return &pb.RegistryServiceConfig{
+		Accounts:      cloneRegistryAccounts(in.Accounts),
+		TemplateLinks: cloneRegistryTemplateLinks(in.TemplateLinks),
 	}
 }
 

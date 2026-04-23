@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: registry.proto
+// source: registry/registry.proto
 
 package pb
 
@@ -21,35 +21,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type RegistryService struct {
-	state                  protoimpl.MessageState  `protogen:"open.v1"`
-	Id                     string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                   string                  `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	SubscriptionUrl        string                  `protobuf:"bytes,3,opt,name=subscription_url,json=subscriptionUrl,proto3" json:"subscription_url,omitempty"`
-	Enabled                bool                    `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	RefreshIntervalSeconds int32                   `protobuf:"varint,5,opt,name=refresh_interval_seconds,json=refreshIntervalSeconds,proto3" json:"refresh_interval_seconds,omitempty"`
-	UpdatedAtUnix          int64                   `protobuf:"varint,6,opt,name=updated_at_unix,json=updatedAtUnix,proto3" json:"updated_at_unix,omitempty"`
-	Accounts               []*Account              `protobuf:"bytes,7,rep,name=accounts,proto3" json:"accounts,omitempty"`
-	TemplateLinks          []*RegistryTemplateLink `protobuf:"bytes,8,rep,name=template_links,json=templateLinks,proto3" json:"template_links,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+type RegistryServiceConfig struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Accounts      []*Account              `protobuf:"bytes,1,rep,name=accounts,proto3" json:"accounts,omitempty"`
+	TemplateLinks []*RegistryTemplateLink `protobuf:"bytes,2,rep,name=template_links,json=templateLinks,proto3" json:"template_links,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegistryService) Reset() {
-	*x = RegistryService{}
-	mi := &file_registry_proto_msgTypes[0]
+func (x *RegistryServiceConfig) Reset() {
+	*x = RegistryServiceConfig{}
+	mi := &file_registry_registry_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegistryService) String() string {
+func (x *RegistryServiceConfig) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegistryService) ProtoMessage() {}
+func (*RegistryServiceConfig) ProtoMessage() {}
 
-func (x *RegistryService) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[0]
+func (x *RegistryServiceConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_registry_registry_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,61 +54,19 @@ func (x *RegistryService) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegistryService.ProtoReflect.Descriptor instead.
-func (*RegistryService) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use RegistryServiceConfig.ProtoReflect.Descriptor instead.
+func (*RegistryServiceConfig) Descriptor() ([]byte, []int) {
+	return file_registry_registry_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RegistryService) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *RegistryService) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *RegistryService) GetSubscriptionUrl() string {
-	if x != nil {
-		return x.SubscriptionUrl
-	}
-	return ""
-}
-
-func (x *RegistryService) GetEnabled() bool {
-	if x != nil {
-		return x.Enabled
-	}
-	return false
-}
-
-func (x *RegistryService) GetRefreshIntervalSeconds() int32 {
-	if x != nil {
-		return x.RefreshIntervalSeconds
-	}
-	return 0
-}
-
-func (x *RegistryService) GetUpdatedAtUnix() int64 {
-	if x != nil {
-		return x.UpdatedAtUnix
-	}
-	return 0
-}
-
-func (x *RegistryService) GetAccounts() []*Account {
+func (x *RegistryServiceConfig) GetAccounts() []*Account {
 	if x != nil {
 		return x.Accounts
 	}
 	return nil
 }
 
-func (x *RegistryService) GetTemplateLinks() []*RegistryTemplateLink {
+func (x *RegistryServiceConfig) GetTemplateLinks() []*RegistryTemplateLink {
 	if x != nil {
 		return x.TemplateLinks
 	}
@@ -135,7 +87,7 @@ type RegistryTemplateLink struct {
 
 func (x *RegistryTemplateLink) Reset() {
 	*x = RegistryTemplateLink{}
-	mi := &file_registry_proto_msgTypes[1]
+	mi := &file_registry_registry_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +99,7 @@ func (x *RegistryTemplateLink) String() string {
 func (*RegistryTemplateLink) ProtoMessage() {}
 
 func (x *RegistryTemplateLink) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[1]
+	mi := &file_registry_registry_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +112,7 @@ func (x *RegistryTemplateLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegistryTemplateLink.ProtoReflect.Descriptor instead.
 func (*RegistryTemplateLink) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{1}
+	return file_registry_registry_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RegistryTemplateLink) GetNodeId() string {
@@ -205,27 +157,28 @@ func (x *RegistryTemplateLink) GetTemplate() string {
 	return ""
 }
 
-type RegistryListServicesRequest struct {
+type RegistryUpdateConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *RegistryServiceConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegistryListServicesRequest) Reset() {
-	*x = RegistryListServicesRequest{}
-	mi := &file_registry_proto_msgTypes[2]
+func (x *RegistryUpdateConfigRequest) Reset() {
+	*x = RegistryUpdateConfigRequest{}
+	mi := &file_registry_registry_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegistryListServicesRequest) String() string {
+func (x *RegistryUpdateConfigRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegistryListServicesRequest) ProtoMessage() {}
+func (*RegistryUpdateConfigRequest) ProtoMessage() {}
 
-func (x *RegistryListServicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[2]
+func (x *RegistryUpdateConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_registry_registry_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -236,77 +189,40 @@ func (x *RegistryListServicesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegistryListServicesRequest.ProtoReflect.Descriptor instead.
-func (*RegistryListServicesRequest) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{2}
+// Deprecated: Use RegistryUpdateConfigRequest.ProtoReflect.Descriptor instead.
+func (*RegistryUpdateConfigRequest) Descriptor() ([]byte, []int) {
+	return file_registry_registry_proto_rawDescGZIP(), []int{2}
 }
 
-type RegistryListServicesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Services      []*RegistryService     `protobuf:"bytes,1,rep,name=services,proto3" json:"services,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegistryListServicesResponse) Reset() {
-	*x = RegistryListServicesResponse{}
-	mi := &file_registry_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegistryListServicesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegistryListServicesResponse) ProtoMessage() {}
-
-func (x *RegistryListServicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[3]
+func (x *RegistryUpdateConfigRequest) GetConfig() *RegistryServiceConfig {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegistryListServicesResponse.ProtoReflect.Descriptor instead.
-func (*RegistryListServicesResponse) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *RegistryListServicesResponse) GetServices() []*RegistryService {
-	if x != nil {
-		return x.Services
+		return x.Config
 	}
 	return nil
 }
 
-type RegistryUpsertServiceRequest struct {
+type RegistryUpdateConfigResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       *RegistryService       `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Config        *RegistryServiceConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegistryUpsertServiceRequest) Reset() {
-	*x = RegistryUpsertServiceRequest{}
-	mi := &file_registry_proto_msgTypes[4]
+func (x *RegistryUpdateConfigResponse) Reset() {
+	*x = RegistryUpdateConfigResponse{}
+	mi := &file_registry_registry_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegistryUpsertServiceRequest) String() string {
+func (x *RegistryUpdateConfigResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegistryUpsertServiceRequest) ProtoMessage() {}
+func (*RegistryUpdateConfigResponse) ProtoMessage() {}
 
-func (x *RegistryUpsertServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[4]
+func (x *RegistryUpdateConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_registry_registry_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -317,40 +233,39 @@ func (x *RegistryUpsertServiceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegistryUpsertServiceRequest.ProtoReflect.Descriptor instead.
-func (*RegistryUpsertServiceRequest) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{4}
+// Deprecated: Use RegistryUpdateConfigResponse.ProtoReflect.Descriptor instead.
+func (*RegistryUpdateConfigResponse) Descriptor() ([]byte, []int) {
+	return file_registry_registry_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *RegistryUpsertServiceRequest) GetService() *RegistryService {
+func (x *RegistryUpdateConfigResponse) GetConfig() *RegistryServiceConfig {
 	if x != nil {
-		return x.Service
+		return x.Config
 	}
 	return nil
 }
 
-type RegistryUpsertServiceResponse struct {
+type RegistryStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       *RegistryService       `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegistryUpsertServiceResponse) Reset() {
-	*x = RegistryUpsertServiceResponse{}
-	mi := &file_registry_proto_msgTypes[5]
+func (x *RegistryStatusRequest) Reset() {
+	*x = RegistryStatusRequest{}
+	mi := &file_registry_registry_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegistryUpsertServiceResponse) String() string {
+func (x *RegistryStatusRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegistryUpsertServiceResponse) ProtoMessage() {}
+func (*RegistryStatusRequest) ProtoMessage() {}
 
-func (x *RegistryUpsertServiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[5]
+func (x *RegistryStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_registry_registry_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -361,40 +276,36 @@ func (x *RegistryUpsertServiceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegistryUpsertServiceResponse.ProtoReflect.Descriptor instead.
-func (*RegistryUpsertServiceResponse) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{5}
+// Deprecated: Use RegistryStatusRequest.ProtoReflect.Descriptor instead.
+func (*RegistryStatusRequest) Descriptor() ([]byte, []int) {
+	return file_registry_registry_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RegistryUpsertServiceResponse) GetService() *RegistryService {
-	if x != nil {
-		return x.Service
-	}
-	return nil
-}
-
-type RegistryDeleteServiceRequest struct {
+type RegistryStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Configured    bool                   `protobuf:"varint,1,opt,name=configured,proto3" json:"configured,omitempty"`
+	Accounts      uint32                 `protobuf:"varint,2,opt,name=accounts,proto3" json:"accounts,omitempty"`
+	TemplateLinks uint32                 `protobuf:"varint,3,opt,name=template_links,json=templateLinks,proto3" json:"template_links,omitempty"`
+	UpdatedAtUnix int64                  `protobuf:"varint,4,opt,name=updated_at_unix,json=updatedAtUnix,proto3" json:"updated_at_unix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegistryDeleteServiceRequest) Reset() {
-	*x = RegistryDeleteServiceRequest{}
-	mi := &file_registry_proto_msgTypes[6]
+func (x *RegistryStatusResponse) Reset() {
+	*x = RegistryStatusResponse{}
+	mi := &file_registry_registry_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegistryDeleteServiceRequest) String() string {
+func (x *RegistryStatusResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegistryDeleteServiceRequest) ProtoMessage() {}
+func (*RegistryStatusResponse) ProtoMessage() {}
 
-func (x *RegistryDeleteServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[6]
+func (x *RegistryStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_registry_registry_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,69 +316,48 @@ func (x *RegistryDeleteServiceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegistryDeleteServiceRequest.ProtoReflect.Descriptor instead.
-func (*RegistryDeleteServiceRequest) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{6}
+// Deprecated: Use RegistryStatusResponse.ProtoReflect.Descriptor instead.
+func (*RegistryStatusResponse) Descriptor() ([]byte, []int) {
+	return file_registry_registry_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *RegistryDeleteServiceRequest) GetId() string {
+func (x *RegistryStatusResponse) GetConfigured() bool {
 	if x != nil {
-		return x.Id
+		return x.Configured
 	}
-	return ""
+	return false
 }
 
-type RegistryDeleteServiceResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegistryDeleteServiceResponse) Reset() {
-	*x = RegistryDeleteServiceResponse{}
-	mi := &file_registry_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegistryDeleteServiceResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegistryDeleteServiceResponse) ProtoMessage() {}
-
-func (x *RegistryDeleteServiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_registry_proto_msgTypes[7]
+func (x *RegistryStatusResponse) GetAccounts() uint32 {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.Accounts
 	}
-	return mi.MessageOf(x)
+	return 0
 }
 
-// Deprecated: Use RegistryDeleteServiceResponse.ProtoReflect.Descriptor instead.
-func (*RegistryDeleteServiceResponse) Descriptor() ([]byte, []int) {
-	return file_registry_proto_rawDescGZIP(), []int{7}
+func (x *RegistryStatusResponse) GetTemplateLinks() uint32 {
+	if x != nil {
+		return x.TemplateLinks
+	}
+	return 0
 }
 
-var File_registry_proto protoreflect.FileDescriptor
+func (x *RegistryStatusResponse) GetUpdatedAtUnix() int64 {
+	if x != nil {
+		return x.UpdatedAtUnix
+	}
+	return 0
+}
 
-const file_registry_proto_rawDesc = "" +
+var File_registry_registry_proto protoreflect.FileDescriptor
+
+const file_registry_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x0eregistry.proto\x12\n" +
-	"proxyswarm\x1a\fcommon.proto\"\xd6\x02\n" +
-	"\x0fRegistryService\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
-	"\x10subscription_url\x18\x03 \x01(\tR\x0fsubscriptionUrl\x12\x18\n" +
-	"\aenabled\x18\x04 \x01(\bR\aenabled\x128\n" +
-	"\x18refresh_interval_seconds\x18\x05 \x01(\x05R\x16refreshIntervalSeconds\x12&\n" +
-	"\x0fupdated_at_unix\x18\x06 \x01(\x03R\rupdatedAtUnix\x12/\n" +
-	"\baccounts\x18\a \x03(\v2\x13.proxyswarm.AccountR\baccounts\x12G\n" +
-	"\x0etemplate_links\x18\b \x03(\v2 .proxyswarm.RegistryTemplateLinkR\rtemplateLinks\"\xc6\x01\n" +
+	"\x17registry/registry.proto\x12\n" +
+	"proxyswarm\x1a\raccount.proto\"\x91\x01\n" +
+	"\x15RegistryServiceConfig\x12/\n" +
+	"\baccounts\x18\x01 \x03(\v2\x13.proxyswarm.AccountR\baccounts\x12G\n" +
+	"\x0etemplate_links\x18\x02 \x03(\v2 .proxyswarm.RegistryTemplateLinkR\rtemplateLinks\"\xc6\x01\n" +
 	"\x14RegistryTemplateLink\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1b\n" +
 	"\tnode_name\x18\x02 \x01(\tR\bnodeName\x12\x1d\n" +
@@ -475,86 +365,82 @@ const file_registry_proto_rawDesc = "" +
 	"inbound_id\x18\x03 \x01(\tR\tinboundId\x12!\n" +
 	"\finbound_name\x18\x04 \x01(\tR\vinboundName\x12\x1a\n" +
 	"\bprotocol\x18\x05 \x01(\tR\bprotocol\x12\x1a\n" +
-	"\btemplate\x18\x06 \x01(\tR\btemplate\"\x1d\n" +
-	"\x1bRegistryListServicesRequest\"W\n" +
-	"\x1cRegistryListServicesResponse\x127\n" +
-	"\bservices\x18\x01 \x03(\v2\x1b.proxyswarm.RegistryServiceR\bservices\"U\n" +
-	"\x1cRegistryUpsertServiceRequest\x125\n" +
-	"\aservice\x18\x01 \x01(\v2\x1b.proxyswarm.RegistryServiceR\aservice\"V\n" +
-	"\x1dRegistryUpsertServiceResponse\x125\n" +
-	"\aservice\x18\x01 \x01(\v2\x1b.proxyswarm.RegistryServiceR\aservice\".\n" +
-	"\x1cRegistryDeleteServiceRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x1f\n" +
-	"\x1dRegistryDeleteServiceResponse2\xca\x02\n" +
+	"\btemplate\x18\x06 \x01(\tR\btemplate\"X\n" +
+	"\x1bRegistryUpdateConfigRequest\x129\n" +
+	"\x06config\x18\x01 \x01(\v2!.proxyswarm.RegistryServiceConfigR\x06config\"Y\n" +
+	"\x1cRegistryUpdateConfigResponse\x129\n" +
+	"\x06config\x18\x01 \x01(\v2!.proxyswarm.RegistryServiceConfigR\x06config\"\x17\n" +
+	"\x15RegistryStatusRequest\"\xa3\x01\n" +
+	"\x16RegistryStatusResponse\x12\x1e\n" +
+	"\n" +
+	"configured\x18\x01 \x01(\bR\n" +
+	"configured\x12\x1a\n" +
+	"\baccounts\x18\x02 \x01(\rR\baccounts\x12%\n" +
+	"\x0etemplate_links\x18\x03 \x01(\rR\rtemplateLinks\x12&\n" +
+	"\x0fupdated_at_unix\x18\x04 \x01(\x03R\rupdatedAtUnix2\xcf\x01\n" +
 	"\x19RegistryManagementService\x12a\n" +
-	"\fListServices\x12'.proxyswarm.RegistryListServicesRequest\x1a(.proxyswarm.RegistryListServicesResponse\x12d\n" +
-	"\rUpsertService\x12(.proxyswarm.RegistryUpsertServiceRequest\x1a).proxyswarm.RegistryUpsertServiceResponse\x12d\n" +
-	"\rDeleteService\x12(.proxyswarm.RegistryDeleteServiceRequest\x1a).proxyswarm.RegistryDeleteServiceResponseB\x06Z\x04./pbb\x06proto3"
+	"\fUpdateConfig\x12'.proxyswarm.RegistryUpdateConfigRequest\x1a(.proxyswarm.RegistryUpdateConfigResponse\x12O\n" +
+	"\x06Status\x12!.proxyswarm.RegistryStatusRequest\x1a\".proxyswarm.RegistryStatusResponseB\x06Z\x04./pbb\x06proto3"
 
 var (
-	file_registry_proto_rawDescOnce sync.Once
-	file_registry_proto_rawDescData []byte
+	file_registry_registry_proto_rawDescOnce sync.Once
+	file_registry_registry_proto_rawDescData []byte
 )
 
-func file_registry_proto_rawDescGZIP() []byte {
-	file_registry_proto_rawDescOnce.Do(func() {
-		file_registry_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_registry_proto_rawDesc), len(file_registry_proto_rawDesc)))
+func file_registry_registry_proto_rawDescGZIP() []byte {
+	file_registry_registry_proto_rawDescOnce.Do(func() {
+		file_registry_registry_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_registry_registry_proto_rawDesc), len(file_registry_registry_proto_rawDesc)))
 	})
-	return file_registry_proto_rawDescData
+	return file_registry_registry_proto_rawDescData
 }
 
-var file_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
-var file_registry_proto_goTypes = []any{
-	(*RegistryService)(nil),               // 0: proxyswarm.RegistryService
-	(*RegistryTemplateLink)(nil),          // 1: proxyswarm.RegistryTemplateLink
-	(*RegistryListServicesRequest)(nil),   // 2: proxyswarm.RegistryListServicesRequest
-	(*RegistryListServicesResponse)(nil),  // 3: proxyswarm.RegistryListServicesResponse
-	(*RegistryUpsertServiceRequest)(nil),  // 4: proxyswarm.RegistryUpsertServiceRequest
-	(*RegistryUpsertServiceResponse)(nil), // 5: proxyswarm.RegistryUpsertServiceResponse
-	(*RegistryDeleteServiceRequest)(nil),  // 6: proxyswarm.RegistryDeleteServiceRequest
-	(*RegistryDeleteServiceResponse)(nil), // 7: proxyswarm.RegistryDeleteServiceResponse
-	(*Account)(nil),                       // 8: proxyswarm.Account
+var file_registry_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_registry_registry_proto_goTypes = []any{
+	(*RegistryServiceConfig)(nil),        // 0: proxyswarm.RegistryServiceConfig
+	(*RegistryTemplateLink)(nil),         // 1: proxyswarm.RegistryTemplateLink
+	(*RegistryUpdateConfigRequest)(nil),  // 2: proxyswarm.RegistryUpdateConfigRequest
+	(*RegistryUpdateConfigResponse)(nil), // 3: proxyswarm.RegistryUpdateConfigResponse
+	(*RegistryStatusRequest)(nil),        // 4: proxyswarm.RegistryStatusRequest
+	(*RegistryStatusResponse)(nil),       // 5: proxyswarm.RegistryStatusResponse
+	(*Account)(nil),                      // 6: proxyswarm.Account
 }
-var file_registry_proto_depIdxs = []int32{
-	8, // 0: proxyswarm.RegistryService.accounts:type_name -> proxyswarm.Account
-	1, // 1: proxyswarm.RegistryService.template_links:type_name -> proxyswarm.RegistryTemplateLink
-	0, // 2: proxyswarm.RegistryListServicesResponse.services:type_name -> proxyswarm.RegistryService
-	0, // 3: proxyswarm.RegistryUpsertServiceRequest.service:type_name -> proxyswarm.RegistryService
-	0, // 4: proxyswarm.RegistryUpsertServiceResponse.service:type_name -> proxyswarm.RegistryService
-	2, // 5: proxyswarm.RegistryManagementService.ListServices:input_type -> proxyswarm.RegistryListServicesRequest
-	4, // 6: proxyswarm.RegistryManagementService.UpsertService:input_type -> proxyswarm.RegistryUpsertServiceRequest
-	6, // 7: proxyswarm.RegistryManagementService.DeleteService:input_type -> proxyswarm.RegistryDeleteServiceRequest
-	3, // 8: proxyswarm.RegistryManagementService.ListServices:output_type -> proxyswarm.RegistryListServicesResponse
-	5, // 9: proxyswarm.RegistryManagementService.UpsertService:output_type -> proxyswarm.RegistryUpsertServiceResponse
-	7, // 10: proxyswarm.RegistryManagementService.DeleteService:output_type -> proxyswarm.RegistryDeleteServiceResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+var file_registry_registry_proto_depIdxs = []int32{
+	6, // 0: proxyswarm.RegistryServiceConfig.accounts:type_name -> proxyswarm.Account
+	1, // 1: proxyswarm.RegistryServiceConfig.template_links:type_name -> proxyswarm.RegistryTemplateLink
+	0, // 2: proxyswarm.RegistryUpdateConfigRequest.config:type_name -> proxyswarm.RegistryServiceConfig
+	0, // 3: proxyswarm.RegistryUpdateConfigResponse.config:type_name -> proxyswarm.RegistryServiceConfig
+	2, // 4: proxyswarm.RegistryManagementService.UpdateConfig:input_type -> proxyswarm.RegistryUpdateConfigRequest
+	4, // 5: proxyswarm.RegistryManagementService.Status:input_type -> proxyswarm.RegistryStatusRequest
+	3, // 6: proxyswarm.RegistryManagementService.UpdateConfig:output_type -> proxyswarm.RegistryUpdateConfigResponse
+	5, // 7: proxyswarm.RegistryManagementService.Status:output_type -> proxyswarm.RegistryStatusResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
-func init() { file_registry_proto_init() }
-func file_registry_proto_init() {
-	if File_registry_proto != nil {
+func init() { file_registry_registry_proto_init() }
+func file_registry_registry_proto_init() {
+	if File_registry_registry_proto != nil {
 		return
 	}
-	file_common_proto_init()
+	file_account_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_registry_proto_rawDesc), len(file_registry_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_registry_registry_proto_rawDesc), len(file_registry_registry_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_registry_proto_goTypes,
-		DependencyIndexes: file_registry_proto_depIdxs,
-		MessageInfos:      file_registry_proto_msgTypes,
+		GoTypes:           file_registry_registry_proto_goTypes,
+		DependencyIndexes: file_registry_registry_proto_depIdxs,
+		MessageInfos:      file_registry_registry_proto_msgTypes,
 	}.Build()
-	File_registry_proto = out.File
-	file_registry_proto_goTypes = nil
-	file_registry_proto_depIdxs = nil
+	File_registry_registry_proto = out.File
+	file_registry_registry_proto_goTypes = nil
+	file_registry_registry_proto_depIdxs = nil
 }
