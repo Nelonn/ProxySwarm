@@ -290,6 +290,10 @@ func makeManageAPIHandler(wrappedServer *grpcweb.WrappedGrpcServer) http.Handler
 			wrappedServer.ServeHTTP(res, req)
 			return
 		}
+		if strings.HasPrefix(req.URL.Path, "/proxyswarm.RegistryManagementService/") {
+			http.Error(res, "gRPC-Web request required", http.StatusBadRequest)
+			return
+		}
 		http.NotFound(res, req)
 	})
 }

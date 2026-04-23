@@ -6,6 +6,10 @@ on:
       - main
     tags:
       - "v*"
+    paths:
+      - ".github/workflows/manager-desktop.yml"
+      - "manager/**"
+      - "proto/**"
   pull_request:
     branches:
       - main
