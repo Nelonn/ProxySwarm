@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags "\
+    -X 'proxyswarm/node/internal/engine.defaultDataDir=/data' \
     -X 'proxyswarm/node/internal/engine.TrustTunnelBinary=/usr/local/bin/trusttunnel_endpoint' \
     -X 'proxyswarm/node/internal/engine.SingBoxBinary=/usr/local/bin/sing-box'" \
     -o /out/proxy-node ./cmd/node

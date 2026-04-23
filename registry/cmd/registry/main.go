@@ -34,6 +34,8 @@ const modeSharedPort = "1"
 const modeSplitPorts = "2"
 const registryMasterKeyHeader = "x-registry-master-key"
 
+var defaultDataDir = "/var/proxyswarm/registry"
+
 type registryStore struct {
 	mu       sync.Mutex
 	path     string
@@ -390,11 +392,20 @@ func newRegistryStore() (*registryStore, error) {
 }
 
 func defaultStorePath() string {
-	configDir, err := os.UserConfigDir()
-	if err == nil && strings.TrimSpace(configDir) != "" {
-		return filepath.Join(configDir, "proxyswarm", "registry_services.json")
+	if dataDir := defaultDataRoot(); dataDir != "" {
+		return filepath.Join(dataDir, "registry_services.json")
 	}
 	return "registry_services.json"
+}
+
+func defaultDataRoot() string {
+	if envDir := strings.TrimSpace(os.Getenv("PS_REGISTRY_DATA_DIR")); envDir != "" {
+		return envDir
+	}
+	if buildDir := strings.TrimSpace(defaultDataDir); buildDir != "" {
+		return buildDir
+	}
+	return ""
 }
 
 func (s *registryStore) list() ([]*pb.RegistryService, error) {

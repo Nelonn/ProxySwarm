@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"proxyswarm/node/internal/acme"
-	"proxyswarm/node/internal/pb"
 	"log"
 	"os"
 	"path/filepath"
+	"proxyswarm/node/internal/acme"
+	"proxyswarm/node/internal/pb"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +44,8 @@ type AcmeIssueParams struct {
 	KeyPath         string
 }
 
+var defaultDataDir = "/var/proxyswarm/node"
+
 func NewManager() *Manager {
 	manager := &Manager{
 		engines:      make(map[string]Engine),
@@ -61,27 +63,34 @@ func NewManager() *Manager {
 }
 
 func defaultManagerStatePath() string {
-	configDir, err := os.UserConfigDir()
-	if err == nil && strings.TrimSpace(configDir) != "" {
-		return filepath.Join(configDir, "proxyswarm", "deployed_config.json")
+	if dataDir := defaultDataRoot(); dataDir != "" {
+		return filepath.Join(dataDir, "deployed_config.json")
 	}
 	return "deployed_config.json"
 }
 
 func defaultManagerMetricsPath() string {
-	configDir, err := os.UserConfigDir()
-	if err == nil && strings.TrimSpace(configDir) != "" {
-		return filepath.Join(configDir, "proxyswarm", "deployed_metrics.json")
+	if dataDir := defaultDataRoot(); dataDir != "" {
+		return filepath.Join(dataDir, "deployed_metrics.json")
 	}
 	return "deployed_metrics.json"
 }
 
 func defaultManagedCertsDir() string {
-	configDir, err := os.UserConfigDir()
-	if err == nil && strings.TrimSpace(configDir) != "" {
-		return filepath.Join(configDir, "proxyswarm", "certs")
+	if dataDir := defaultDataRoot(); dataDir != "" {
+		return filepath.Join(dataDir, "certs")
 	}
 	return "certs"
+}
+
+func defaultDataRoot() string {
+	if envDir := strings.TrimSpace(os.Getenv("PS_NODE_DATA_DIR")); envDir != "" {
+		return envDir
+	}
+	if buildDir := strings.TrimSpace(defaultDataDir); buildDir != "" {
+		return buildDir
+	}
+	return ""
 }
 
 func materializeInlineCertificate(cert *pb.CertificateConfig) error {

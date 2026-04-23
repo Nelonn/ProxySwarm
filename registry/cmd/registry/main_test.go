@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -205,5 +207,32 @@ func TestRegistryManagementAuthorize_AcceptsHashedKey(t *testing.T) {
 
 	if err := server.authorize(ctx); err != nil {
 		t.Fatalf("expected authorize success, got %v", err)
+	}
+}
+
+func TestDefaultStorePath_UsesEnvOverride(t *testing.T) {
+	t.Setenv("PS_REGISTRY_DATA_DIR", filepath.Join(string(filepath.Separator), "tmp", "registry-data"))
+
+	got := defaultStorePath()
+	want := filepath.Join(string(filepath.Separator), "tmp", "registry-data", "registry_services.json")
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestDefaultStorePath_UsesBuildDefault(t *testing.T) {
+	t.Setenv("PS_REGISTRY_DATA_DIR", "")
+
+	original := defaultDataDir
+	defaultDataDir = filepath.Join(string(filepath.Separator), "var", "proxyswarm", "registry-test")
+	t.Cleanup(func() { defaultDataDir = original })
+
+	got := defaultStorePath()
+	want := filepath.Join(string(filepath.Separator), "var", "proxyswarm", "registry-test", "registry_services.json")
+	if runtime.GOOS == "windows" {
+		want = filepath.Join("\\", "var", "proxyswarm", "registry-test", "registry_services.json")
+	}
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
 	}
 }

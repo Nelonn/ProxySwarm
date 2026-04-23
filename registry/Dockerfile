@@ -16,7 +16,9 @@ COPY registry/ ./
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -o /out/proxyswarm-registry ./cmd/registry
+    CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-X 'main.defaultDataDir=/data'" \
+    -o /out/proxyswarm-registry ./cmd/registry
 
 FROM alpine:${ALPINE_VERSION}
 
