@@ -67,13 +67,17 @@ func main() {
 		res.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Grpc-Web, X-User-Agent")
 		res.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 
-		if req.Method == http.MethodOptions {
+		if isNodeManageRequest(req, wrappedServer) && req.Method == http.MethodOptions {
 			res.WriteHeader(http.StatusNoContent)
 			return
 		}
 
 		if wrappedServer.IsGrpcWebRequest(req) {
 			wrappedServer.ServeHTTP(res, req)
+			return
+		}
+		if isNodeManagePath(req.URL.Path) {
+			http.Error(res, "gRPC-Web request required", http.StatusBadRequest)
 			return
 		}
 		// Fallback to other handlers if needed
@@ -89,6 +93,16 @@ func main() {
 	if err := httpServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+}
+
+func isNodeManageRequest(req *http.Request, wrappedServer *grpcweb.WrappedGrpcServer) bool {
+	return wrappedServer.IsGrpcWebRequest(req) ||
+		wrappedServer.IsAcceptableGrpcCorsRequest(req) ||
+		isNodeManagePath(req.URL.Path)
+}
+
+func isNodeManagePath(path string) bool {
+	return len(path) >= len("/proxyswarm.NodeService/") && path[:len("/proxyswarm.NodeService/")] == "/proxyswarm.NodeService/"
 }
 
 func loggingUnaryInterceptor(
