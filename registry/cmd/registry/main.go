@@ -99,7 +99,7 @@ func main() {
 			log.Fatalf("failed to listen: %v", err)
 		}
 		handler := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			if wrappedServer.IsGrpcWebRequest(req) {
+			if isManageRequest(req, wrappedServer) {
 				manageHandler.ServeHTTP(res, req)
 				return
 			}
@@ -292,6 +292,13 @@ func makeManageAPIHandler(wrappedServer *grpcweb.WrappedGrpcServer) http.Handler
 		}
 		http.NotFound(res, req)
 	})
+}
+
+func isManageRequest(req *http.Request, wrappedServer *grpcweb.WrappedGrpcServer) bool {
+	if wrappedServer.IsGrpcWebRequest(req) || wrappedServer.IsAcceptableGrpcCorsRequest(req) {
+		return true
+	}
+	return strings.HasPrefix(req.URL.Path, "/proxyswarm.RegistryManagementService/")
 }
 
 func setUserCORSHeaders(res http.ResponseWriter) {
