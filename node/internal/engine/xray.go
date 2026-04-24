@@ -326,6 +326,28 @@ func normalizedXrayRuleTransports(values []string) []string {
 	return transports
 }
 
+func normalizedXrayServerNames(values ...string) []string {
+	serverNames := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			token := strings.TrimSpace(part)
+			if token == "" {
+				continue
+			}
+			if _, ok := seen[token]; ok {
+				continue
+			}
+			seen[token] = struct{}{}
+			serverNames = append(serverNames, token)
+		}
+	}
+	if len(serverNames) == 0 {
+		return nil
+	}
+	return serverNames
+}
+
 func xrayRuleHasMatchers(rule *pb.RoutingRule) bool {
 	return len(normalizedXrayRuleValues(rule.Domain)) > 0 ||
 		len(normalizedXrayRuleValues(rule.InboundTag)) > 0 ||
@@ -676,9 +698,9 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 			if realityCfg == nil {
 				return nil, fmt.Errorf("vless reality requires reality settings")
 			}
-			realitySNI := strings.TrimSpace(realityCfg.Sni)
-			if realitySNI == "" && tlsConfig != nil {
-				realitySNI = strings.TrimSpace(tlsConfig.ServerName)
+			serverNames := normalizedXrayServerNames(realityCfg.Sni)
+			if len(serverNames) == 0 && tlsConfig != nil {
+				serverNames = normalizedXrayServerNames(tlsConfig.ServerName)
 			}
 			stream.Security = "reality"
 			stream.REALITYSettings = &conf.REALITYConfig{
@@ -686,7 +708,7 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 				Target:      toRaw(realityCfg.Dest),
 				Dest:        toRaw(realityCfg.Dest),
 				Xver:        0,
-				ServerNames: []string{realitySNI},
+				ServerNames: serverNames,
 				PrivateKey:  realityCfg.PrivateKey,
 				ShortIds:    realityCfg.ShortId,
 				Fingerprint: realityCfg.Utls,
