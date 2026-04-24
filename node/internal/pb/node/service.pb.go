@@ -76,6 +76,7 @@ const (
 	OutboundType_TRUSTTUNNEL OutboundType = 3
 	OutboundType_WIREGUARD   OutboundType = 4
 	OutboundType_SOCKS5      OutboundType = 5
+	OutboundType_SHADOWSOCKS OutboundType = 6
 )
 
 // Enum value maps for OutboundType.
@@ -87,6 +88,7 @@ var (
 		3: "TRUSTTUNNEL",
 		4: "WIREGUARD",
 		5: "SOCKS5",
+		6: "SHADOWSOCKS",
 	}
 	OutboundType_value = map[string]int32{
 		"DIRECT":      0,
@@ -95,6 +97,7 @@ var (
 		"TRUSTTUNNEL": 3,
 		"WIREGUARD":   4,
 		"SOCKS5":      5,
+		"SHADOWSOCKS": 6,
 	}
 )
 
@@ -218,12 +221,13 @@ func (x *FullConfig) GetDns() *DnsConfig {
 }
 
 type InboundConfig struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Name    string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Listen  string                 `protobuf:"bytes,2,opt,name=listen,proto3" json:"listen,omitempty"` // e.g., "0.0.0.0"
-	Port    int32                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
-	Core    CoreType               `protobuf:"varint,5,opt,name=core,proto3,enum=proxyswarm.CoreType" json:"core,omitempty"`
-	Enabled bool                   `protobuf:"varint,12,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Name     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Listen   string                 `protobuf:"bytes,2,opt,name=listen,proto3" json:"listen,omitempty"` // e.g., "0.0.0.0"
+	Port     int32                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	Core     CoreType               `protobuf:"varint,5,opt,name=core,proto3,enum=proxyswarm.CoreType" json:"core,omitempty"`
+	Accounts []*Account             `protobuf:"bytes,4,rep,name=accounts,proto3" json:"accounts,omitempty"`
+	Enabled  bool                   `protobuf:"varint,12,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// Types that are valid to be assigned to Protocol:
 	//
 	//	*InboundConfig_Vless
@@ -232,6 +236,7 @@ type InboundConfig struct {
 	//	*InboundConfig_Naiveproxy
 	//	*InboundConfig_Wireguard
 	//	*InboundConfig_Socks5
+	//	*InboundConfig_Shadowsocks
 	Protocol      isInboundConfig_Protocol `protobuf_oneof:"protocol"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -293,6 +298,13 @@ func (x *InboundConfig) GetCore() CoreType {
 		return x.Core
 	}
 	return CoreType_SING_BOX
+}
+
+func (x *InboundConfig) GetAccounts() []*Account {
+	if x != nil {
+		return x.Accounts
+	}
+	return nil
 }
 
 func (x *InboundConfig) GetEnabled() bool {
@@ -363,6 +375,15 @@ func (x *InboundConfig) GetSocks5() *Socks5InboundConfig {
 	return nil
 }
 
+func (x *InboundConfig) GetShadowsocks() *ShadowsocksInboundConfig {
+	if x != nil {
+		if x, ok := x.Protocol.(*InboundConfig_Shadowsocks); ok {
+			return x.Shadowsocks
+		}
+	}
+	return nil
+}
+
 type isInboundConfig_Protocol interface {
 	isInboundConfig_Protocol()
 }
@@ -391,6 +412,10 @@ type InboundConfig_Socks5 struct {
 	Socks5 *Socks5InboundConfig `protobuf:"bytes,11,opt,name=socks5,proto3,oneof"`
 }
 
+type InboundConfig_Shadowsocks struct {
+	Shadowsocks *ShadowsocksInboundConfig `protobuf:"bytes,13,opt,name=shadowsocks,proto3,oneof"`
+}
+
 func (*InboundConfig_Vless) isInboundConfig_Protocol() {}
 
 func (*InboundConfig_Hysteria2) isInboundConfig_Protocol() {}
@@ -403,6 +428,8 @@ func (*InboundConfig_Wireguard) isInboundConfig_Protocol() {}
 
 func (*InboundConfig_Socks5) isInboundConfig_Protocol() {}
 
+func (*InboundConfig_Shadowsocks) isInboundConfig_Protocol() {}
+
 type OutboundConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Tag   string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
@@ -413,6 +440,7 @@ type OutboundConfig struct {
 	//	*OutboundConfig_Trusttunnel
 	//	*OutboundConfig_Wireguard
 	//	*OutboundConfig_Socks5
+	//	*OutboundConfig_Shadowsocks
 	Settings      isOutboundConfig_Settings `protobuf_oneof:"settings"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -505,6 +533,15 @@ func (x *OutboundConfig) GetSocks5() *Socks5OutboundConfig {
 	return nil
 }
 
+func (x *OutboundConfig) GetShadowsocks() *ShadowsocksOutboundConfig {
+	if x != nil {
+		if x, ok := x.Settings.(*OutboundConfig_Shadowsocks); ok {
+			return x.Shadowsocks
+		}
+	}
+	return nil
+}
+
 type isOutboundConfig_Settings interface {
 	isOutboundConfig_Settings()
 }
@@ -525,6 +562,10 @@ type OutboundConfig_Socks5 struct {
 	Socks5 *Socks5OutboundConfig `protobuf:"bytes,6,opt,name=socks5,proto3,oneof"`
 }
 
+type OutboundConfig_Shadowsocks struct {
+	Shadowsocks *ShadowsocksOutboundConfig `protobuf:"bytes,7,opt,name=shadowsocks,proto3,oneof"`
+}
+
 func (*OutboundConfig_Vless) isOutboundConfig_Settings() {}
 
 func (*OutboundConfig_Trusttunnel) isOutboundConfig_Settings() {}
@@ -532,6 +573,8 @@ func (*OutboundConfig_Trusttunnel) isOutboundConfig_Settings() {}
 func (*OutboundConfig_Wireguard) isOutboundConfig_Settings() {}
 
 func (*OutboundConfig_Socks5) isOutboundConfig_Settings() {}
+
+func (*OutboundConfig_Shadowsocks) isOutboundConfig_Settings() {}
 
 type VlessOutboundConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1642,7 +1685,7 @@ var File_node_service_proto protoreflect.FileDescriptor
 const file_node_service_proto_rawDesc = "" +
 	"\n" +
 	"\x12node/service.proto\x12\n" +
-	"proxyswarm\x1a\raccount.proto\x1a\x11node/common.proto\x1a\x10node/vless.proto\x1a\x14node/hysteria2.proto\x1a\x16node/trusttunnel.proto\x1a\x15node/naiveproxy.proto\x1a\x14node/wireguard.proto\x1a\x11node/socks5.proto\"\xf7\x02\n" +
+	"proxyswarm\x1a\raccount.proto\x1a\x11node/common.proto\x1a\x10node/vless.proto\x1a\x14node/hysteria2.proto\x1a\x16node/trusttunnel.proto\x1a\x15node/naiveproxy.proto\x1a\x14node/wireguard.proto\x1a\x11node/socks5.proto\x1a\x16node/shadowsocks.proto\"\xf7\x02\n" +
 	"\n" +
 	"FullConfig\x12\x1d\n" +
 	"\n" +
@@ -1652,12 +1695,13 @@ const file_node_service_proto_rawDesc = "" +
 	"\toutbounds\x18\x04 \x03(\v2\x1a.proxyswarm.OutboundConfigR\toutbounds\x12<\n" +
 	"\rrouting_rules\x18\x05 \x03(\v2\x17.proxyswarm.RoutingRuleR\froutingRules\x12A\n" +
 	"\fcertificates\x18\x06 \x03(\v2\x1d.proxyswarm.CertificateConfigR\fcertificates\x12'\n" +
-	"\x03dns\x18\a \x01(\v2\x15.proxyswarm.DnsConfigR\x03dns\"\x88\x04\n" +
+	"\x03dns\x18\a \x01(\v2\x15.proxyswarm.DnsConfigR\x03dns\"\x83\x05\n" +
 	"\rInboundConfig\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06listen\x18\x02 \x01(\tR\x06listen\x12\x12\n" +
 	"\x04port\x18\x03 \x01(\x05R\x04port\x12(\n" +
-	"\x04core\x18\x05 \x01(\x0e2\x14.proxyswarm.CoreTypeR\x04core\x12\x18\n" +
+	"\x04core\x18\x05 \x01(\x0e2\x14.proxyswarm.CoreTypeR\x04core\x12/\n" +
+	"\baccounts\x18\x04 \x03(\v2\x13.proxyswarm.AccountR\baccounts\x12\x18\n" +
 	"\aenabled\x18\f \x01(\bR\aenabled\x12/\n" +
 	"\x05vless\x18\x06 \x01(\v2\x17.proxyswarm.VlessConfigH\x00R\x05vless\x12;\n" +
 	"\thysteria2\x18\a \x01(\v2\x1b.proxyswarm.Hysteria2ConfigH\x00R\thysteria2\x12A\n" +
@@ -1667,16 +1711,18 @@ const file_node_service_proto_rawDesc = "" +
 	"naiveproxy\x12;\n" +
 	"\twireguard\x18\n" +
 	" \x01(\v2\x1b.proxyswarm.WireGuardConfigH\x00R\twireguard\x129\n" +
-	"\x06socks5\x18\v \x01(\v2\x1f.proxyswarm.Socks5InboundConfigH\x00R\x06socks5B\n" +
+	"\x06socks5\x18\v \x01(\v2\x1f.proxyswarm.Socks5InboundConfigH\x00R\x06socks5\x12H\n" +
+	"\vshadowsocks\x18\r \x01(\v2$.proxyswarm.ShadowsocksInboundConfigH\x00R\vshadowsocksB\n" +
 	"\n" +
-	"\bprotocol\"\xd1\x02\n" +
+	"\bprotocol\"\x9c\x03\n" +
 	"\x0eOutboundConfig\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12,\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x18.proxyswarm.OutboundTypeR\x04type\x127\n" +
 	"\x05vless\x18\x03 \x01(\v2\x1f.proxyswarm.VlessOutboundConfigH\x00R\x05vless\x12A\n" +
 	"\vtrusttunnel\x18\x04 \x01(\v2\x1d.proxyswarm.TrustTunnelConfigH\x00R\vtrusttunnel\x12;\n" +
 	"\twireguard\x18\x05 \x01(\v2\x1b.proxyswarm.WireGuardConfigH\x00R\twireguard\x12:\n" +
-	"\x06socks5\x18\x06 \x01(\v2 .proxyswarm.Socks5OutboundConfigH\x00R\x06socks5B\n" +
+	"\x06socks5\x18\x06 \x01(\v2 .proxyswarm.Socks5OutboundConfigH\x00R\x06socks5\x12I\n" +
+	"\vshadowsocks\x18\a \x01(\v2%.proxyswarm.ShadowsocksOutboundConfigH\x00R\vshadowsocksB\n" +
 	"\n" +
 	"\bsettings\"\xc3\x01\n" +
 	"\x13VlessOutboundConfig\x12\x16\n" +
@@ -1786,7 +1832,7 @@ const file_node_service_proto_rawDesc = "" +
 	"\alicense\x18\x03 \x01(\tR\alicense*\"\n" +
 	"\bCoreType\x12\f\n" +
 	"\bSING_BOX\x10\x00\x12\b\n" +
-	"\x04XRAY\x10\x01*\\\n" +
+	"\x04XRAY\x10\x01*m\n" +
 	"\fOutboundType\x12\n" +
 	"\n" +
 	"\x06DIRECT\x10\x00\x12\t\n" +
@@ -1795,7 +1841,8 @@ const file_node_service_proto_rawDesc = "" +
 	"\vTRUSTTUNNEL\x10\x03\x12\r\n" +
 	"\tWIREGUARD\x10\x04\x12\n" +
 	"\n" +
-	"\x06SOCKS5\x10\x052\x9b\x03\n" +
+	"\x06SOCKS5\x10\x05\x12\x0f\n" +
+	"\vSHADOWSOCKS\x10\x062\x9b\x03\n" +
 	"\vNodeService\x12B\n" +
 	"\fUpdateConfig\x12\x16.proxyswarm.FullConfig\x1a\x1a.proxyswarm.UpdateResponse\x12>\n" +
 	"\tGetStatus\x12\x19.proxyswarm.StatusRequest\x1a\x16.proxyswarm.NodeStatus\x12S\n" +
@@ -1845,9 +1892,11 @@ var file_node_service_proto_goTypes = []any{
 	(*NaiveProxyConfig)(nil),          // 24: proxyswarm.NaiveProxyConfig
 	(*WireGuardConfig)(nil),           // 25: proxyswarm.WireGuardConfig
 	(*Socks5InboundConfig)(nil),       // 26: proxyswarm.Socks5InboundConfig
-	(*Socks5OutboundConfig)(nil),      // 27: proxyswarm.Socks5OutboundConfig
-	(SecurityMode)(0),                 // 28: proxyswarm.SecurityMode
-	(*NodeStatus)(nil),                // 29: proxyswarm.NodeStatus
+	(*ShadowsocksInboundConfig)(nil),  // 27: proxyswarm.ShadowsocksInboundConfig
+	(*Socks5OutboundConfig)(nil),      // 28: proxyswarm.Socks5OutboundConfig
+	(*ShadowsocksOutboundConfig)(nil), // 29: proxyswarm.ShadowsocksOutboundConfig
+	(SecurityMode)(0),                 // 30: proxyswarm.SecurityMode
+	(*NodeStatus)(nil),                // 31: proxyswarm.NodeStatus
 }
 var file_node_service_proto_depIdxs = []int32{
 	3,  // 0: proxyswarm.FullConfig.inbounds:type_name -> proxyswarm.InboundConfig
@@ -1857,36 +1906,39 @@ var file_node_service_proto_depIdxs = []int32{
 	20, // 4: proxyswarm.FullConfig.certificates:type_name -> proxyswarm.CertificateConfig
 	7,  // 5: proxyswarm.FullConfig.dns:type_name -> proxyswarm.DnsConfig
 	0,  // 6: proxyswarm.InboundConfig.core:type_name -> proxyswarm.CoreType
-	21, // 7: proxyswarm.InboundConfig.vless:type_name -> proxyswarm.VlessConfig
-	22, // 8: proxyswarm.InboundConfig.hysteria2:type_name -> proxyswarm.Hysteria2Config
-	23, // 9: proxyswarm.InboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
-	24, // 10: proxyswarm.InboundConfig.naiveproxy:type_name -> proxyswarm.NaiveProxyConfig
-	25, // 11: proxyswarm.InboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
-	26, // 12: proxyswarm.InboundConfig.socks5:type_name -> proxyswarm.Socks5InboundConfig
-	1,  // 13: proxyswarm.OutboundConfig.type:type_name -> proxyswarm.OutboundType
-	5,  // 14: proxyswarm.OutboundConfig.vless:type_name -> proxyswarm.VlessOutboundConfig
-	23, // 15: proxyswarm.OutboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
-	25, // 16: proxyswarm.OutboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
-	27, // 17: proxyswarm.OutboundConfig.socks5:type_name -> proxyswarm.Socks5OutboundConfig
-	28, // 18: proxyswarm.VlessOutboundConfig.security:type_name -> proxyswarm.SecurityMode
-	8,  // 19: proxyswarm.DnsConfig.servers:type_name -> proxyswarm.DnsServerConfig
-	9,  // 20: proxyswarm.DnsConfig.hosts:type_name -> proxyswarm.DnsHostMapping
-	15, // 21: proxyswarm.WarpRegisterResponse.registration:type_name -> proxyswarm.WarpRegistration
-	2,  // 22: proxyswarm.NodeService.UpdateConfig:input_type -> proxyswarm.FullConfig
-	11, // 23: proxyswarm.NodeService.GetStatus:input_type -> proxyswarm.StatusRequest
-	12, // 24: proxyswarm.NodeService.IssueAcmeCertificate:input_type -> proxyswarm.AcmeIssueRequest
-	14, // 25: proxyswarm.NodeService.RegisterWarp:input_type -> proxyswarm.WarpRegisterRequest
-	17, // 26: proxyswarm.NodeService.UpdateWarpLicense:input_type -> proxyswarm.WarpLicenseUpdateRequest
-	10, // 27: proxyswarm.NodeService.UpdateConfig:output_type -> proxyswarm.UpdateResponse
-	29, // 28: proxyswarm.NodeService.GetStatus:output_type -> proxyswarm.NodeStatus
-	13, // 29: proxyswarm.NodeService.IssueAcmeCertificate:output_type -> proxyswarm.AcmeIssueResponse
-	16, // 30: proxyswarm.NodeService.RegisterWarp:output_type -> proxyswarm.WarpRegisterResponse
-	18, // 31: proxyswarm.NodeService.UpdateWarpLicense:output_type -> proxyswarm.WarpLicenseUpdateResponse
-	27, // [27:32] is the sub-list for method output_type
-	22, // [22:27] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	19, // 7: proxyswarm.InboundConfig.accounts:type_name -> proxyswarm.Account
+	21, // 8: proxyswarm.InboundConfig.vless:type_name -> proxyswarm.VlessConfig
+	22, // 9: proxyswarm.InboundConfig.hysteria2:type_name -> proxyswarm.Hysteria2Config
+	23, // 10: proxyswarm.InboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
+	24, // 11: proxyswarm.InboundConfig.naiveproxy:type_name -> proxyswarm.NaiveProxyConfig
+	25, // 12: proxyswarm.InboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
+	26, // 13: proxyswarm.InboundConfig.socks5:type_name -> proxyswarm.Socks5InboundConfig
+	27, // 14: proxyswarm.InboundConfig.shadowsocks:type_name -> proxyswarm.ShadowsocksInboundConfig
+	1,  // 15: proxyswarm.OutboundConfig.type:type_name -> proxyswarm.OutboundType
+	5,  // 16: proxyswarm.OutboundConfig.vless:type_name -> proxyswarm.VlessOutboundConfig
+	23, // 17: proxyswarm.OutboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
+	25, // 18: proxyswarm.OutboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
+	28, // 19: proxyswarm.OutboundConfig.socks5:type_name -> proxyswarm.Socks5OutboundConfig
+	29, // 20: proxyswarm.OutboundConfig.shadowsocks:type_name -> proxyswarm.ShadowsocksOutboundConfig
+	30, // 21: proxyswarm.VlessOutboundConfig.security:type_name -> proxyswarm.SecurityMode
+	8,  // 22: proxyswarm.DnsConfig.servers:type_name -> proxyswarm.DnsServerConfig
+	9,  // 23: proxyswarm.DnsConfig.hosts:type_name -> proxyswarm.DnsHostMapping
+	15, // 24: proxyswarm.WarpRegisterResponse.registration:type_name -> proxyswarm.WarpRegistration
+	2,  // 25: proxyswarm.NodeService.UpdateConfig:input_type -> proxyswarm.FullConfig
+	11, // 26: proxyswarm.NodeService.GetStatus:input_type -> proxyswarm.StatusRequest
+	12, // 27: proxyswarm.NodeService.IssueAcmeCertificate:input_type -> proxyswarm.AcmeIssueRequest
+	14, // 28: proxyswarm.NodeService.RegisterWarp:input_type -> proxyswarm.WarpRegisterRequest
+	17, // 29: proxyswarm.NodeService.UpdateWarpLicense:input_type -> proxyswarm.WarpLicenseUpdateRequest
+	10, // 30: proxyswarm.NodeService.UpdateConfig:output_type -> proxyswarm.UpdateResponse
+	31, // 31: proxyswarm.NodeService.GetStatus:output_type -> proxyswarm.NodeStatus
+	13, // 32: proxyswarm.NodeService.IssueAcmeCertificate:output_type -> proxyswarm.AcmeIssueResponse
+	16, // 33: proxyswarm.NodeService.RegisterWarp:output_type -> proxyswarm.WarpRegisterResponse
+	18, // 34: proxyswarm.NodeService.UpdateWarpLicense:output_type -> proxyswarm.WarpLicenseUpdateResponse
+	30, // [30:35] is the sub-list for method output_type
+	25, // [25:30] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_node_service_proto_init() }
@@ -1902,6 +1954,7 @@ func file_node_service_proto_init() {
 	file_node_naiveproxy_proto_init()
 	file_node_wireguard_proto_init()
 	file_node_socks5_proto_init()
+	file_node_shadowsocks_proto_init()
 	file_node_service_proto_msgTypes[1].OneofWrappers = []any{
 		(*InboundConfig_Vless)(nil),
 		(*InboundConfig_Hysteria2)(nil),
@@ -1909,12 +1962,14 @@ func file_node_service_proto_init() {
 		(*InboundConfig_Naiveproxy)(nil),
 		(*InboundConfig_Wireguard)(nil),
 		(*InboundConfig_Socks5)(nil),
+		(*InboundConfig_Shadowsocks)(nil),
 	}
 	file_node_service_proto_msgTypes[2].OneofWrappers = []any{
 		(*OutboundConfig_Vless)(nil),
 		(*OutboundConfig_Trusttunnel)(nil),
 		(*OutboundConfig_Wireguard)(nil),
 		(*OutboundConfig_Socks5)(nil),
+		(*OutboundConfig_Shadowsocks)(nil),
 	}
 	file_node_service_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}

@@ -31,7 +31,10 @@ pub fn rich_table(props: &RichTableProps) -> Html {
     };
 
     let column_count = props.columns.len().max(1);
-    let table_style = format!("--rich-table-columns: repeat({}, minmax(0, 1fr));", column_count);
+    let table_style = format!(
+        "--rich-table-columns: repeat({}, minmax(0, 1fr));",
+        column_count
+    );
 
     let header = html! {
         <div class="md3-list-header">

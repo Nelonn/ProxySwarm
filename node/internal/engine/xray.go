@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"proxyswarm/node/internal/pb"
 	"log"
 	"net"
+	"proxyswarm/node/internal/pb"
 	"slices"
 	"strings"
 	"sync"
@@ -23,6 +23,7 @@ import (
 	_ "github.com/xtls/xray-core/proxy/dokodemo"
 	hyaccount "github.com/xtls/xray-core/proxy/hysteria/account"
 	_ "github.com/xtls/xray-core/proxy/loopback"
+	_ "github.com/xtls/xray-core/proxy/shadowsocks"
 	"github.com/xtls/xray-core/proxy/vless"
 	_ "github.com/xtls/xray-core/proxy/vless/inbound"
 	_ "github.com/xtls/xray-core/proxy/wireguard"
@@ -743,12 +744,8 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 		inbound.Protocol = "hysteria"
 		clients := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			auth := strings.TrimSpace(acc.Token)
-			if auth == "" {
-				auth = strings.TrimSpace(p.Hysteria2.Password)
-			}
 			clients = append(clients, map[string]any{
-				"auth":  auth,
+				"auth":  strings.TrimSpace(acc.Token),
 				"email": acc.Name,
 				"level": 0,
 			})
@@ -763,14 +760,49 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 			"auth": "noauth",
 			"udp":  p.Socks5.UdpEnabled,
 		}
-		if p.Socks5.Username != "" {
+		accountsList := make([]map[string]any, 0, len(accounts))
+		for _, acc := range accounts {
+			accountsList = append(accountsList, map[string]any{
+				"user": acc.Name,
+				"pass": acc.Token,
+			})
+		}
+		if len(accountsList) > 0 {
 			settings["auth"] = "password"
-			settings["accounts"] = []map[string]any{
-				{
-					"user": p.Socks5.Username,
-					"pass": p.Socks5.Password,
-				},
+			settings["accounts"] = accountsList
+		} else if p.Socks5.Username != "" {
+			settings["auth"] = "password"
+			settings["accounts"] = []map[string]any{{
+				"user": p.Socks5.Username,
+				"pass": p.Socks5.Password,
+			}}
+		}
+		inbound.Settings = toRawPtr(settings)
+	case *pb.InboundConfig_Shadowsocks:
+		inbound.Protocol = "shadowsocks"
+		users := make([]map[string]any, 0, len(accounts))
+		for _, acc := range accounts {
+			password := strings.TrimSpace(acc.Token)
+			if password == "" {
+				password = strings.TrimSpace(p.Shadowsocks.Password)
 			}
+			users = append(users, map[string]any{
+				"email":    acc.Name,
+				"method":   p.Shadowsocks.Method,
+				"password": password,
+			})
+		}
+		settings := map[string]any{
+			"network": "tcp",
+		}
+		if p.Shadowsocks.UdpEnabled {
+			settings["network"] = "tcp,udp"
+		}
+		if len(users) > 0 {
+			settings["clients"] = users
+		} else {
+			settings["method"] = p.Shadowsocks.Method
+			settings["password"] = p.Shadowsocks.Password
 		}
 		inbound.Settings = toRawPtr(settings)
 
@@ -857,14 +889,14 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 				SecretKey: w.PrivateKey,
 				Address:   address,
 				Peers:     peers,
-				Mtu:            int32(w.Mtu),
+				Mtu:       int32(w.Mtu),
 				NumWorkers: func() int32 {
 					if w.Workers > 0 {
 						return w.Workers
 					}
 					return 2
 				}(),
-				Reserved:       reserved,
+				Reserved: reserved,
 				DomainStrategy: func() string {
 					switch w.DomainStrategy {
 					case "ForceIPv4", "ForceIPv4v6", "ForceIPv6", "ForceIPv6v4":
@@ -873,7 +905,7 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 						return "ForceIP"
 					}
 				}(),
-				NoKernelTun:    true,
+				NoKernelTun: true,
 			})
 		case pb.OutboundType_SOCKS5:
 			o.Protocol = "socks"
@@ -890,6 +922,24 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 						"email": "socks5",
 					},
 				}
+			}
+			o.Settings = toRawPtr(map[string]any{
+				"servers": []map[string]any{server},
+			})
+		case pb.OutboundType_SHADOWSOCKS:
+			o.Protocol = "shadowsocks"
+			s := out.GetShadowsocks()
+			server := map[string]any{
+				"address":  s.Server,
+				"port":     s.Port,
+				"method":   s.Method,
+				"password": s.Password,
+			}
+			if strings.TrimSpace(s.Plugin) != "" {
+				server["plugin"] = s.Plugin
+			}
+			if pluginOpts := appendShadowsocksPrefix(s.PluginOpts, s.Prefix); pluginOpts != "" {
+				server["plugin_opts"] = pluginOpts
 			}
 			o.Settings = toRawPtr(map[string]any{
 				"servers": []map[string]any{server},

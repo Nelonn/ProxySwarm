@@ -6,7 +6,7 @@ GOPATH = $(shell go env GOPATH)
 all: proto-node-go proto-registry-go proto-rust build-node build-registry build-manager
 
 proto-node-go:
-	cd proto && $(PROTOC) -I. --go_out=../node/internal/pb --go_opt=paths=source_relative --go-grpc_out=../node/internal/pb --go-grpc_opt=paths=source_relative account.proto node/common.proto node/vless.proto node/hysteria2.proto node/trusttunnel.proto node/naiveproxy.proto node/wireguard.proto node/socks5.proto node/service.proto
+	cd proto && $(PROTOC) -I. --go_out=../node/internal/pb --go_opt=paths=source_relative --go-grpc_out=../node/internal/pb --go-grpc_opt=paths=source_relative account.proto node/common.proto node/vless.proto node/hysteria2.proto node/trusttunnel.proto node/naiveproxy.proto node/wireguard.proto node/socks5.proto node/shadowsocks.proto node/service.proto
 
 proto-registry-go:
 	cd proto && $(PROTOC) -I. --go_out=../registry/internal/pb --go_opt=paths=source_relative account.proto node/common.proto

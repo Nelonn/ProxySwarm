@@ -1,7 +1,7 @@
 use crate::components::{
-    Button, ButtonType, DatePicker, DatePickerType, Popup, PopupSize, TextBox, RichTable,
+    Button, ButtonType, DatePicker, DatePickerType, Popup, PopupSize, RichTable, TextBox,
 };
-use crate::state::{AccountInfo, State};
+use crate::state::{normalize_groups, AccountInfo, State};
 use uuid::Uuid;
 use yew::prelude::*;
 
@@ -11,6 +11,7 @@ pub fn accounts() -> Html {
     let show_modal = use_state(|| false);
     let editing_account = use_state(|| Option::<AccountInfo>::None);
     let pending_delete = use_state(|| Option::<AccountInfo>::None);
+    let show_groups_popup = use_state(|| false);
 
     let on_add = {
         let show_modal = show_modal.clone();
@@ -25,12 +26,22 @@ pub fn accounts() -> Html {
         <div class="p-6 space-y-6">
             <div class="flex justify-between" style="align-items: baseline;">
                 <h1 class="text-3xl font-bold">{ "Accounts" }</h1>
-                <Button
-                    label="Add Account"
-                    icon={Some("icon-add".to_string())}
-                    button_type={ButtonType::Filled}
-                    onclick={move |_| on_add.emit(())}
-                />
+                <div class="flex items-center" style="gap: 0.5rem;">
+                    <Button
+                        label="Groups"
+                        button_type={ButtonType::Outlined}
+                        onclick={{
+                            let show_groups_popup = show_groups_popup.clone();
+                            move |_| show_groups_popup.set(true)
+                        }}
+                    />
+                    <Button
+                        label="Add Account"
+                        icon={Some("icon-add".to_string())}
+                        button_type={ButtonType::Filled}
+                        onclick={move |_| on_add.emit(())}
+                    />
+                </div>
             </div>
 
             // Accounts List
@@ -46,6 +57,7 @@ pub fn accounts() -> Html {
                     <RichTable columns={vec![
                         "Account".to_string(),
                         "Token".to_string(),
+                        "Groups".to_string(),
                         "Allowed IPs".to_string(),
                         "Expires".to_string(),
                         "Actions".to_string(),
@@ -90,6 +102,20 @@ pub fn accounts() -> Html {
                         state={state.clone()}
                         initial_account={(*editing_account).clone()}
                         on_close={Callback::from(move |_| show_modal.set(false))}
+                    />
+                }
+            } else {
+                html! {}
+            } }
+
+            { if *show_groups_popup {
+                html! {
+                    <GroupsPopup
+                        state={state.clone()}
+                        on_close={Callback::from({
+                            let show_groups_popup = show_groups_popup.clone();
+                            move |_| show_groups_popup.set(false)
+                        })}
                     />
                 }
             } else {
@@ -173,6 +199,9 @@ fn account_row(props: &AccountCardProps) -> Html {
                 </button>
             </div>
             <div class="md3-list-col">
+                <div class="text-sm opacity-70">{ props.account.groups.join(", ") }</div>
+            </div>
+            <div class="md3-list-col">
                 <div class="text-sm opacity-70">
                     {
                         if props.account.allowed_ips.is_empty() {
@@ -218,12 +247,14 @@ fn account_modal(props: &AccountModalProps) -> Html {
     let name = use_state(|| String::new());
     let token = use_state(|| String::new());
     let allowed_ips = use_state(|| String::new());
+    let groups = use_state(|| "default".to_string());
     let expiry_date_str = use_state(|| String::new());
 
     {
         let name = name.clone();
         let token = token.clone();
         let allowed_ips = allowed_ips.clone();
+        let groups = groups.clone();
         let expiry_date_str = expiry_date_str.clone();
         let initial_account = props.initial_account.clone();
 
@@ -232,6 +263,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 name.set(account.name.clone());
                 token.set(account.token.clone());
                 allowed_ips.set(account.allowed_ips.join(", "));
+                groups.set(normalize_groups(&account.groups).join(", "));
                 let dt_str = chrono::DateTime::from_timestamp(account.expiry_date, 0)
                     .map(|dt| dt.format("%Y-%m-%dT%H:%M").to_string())
                     .unwrap_or_default();
@@ -244,6 +276,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 name.set(String::new());
                 token.set(String::new());
                 allowed_ips.set(String::new());
+                groups.set("default".to_string());
                 expiry_date_str.set(String::new());
             }
             || ()
@@ -253,6 +286,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
     let name_for_change = name.clone();
     let token_for_change = token.clone();
     let allowed_ips_for_change = allowed_ips.clone();
+    let groups_for_change = groups.clone();
     let expiry_date_str_for_change = expiry_date_str.clone();
 
     let on_name_change = Callback::from(move |value: String| {
@@ -266,6 +300,9 @@ fn account_modal(props: &AccountModalProps) -> Html {
     let on_allowed_ips_change = Callback::from(move |value: String| {
         allowed_ips_for_change.set(value);
     });
+    let on_groups_change = Callback::from(move |value: String| {
+        groups_for_change.set(value);
+    });
 
     let on_expiry_change = Callback::from(move |value: String| {
         expiry_date_str_for_change.set(value);
@@ -274,6 +311,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
     let name_for_submit = name.clone();
     let token_for_submit = token.clone();
     let allowed_ips_for_submit = allowed_ips.clone();
+    let groups_for_submit = groups.clone();
     let expiry_date_str_for_submit = expiry_date_str.clone();
     let initial_account_for_submit = props.initial_account.clone();
 
@@ -294,6 +332,12 @@ fn account_modal(props: &AccountModalProps) -> Html {
                     .filter(|s| !s.is_empty())
                     .collect()
             };
+            let groups_vec: Vec<String> = normalize_groups(
+                &groups_for_submit
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect::<Vec<_>>(),
+            );
 
             // Parse expiry date
             let expiry_date = if expiry_date_str_for_submit.is_empty() {
@@ -312,12 +356,13 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 for a in &mut new_state.accounts {
                     if a.id == existing.id {
                         a.name = (*name_for_submit).clone();
-                        a.token = if token_for_submit.is_empty() {
+                        a.token = if token_for_submit.trim().is_empty() {
                             existing.token.clone()
                         } else {
-                            (*token_for_submit).clone()
+                            token_for_submit.trim().to_string()
                         };
                         a.allowed_ips = allowed_ips_vec.clone();
+                        a.groups = groups_vec.clone();
                         a.expiry_date = expiry_date;
                         updated = true;
                         break;
@@ -327,12 +372,13 @@ fn account_modal(props: &AccountModalProps) -> Html {
                     new_state.accounts.push(AccountInfo {
                         id: existing.id.clone(),
                         name: (*name_for_submit).clone(),
-                        token: if token_for_submit.is_empty() {
+                        token: if token_for_submit.trim().is_empty() {
                             existing.token.clone()
                         } else {
-                            (*token_for_submit).clone()
+                            token_for_submit.trim().to_string()
                         },
                         allowed_ips: allowed_ips_vec,
+                        groups: groups_vec,
                         expiry_date,
                     });
                 }
@@ -340,12 +386,13 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 new_state.accounts.push(AccountInfo {
                     id: Uuid::new_v4().to_string(),
                     name: (*name_for_submit).clone(),
-                    token: if token_for_submit.is_empty() {
+                    token: if token_for_submit.trim().is_empty() {
                         Uuid::new_v4().to_string()
                     } else {
-                        (*token_for_submit).clone()
+                        token_for_submit.trim().to_string()
                     },
                     allowed_ips: allowed_ips_vec,
+                    groups: groups_vec,
                     expiry_date,
                 });
             }
@@ -375,13 +422,19 @@ fn account_modal(props: &AccountModalProps) -> Html {
                     label="Token (Password)"
                     value={(*token).clone()}
                     onchange={on_token_change}
-                    placeholder="Auto-generated if empty"
+                    placeholder="Required for user auth"
                     action_icon={Some("icon-sync".to_string())}
                     action_label={Some("Randomize token".to_string())}
                     action_onclick={Some(Callback::from({
                         let token = token.clone();
                         move |_| token.set(Uuid::new_v4().to_string())
                     }))}
+                />
+                <TextBox
+                    label="Groups (comma-separated)"
+                    value={(*groups).clone()}
+                    onchange={on_groups_change}
+                    placeholder="default, premium"
                 />
                 <TextBox
                     label="Allowed IPs (comma-separated, optional)"
@@ -411,6 +464,65 @@ fn account_modal(props: &AccountModalProps) -> Html {
                     />
                 </div>
             </form>
+        </Popup>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+struct GroupsPopupProps {
+    state: UseStateHandle<State>,
+    on_close: Callback<()>,
+}
+
+#[function_component(GroupsPopup)]
+fn groups_popup(props: &GroupsPopupProps) -> Html {
+    let value = use_state(|| normalize_groups(&props.state.groups).join(", "));
+    let on_change = {
+        let value = value.clone();
+        Callback::from(move |next: String| value.set(next))
+    };
+    let on_save = {
+        let state = props.state.clone();
+        let on_close = props.on_close.clone();
+        let value = value.clone();
+        Callback::from(move |_| {
+            let parsed = value
+                .split(',')
+                .map(|item| item.trim().to_string())
+                .collect::<Vec<_>>();
+            let normalized = normalize_groups(&parsed);
+            let mut next = (*state).clone();
+            next.groups = normalized.clone();
+            for account in &mut next.accounts {
+                account.groups = normalize_groups(&account.groups);
+            }
+            for node in &mut next.nodes {
+                node.groups = normalize_groups(&node.groups);
+            }
+            next.save();
+            state.set(next);
+            on_close.emit(());
+        })
+    };
+
+    html! {
+        <Popup title={"Groups"} size={PopupSize::Md} on_close={props.on_close.clone()}>
+            <div class="space-y-4">
+                <TextBox
+                    label="Groups (comma-separated)"
+                    value={(*value).clone()}
+                    onchange={on_change}
+                    placeholder="default, premium, staff"
+                />
+                <div class="text-sm opacity-70">{ "Default group always exists and is auto-added." }</div>
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button label="Cancel" button_type={ButtonType::Text} onclick={{
+                        let on_close = props.on_close.clone();
+                        move |_| on_close.emit(())
+                    }} />
+                    <Button label="Save" button_type={ButtonType::Filled} onclick={on_save} />
+                </div>
+            </div>
         </Popup>
     }
 }

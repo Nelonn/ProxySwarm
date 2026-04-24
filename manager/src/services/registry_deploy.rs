@@ -2,7 +2,9 @@ use trusttunnel_deeplink::{encode, DeepLinkConfig};
 
 use crate::pb::proxyswarm::{Account, RegistryServiceConfig, RegistryTemplateLink};
 use crate::services::registry_api::RegistryApiService;
-use crate::state::{AccountInfo, InboundEntryDraft, ProxyNode, RegistryInfo, State};
+use crate::state::{
+    normalize_groups, AccountInfo, InboundEntryDraft, ProxyNode, RegistryInfo, State,
+};
 
 #[derive(Default, Clone)]
 pub struct DeployAllSummary {
@@ -76,6 +78,7 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
                         inbound_name: inbound.name.clone(),
                         protocol: inbound.protocol.trim().to_uppercase(),
                         template,
+                        groups: normalize_groups(&node.groups),
                     });
                 }
                 Err(error) => {
@@ -115,6 +118,7 @@ fn registry_accounts(accounts: &[AccountInfo]) -> Vec<Account> {
             token: account.token.clone(),
             expiry_time: account.expiry_date,
             allowed_ips: account.allowed_ips.clone(),
+            groups: normalize_groups(&account.groups),
         })
         .collect()
 }
@@ -249,12 +253,12 @@ fn build_trusttunnel_template(
     encode(&config).map_err(|error| format!("failed to encode TrustTunnel template: {error}"))
 }
 
-fn build_hysteria2_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Result<String, String> {
+fn build_hysteria2_template(
+    node: &ProxyNode,
+    inbound: &InboundEntryDraft,
+) -> Result<String, String> {
     let host = normalized_public_ip_host(node)?;
-    let password = inbound.hysteria2.password.trim();
-    if password.is_empty() {
-        return Err("Hysteria2 password is empty".to_string());
-    }
+    let password = "{{token}}";
 
     let mut query = Vec::new();
     let sni = if inbound.tls.server_name.trim().is_empty() {
@@ -275,7 +279,10 @@ fn build_hysteria2_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Re
         ));
     }
     if !inbound.hysteria2.masquerade.trim().is_empty() {
-        query.push(("masquerade", inbound.hysteria2.masquerade.trim().to_string()));
+        query.push((
+            "masquerade",
+            inbound.hysteria2.masquerade.trim().to_string(),
+        ));
     }
 
     let query_string = query
@@ -344,10 +351,7 @@ fn build_socks5_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Resul
 }
 
 fn template_label(node: &ProxyNode) -> String {
-    format!(
-        "{}-{{id}}",
-        js_sys::encode_uri_component(node.name.trim())
-    )
+    format!("{}-{{id}}", js_sys::encode_uri_component(node.name.trim()))
 }
 
 fn normalized_public_ip_host(node: &ProxyNode) -> Result<String, String> {
@@ -373,7 +377,10 @@ fn normalize_host(value: &str) -> Option<String> {
     if let Some((base, _)) = host.split_once('/') {
         host = base.to_string();
     }
-    if let Some(stripped) = host.strip_prefix('[').and_then(|value| value.strip_suffix(']')) {
+    if let Some(stripped) = host
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+    {
         host = stripped.to_string();
     }
     if let Some((base, port)) = host.rsplit_once(':') {

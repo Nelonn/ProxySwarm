@@ -76,8 +76,7 @@ pub fn registries() -> Html {
                     } else {
                         bus.push(format!(
                             "Registry deploy complete. {} registries synced, {} configs pushed.",
-                            summary.registries_succeeded,
-                            summary.services_deployed
+                            summary.registries_succeeded, summary.services_deployed
                         ));
                     }
                 }

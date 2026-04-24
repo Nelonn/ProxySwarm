@@ -13,6 +13,8 @@ pub struct Account {
     pub expiry_time: i64,
     #[prost(string, repeated, tag = "5")]
     pub allowed_ips: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "6")]
+    pub groups: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct HardwareStats {
@@ -308,6 +310,34 @@ pub struct Socks5OutboundConfig {
     #[prost(string, tag = "4")]
     pub password: ::prost::alloc::string::String,
 }
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ShadowsocksInboundConfig {
+    #[prost(string, tag = "1")]
+    pub method: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(bool, tag = "3")]
+    pub udp_enabled: bool,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ShadowsocksOutboundConfig {
+    #[prost(string, tag = "1")]
+    pub server: ::prost::alloc::string::String,
+    #[prost(int32, tag = "2")]
+    pub port: i32,
+    #[prost(string, tag = "3")]
+    pub method: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub plugin: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub plugin_opts: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub prefix: ::prost::alloc::string::String,
+    #[prost(bool, tag = "8")]
+    pub udp_enabled: bool,
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FullConfig {
     #[prost(string, tag = "1")]
@@ -336,9 +366,11 @@ pub struct InboundConfig {
     pub port: i32,
     #[prost(enumeration = "CoreType", tag = "5")]
     pub core: i32,
+    #[prost(message, repeated, tag = "4")]
+    pub accounts: ::prost::alloc::vec::Vec<Account>,
     #[prost(bool, tag = "12")]
     pub enabled: bool,
-    #[prost(oneof = "inbound_config::Protocol", tags = "6, 7, 8, 9, 10, 11")]
+    #[prost(oneof = "inbound_config::Protocol", tags = "6, 7, 8, 9, 10, 11, 13")]
     pub protocol: ::core::option::Option<inbound_config::Protocol>,
 }
 /// Nested message and enum types in `InboundConfig`.
@@ -357,6 +389,8 @@ pub mod inbound_config {
         Wireguard(super::WireGuardConfig),
         #[prost(message, tag = "11")]
         Socks5(super::Socks5InboundConfig),
+        #[prost(message, tag = "13")]
+        Shadowsocks(super::ShadowsocksInboundConfig),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -365,7 +399,7 @@ pub struct OutboundConfig {
     pub tag: ::prost::alloc::string::String,
     #[prost(enumeration = "OutboundType", tag = "2")]
     pub r#type: i32,
-    #[prost(oneof = "outbound_config::Settings", tags = "3, 4, 5, 6")]
+    #[prost(oneof = "outbound_config::Settings", tags = "3, 4, 5, 6, 7")]
     pub settings: ::core::option::Option<outbound_config::Settings>,
 }
 /// Nested message and enum types in `OutboundConfig`.
@@ -380,6 +414,8 @@ pub mod outbound_config {
         Wireguard(super::WireGuardConfig),
         #[prost(message, tag = "6")]
         Socks5(super::Socks5OutboundConfig),
+        #[prost(message, tag = "7")]
+        Shadowsocks(super::ShadowsocksOutboundConfig),
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -609,6 +645,7 @@ pub enum OutboundType {
     Trusttunnel = 3,
     Wireguard = 4,
     Socks5 = 5,
+    Shadowsocks = 6,
 }
 impl OutboundType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -623,6 +660,7 @@ impl OutboundType {
             Self::Trusttunnel => "TRUSTTUNNEL",
             Self::Wireguard => "WIREGUARD",
             Self::Socks5 => "SOCKS5",
+            Self::Shadowsocks => "SHADOWSOCKS",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -634,6 +672,7 @@ impl OutboundType {
             "TRUSTTUNNEL" => Some(Self::Trusttunnel),
             "WIREGUARD" => Some(Self::Wireguard),
             "SOCKS5" => Some(Self::Socks5),
+            "SHADOWSOCKS" => Some(Self::Shadowsocks),
             _ => None,
         }
     }
@@ -659,6 +698,8 @@ pub struct RegistryTemplateLink {
     pub protocol: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
     pub template: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "7")]
+    pub groups: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RegistryUpdateConfigRequest {

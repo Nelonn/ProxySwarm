@@ -44,7 +44,7 @@ type AcmeIssueParams struct {
 	KeyPath         string
 }
 
-var defaultDataDir = "/var/proxyswarm/node"
+var defaultDataDir = "./data"
 
 func NewManager() *Manager {
 	manager := &Manager{
@@ -191,6 +191,9 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 	now := time.Now().Unix()
 	var activeAccounts []*pb.Account
 	for _, acc := range config.Accounts {
+		if acc == nil {
+			continue
+		}
 		if acc.ExpiryTime == 0 || acc.ExpiryTime > now {
 			activeAccounts = append(activeAccounts, acc)
 		}
@@ -243,7 +246,12 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 		}
 		log.Printf("[engine] inbound=%s core=%s engine=%T", inbound.Name, inbound.Core.String(), e)
 
-		if err := e.UpdateConfig(ctx, inbound, activeAccounts, config.Outbounds, config.RoutingRules, config.Dns, config.Certificates); err != nil {
+		inboundAccounts := inbound.GetAccounts()
+		if len(inboundAccounts) == 0 {
+			inboundAccounts = activeAccounts
+		}
+
+		if err := e.UpdateConfig(ctx, inbound, inboundAccounts, config.Outbounds, config.RoutingRules, config.Dns, config.Certificates); err != nil {
 			return fmt.Errorf("failed to update inbound %s: %w", inbound.Name, err)
 		}
 	}

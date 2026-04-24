@@ -49,10 +49,7 @@ const DROPDOWN_CSS: &str = r#"
     z-index: 39;
 }
 .md3-dropdown-menu {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(100% + 0.25rem);
+    position: fixed;
     z-index: 40;
     background-color: var(--md-sys-color-surface);
     border: 2px solid var(--md-sys-color-primary-outline);
@@ -153,6 +150,7 @@ pub fn dropdown(props: &DropdownProps) -> Html {
         .map(|opt| opt.label.clone())
         .or_else(|| props.placeholder.clone())
         .unwrap_or_default();
+    let option_count = props.options.len();
 
     let toggle = {
         let open = open.clone();
@@ -173,7 +171,7 @@ pub fn dropdown(props: &DropdownProps) -> Html {
         let open = open.clone();
         let menu_style = menu_style.clone();
         let trigger_ref = trigger_ref.clone();
-        use_effect_with(*open, move |is_open| {
+        use_effect_with((*open, option_count), move |(is_open, option_count)| {
             if *is_open {
                 if let Some(trigger) = trigger_ref.cast::<HtmlElement>() {
                     if let Ok(rect) = js_sys::Reflect::apply(
@@ -191,6 +189,10 @@ pub fn dropdown(props: &DropdownProps) -> Html {
                             .ok()
                             .and_then(|value| value.as_f64())
                             .unwrap_or(0.0);
+                        let top = js_sys::Reflect::get(&rect, &JsValue::from_str("top"))
+                            .ok()
+                            .and_then(|value| value.as_f64())
+                            .unwrap_or(0.0);
                         let bottom = js_sys::Reflect::get(&rect, &JsValue::from_str("bottom"))
                             .ok()
                             .and_then(|value| value.as_f64())
@@ -199,11 +201,32 @@ pub fn dropdown(props: &DropdownProps) -> Html {
                             .ok()
                             .and_then(|value| value.as_f64())
                             .unwrap_or(0.0);
+                        let viewport_height = web_sys::window()
+                            .and_then(|window| window.inner_height().ok())
+                            .and_then(|value| value.as_f64())
+                            .unwrap_or(800.0);
+                        let gap = 4.0;
+                        let viewport_padding = 16.0;
+                        let available_below =
+                            (viewport_height - bottom - viewport_padding).max(120.0);
+                        let available_above = (top - viewport_padding).max(120.0);
+                        let estimated_height =
+                            (*option_count as f64 * 52.0 + 8.0).clamp(120.0, 320.0);
+                        let open_upwards =
+                            available_below < estimated_height && available_above > available_below;
+                        let max_height = if open_upwards {
+                            available_above
+                        } else {
+                            available_below
+                        };
+                        let top_value = if open_upwards {
+                            (top - gap - estimated_height.min(max_height)).max(viewport_padding)
+                        } else {
+                            bottom + gap
+                        };
                         menu_style.set(format!(
-                            "position: fixed; left: {}px; top: {}px; width: {}px;",
-                            left,
-                            bottom + 4.0,
-                            width
+                            "left: {}px; top: {}px; width: {}px; max-height: {}px;",
+                            left, top_value, width, max_height
                         ));
                     }
                 }

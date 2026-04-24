@@ -4,11 +4,11 @@ use prost::Message;
 use sha2::{Digest, Sha256};
 use wasm_bindgen::JsValue;
 
-use crate::pb::proxyswarm::{
-    FullConfig, NodeStatus, StatusRequest, UpdateResponse, WarpRegisterRequest,
-    WarpLicenseUpdateRequest, WarpLicenseUpdateResponse, WarpRegisterResponse, WarpRegistration,
-};
 pub use crate::pb::proxyswarm::{AcmeIssueRequest, AcmeIssueResponse};
+use crate::pb::proxyswarm::{
+    FullConfig, NodeStatus, StatusRequest, UpdateResponse, WarpLicenseUpdateRequest,
+    WarpLicenseUpdateResponse, WarpRegisterRequest, WarpRegisterResponse, WarpRegistration,
+};
 
 pub struct ApiService {
     base_url: String,
@@ -203,7 +203,10 @@ impl ApiService {
         request.master_key = hash_master_key(&request.master_key);
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);
-        let url = format!("{}/proxyswarm.NodeService/IssueAcmeCertificate", self.base_url);
+        let url = format!(
+            "{}/proxyswarm.NodeService/IssueAcmeCertificate",
+            self.base_url
+        );
         let js_body = Uint8Array::from(framed.as_slice());
 
         let resp = Request::post(&url)
@@ -377,7 +380,6 @@ impl ApiService {
 
         Ok(response.license)
     }
-
 }
 
 pub fn hash_master_key(master_key: &str) -> String {

@@ -1,0 +1,20 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message ShadowsocksInboundConfig {
+    string method = 1;
+    string password = 2;
+    bool udp_enabled = 3;
+}
+
+message ShadowsocksOutboundConfig {
+    string server = 1;
+    int32 port = 2;
+    string method = 3;
+    string password = 4;
+    string plugin = 5;
+    string plugin_opts = 6;
+    string prefix = 7;
+    bool udp_enabled = 8;
+}

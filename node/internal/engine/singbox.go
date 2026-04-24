@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"proxyswarm/node/internal/pb"
 	"net"
 	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"proxyswarm/node/internal/pb"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,6 +89,21 @@ func parseSingBoxMasquerade(value string) (any, error) {
 		return parsed, nil
 	}
 	return value, nil
+}
+
+func appendShadowsocksPrefix(pluginOpts string, prefix string) string {
+	pluginOpts = strings.TrimSpace(pluginOpts)
+	prefix = strings.TrimSpace(prefix)
+	if prefix == "" {
+		return pluginOpts
+	}
+	if pluginOpts == "" {
+		return "prefix=" + prefix
+	}
+	if strings.Contains(pluginOpts, "prefix=") {
+		return pluginOpts
+	}
+	return pluginOpts + ";prefix=" + prefix
 }
 
 type SingBoxEngine struct {
@@ -271,13 +286,9 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		}
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			password := p.Hysteria2.Password
-			if password == "" {
-				password = acc.Token
-			}
 			users = append(users, map[string]any{
 				"name":     acc.Name,
-				"password": password,
+				"password": acc.Token,
 			})
 		}
 		inbound["users"] = users
@@ -307,13 +318,44 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 
 	case *pb.InboundConfig_Socks5:
 		inbound["type"] = "socks"
-		if p.Socks5.Username != "" {
-			inbound["users"] = []map[string]any{
-				{
-					"username": p.Socks5.Username,
-					"password": p.Socks5.Password,
-				},
+		users := make([]map[string]any, 0, len(accounts))
+		for _, acc := range accounts {
+			users = append(users, map[string]any{
+				"username": acc.Name,
+				"password": acc.Token,
+			})
+		}
+		if len(users) > 0 {
+			inbound["users"] = users
+		} else if p.Socks5.Username != "" {
+			inbound["users"] = []map[string]any{{
+				"username": p.Socks5.Username,
+				"password": p.Socks5.Password,
+			}}
+		}
+
+	case *pb.InboundConfig_Shadowsocks:
+		inbound["type"] = "shadowsocks"
+		inbound["method"] = p.Shadowsocks.Method
+		inbound["network"] = []string{"tcp"}
+		if p.Shadowsocks.UdpEnabled {
+			inbound["network"] = []string{"tcp", "udp"}
+		}
+		users := make([]map[string]any, 0, len(accounts))
+		for _, acc := range accounts {
+			password := strings.TrimSpace(acc.Token)
+			if password == "" {
+				password = strings.TrimSpace(p.Shadowsocks.Password)
 			}
+			users = append(users, map[string]any{
+				"name":     acc.Name,
+				"password": password,
+			})
+		}
+		if len(users) > 0 {
+			inbound["users"] = users
+		} else if strings.TrimSpace(p.Shadowsocks.Password) != "" {
+			inbound["password"] = p.Shadowsocks.Password
 		}
 
 	default:
@@ -416,6 +458,23 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 			if s.Username != "" {
 				o["username"] = s.Username
 				o["password"] = s.Password
+			}
+		case pb.OutboundType_SHADOWSOCKS:
+			o["type"] = "shadowsocks"
+			s := out.GetShadowsocks()
+			o["server"] = s.Server
+			o["server_port"] = s.Port
+			o["method"] = s.Method
+			o["password"] = s.Password
+			o["network"] = []string{"tcp"}
+			if s.UdpEnabled {
+				o["network"] = []string{"tcp", "udp"}
+			}
+			if strings.TrimSpace(s.Plugin) != "" {
+				o["plugin"] = s.Plugin
+			}
+			if pluginOpts := appendShadowsocksPrefix(s.PluginOpts, s.Prefix); pluginOpts != "" {
+				o["plugin_opts"] = pluginOpts
 			}
 		default:
 			continue

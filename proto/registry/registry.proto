@@ -21,6 +21,7 @@ message RegistryTemplateLink {
     string inbound_name = 4;
     string protocol = 5;
     string template = 6;
+    repeated string groups = 7;
 }
 
 message RegistryUpdateConfigRequest {

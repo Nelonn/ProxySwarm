@@ -10,7 +10,7 @@ pub(super) fn render_outbounds_tab(
                             <div class="flex justify-between" style="align-items: center;">
                                 <div>
                                     <h2 class="text-2xl font-bold">{ "Outbounds" }</h2>
-                                    <div class="text-sm opacity-70">{ "Builtin Direct and Block stay fixed. Add VLESS, TrustTunnel, WireGuard, and SOCKS5 as reusable outbound entries." }</div>
+                                    <div class="text-sm opacity-70">{ "Builtin Direct and Block stay fixed. Add VLESS, TrustTunnel, WireGuard, SOCKS5, and Shadowsocks as reusable outbound entries." }</div>
                                 </div>
                                 <div class="flex" style="gap: 0.75rem;">
                                     <Button
@@ -52,6 +52,7 @@ pub(super) fn render_outbounds_tab(
                                                 .map(|peer| peer.endpoint.clone())
                                                 .unwrap_or_default(),
                                             "SOCKS5" => format!("{}:{}", outbound.socks5.server, outbound.socks5.port),
+                                            "SHADOWSOCKS" => format!("{}:{}", outbound.shadowsocks.server, outbound.shadowsocks.port),
                                             _ => outbound.vless.tag.clone(),
                                         };
                                         html! {

@@ -28,7 +28,6 @@ type Account struct {
 	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`                              // Used as UUID for VLESS/etc
 	ExpiryTime    int64                  `protobuf:"varint,4,opt,name=expiry_time,json=expiryTime,proto3" json:"expiry_time,omitempty"` // Unix timestamp
 	AllowedIps    []string               `protobuf:"bytes,5,rep,name=allowed_ips,json=allowedIps,proto3" json:"allowed_ips,omitempty"`
-	Groups        []string               `protobuf:"bytes,6,rep,name=groups,proto3" json:"groups,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -98,19 +97,12 @@ func (x *Account) GetAllowedIps() []string {
 	return nil
 }
 
-func (x *Account) GetGroups() []string {
-	if x != nil {
-		return x.Groups
-	}
-	return nil
-}
-
 var File_account_proto protoreflect.FileDescriptor
 
 const file_account_proto_rawDesc = "" +
 	"\n" +
 	"\raccount.proto\x12\n" +
-	"proxyswarm\"\x9d\x01\n" +
+	"proxyswarm\"\x85\x01\n" +
 	"\aAccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
@@ -118,8 +110,7 @@ const file_account_proto_rawDesc = "" +
 	"\vexpiry_time\x18\x04 \x01(\x03R\n" +
 	"expiryTime\x12\x1f\n" +
 	"\vallowed_ips\x18\x05 \x03(\tR\n" +
-	"allowedIps\x12\x16\n" +
-	"\x06groups\x18\x06 \x03(\tR\x06groupsB\x06Z\x04./pbb\x06proto3"
+	"allowedIpsB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_account_proto_rawDescOnce sync.Once

@@ -12,6 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "../proto/node/naiveproxy.proto",
         "../proto/node/wireguard.proto",
         "../proto/node/socks5.proto",
+        "../proto/node/shadowsocks.proto",
         "../proto/node/service.proto",
         "../proto/registry/registry.proto",
     ];
@@ -23,7 +24,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     if !existing_files.is_empty() {
-        config.compile_protos(&existing_files, &["../proto", "../proto/node", "../proto/registry"])?;
+        config.compile_protos(
+            &existing_files,
+            &["../proto", "../proto/node", "../proto/registry"],
+        )?;
     }
 
     Ok(())

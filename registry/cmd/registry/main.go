@@ -31,7 +31,7 @@ const modeSharedPort = "1"
 const modeSplitPorts = "2"
 const registryMasterKeyHeader = "x-registry-master-key"
 
-var defaultDataDir = "/var/proxyswarm/registry"
+var defaultDataDir = "./data"
 
 type registryStore struct {
 	mu        sync.Mutex
@@ -227,6 +227,9 @@ func buildSubscriptionLinks(config *pb.RegistryServiceConfig, account *pb.Accoun
 		if templateLink == nil {
 			continue
 		}
+		if !groupsIntersect(account.GetGroups(), templateLink.GetGroups()) {
+			continue
+		}
 		template := strings.TrimSpace(templateLink.Template)
 		if template == "" {
 			continue
@@ -242,6 +245,39 @@ func buildSubscriptionLinks(config *pb.RegistryServiceConfig, account *pb.Accoun
 		links = append(links, link)
 	}
 	return links
+}
+
+func groupsIntersect(accountGroups []string, templateGroups []string) bool {
+	accountSet := normalizeGroups(accountGroups)
+	templateSet := normalizeGroups(templateGroups)
+	for _, group := range accountSet {
+		for _, candidate := range templateSet {
+			if group == candidate {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func normalizeGroups(values []string) []string {
+	groups := make([]string, 0, len(values)+1)
+	seen := make(map[string]struct{}, len(values)+1)
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		groups = append(groups, value)
+	}
+	if _, ok := seen["default"]; !ok {
+		groups = append(groups, "default")
+	}
+	return groups
 }
 
 func renderTemplateLink(template string, account *pb.Account) string {
@@ -511,6 +547,7 @@ func cloneRegistryAccounts(accounts []*pb.Account) []*pb.Account {
 			Id:         account.Id,
 			Name:       account.Name,
 			AllowedIps: append([]string(nil), account.AllowedIps...),
+			Groups:     append([]string(nil), account.Groups...),
 			ExpiryTime: account.ExpiryTime,
 			Token:      account.Token,
 		})
@@ -534,6 +571,7 @@ func cloneRegistryTemplateLinks(links []*pb.RegistryTemplateLink) []*pb.Registry
 			InboundName: link.InboundName,
 			Protocol:    link.Protocol,
 			Template:    link.Template,
+			Groups:      append([]string(nil), link.Groups...),
 		})
 	}
 	return cloned

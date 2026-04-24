@@ -5,11 +5,13 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::use_navigator;
 
+use crate::components::{
+    Button, ButtonType, FixedHeightText, Popup, PopupSize, RichTable, TextBox,
+};
 use crate::country::{
     country_display, find_country_by_query, flag_emoji, normalize_country_code, search_countries,
 };
-use crate::components::{Button, ButtonType, FixedHeightText, Popup, PopupSize, TextBox, RichTable};
-use crate::state::{ProxyNode, State};
+use crate::state::{normalize_groups, ProxyNode, State};
 use crate::Route;
 
 fn format_bandwidth_mbps(value: Option<u32>) -> String {
@@ -64,6 +66,7 @@ pub fn nodes() -> Html {
                         "Node".to_string(),
                         "Access Address".to_string(),
                         "Public IP".to_string(),
+                        "Groups".to_string(),
                         "Country".to_string(),
                         "Actions".to_string(),
                     ]}>
@@ -91,6 +94,9 @@ pub fn nodes() -> Html {
                                                     }
                                                 }
                                             </div>
+                                        </div>
+                                        <div class="md3-list-col">
+                                            <div class="text-sm opacity-70 break-all">{ node.groups.join(", ") }</div>
                                         </div>
                                         <div class="md3-list-col">
                                             {
@@ -204,6 +210,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
     let address = use_state(String::new);
     let public_ip = use_state(String::new);
     let master_key = use_state(String::new);
+    let groups = use_state(|| "default".to_string());
     let bandwidth_mbps = use_state(String::new);
     let max_traffic_gb = use_state(String::new);
     let name_error = use_state(|| Option::<String>::None);
@@ -223,6 +230,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
         let address = address.clone();
         let public_ip = public_ip.clone();
         let master_key = master_key.clone();
+        let groups = groups.clone();
         let bandwidth_mbps = bandwidth_mbps.clone();
         let max_traffic_gb = max_traffic_gb.clone();
         let name_error = name_error.clone();
@@ -241,6 +249,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
                 address.set(node.address.clone());
                 public_ip.set(node.public_ip.clone());
                 master_key.set(node.master_key.clone());
+                groups.set(normalize_groups(&node.groups).join(", "));
                 bandwidth_mbps.set(format_bandwidth_mbps(node.bandwidth_mbps));
                 max_traffic_gb.set(format_max_traffic_gb(node.max_traffic_bytes));
                 name_error.set(None);
@@ -260,6 +269,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
                 address.set(String::new());
                 public_ip.set(String::new());
                 master_key.set(String::new());
+                groups.set("default".to_string());
                 bandwidth_mbps.set(String::new());
                 max_traffic_gb.set(String::new());
                 name_error.set(None);
@@ -324,6 +334,10 @@ fn node_modal(props: &NodeModalProps) -> Html {
             master_key.set(value);
             master_key_error.set(None);
         })
+    };
+    let on_groups_change = {
+        let groups = groups.clone();
+        Callback::from(move |value: String| groups.set(value))
     };
 
     let on_bandwidth_change = {
@@ -392,6 +406,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
     let address_for_submit = address.clone();
     let public_ip_for_submit = public_ip.clone();
     let master_key_for_submit = master_key.clone();
+    let groups_for_submit = groups.clone();
     let bandwidth_mbps_for_submit = bandwidth_mbps.clone();
     let max_traffic_gb_for_submit = max_traffic_gb.clone();
     let name_error_for_submit = name_error.clone();
@@ -478,6 +493,12 @@ fn node_modal(props: &NodeModalProps) -> Html {
             if has_error {
                 return;
             }
+            let groups_value = normalize_groups(
+                &groups_for_submit
+                    .split(',')
+                    .map(|item| item.trim().to_string())
+                    .collect::<Vec<_>>(),
+            );
 
             let mut new_state = (*state).clone();
             if let Some(existing) = &initial_node_for_submit {
@@ -490,6 +511,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
                     node.address = address_for_submit.trim().to_string();
                     node.public_ip = public_ip_value.clone();
                     node.master_key = (*master_key_for_submit).clone();
+                    node.groups = groups_value.clone();
                     node.country = selected_country;
                     node.bandwidth_mbps = bandwidth_value;
                     node.max_traffic_bytes = max_traffic_value;
@@ -501,6 +523,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
                     address: address_for_submit.trim().to_string(),
                     public_ip: public_ip_value,
                     master_key: (*master_key_for_submit).clone(),
+                    groups: groups_value,
                     country: selected_country,
                     revisions: Vec::new(),
                     active_revision_id: String::new(),
@@ -556,6 +579,12 @@ fn node_modal(props: &NodeModalProps) -> Html {
                     placeholder="Enter master key"
                     input_type="password"
                     error={(*master_key_error).clone()}
+                />
+                <TextBox
+                    label="Groups (comma-separated)"
+                    value={(*groups).clone()}
+                    onchange={on_groups_change}
+                    placeholder="default, premium"
                 />
                 <TextBox
                     label="Server Bandwidth (Mbps)"

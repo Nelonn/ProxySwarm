@@ -2,10 +2,21 @@ use serde::{de::Deserializer, Deserialize, Serialize};
 
 use crate::storage;
 
+fn normalize_account_token(value: &str) -> String {
+    let token = value.trim();
+    if token.is_empty() {
+        uuid::Uuid::new_v4().to_string()
+    } else {
+        token.to_string()
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
     pub nodes: Vec<ProxyNode>,
     pub accounts: Vec<AccountInfo>,
+    #[serde(default = "default_groups")]
+    pub groups: Vec<String>,
     #[serde(default)]
     pub registries: Vec<RegistryInfo>,
 }
@@ -21,14 +32,39 @@ impl State {
 
     pub fn sanitized_for_storage(&self) -> Self {
         let mut cloned = self.clone();
+        cloned.groups = normalize_groups(&cloned.groups);
         for node in &mut cloned.nodes {
+            node.groups = normalize_groups(&node.groups);
             node.config = node.config.sanitized_for_storage();
             for revision in &mut node.revisions {
                 revision.config = revision.config.sanitized_for_storage();
             }
         }
+        for account in &mut cloned.accounts {
+            account.token = normalize_account_token(&account.token);
+            account.groups = normalize_groups(&account.groups);
+        }
         cloned
     }
+}
+
+fn default_groups() -> Vec<String> {
+    vec!["default".to_string()]
+}
+
+pub fn normalize_groups(values: &[String]) -> Vec<String> {
+    let mut groups = values
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>();
+    if !groups.iter().any(|value| value == "default") {
+        groups.push("default".to_string());
+    }
+    groups.sort();
+    groups.dedup();
+    groups
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -41,6 +77,8 @@ pub struct ProxyNode {
     pub master_key: String,
     #[serde(default)]
     pub country: String,
+    #[serde(default = "default_groups")]
+    pub groups: Vec<String>,
     #[serde(default)]
     pub revisions: Vec<NodeConfigRevision>,
     #[serde(default)]
@@ -133,6 +171,8 @@ pub struct OutboundEntryDraft {
     pub wireguard: WireGuardDraft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub socks5: Socks5Draft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub shadowsocks: ShadowsocksDraft,
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -159,6 +199,8 @@ pub struct InboundEntryDraft {
     pub wireguard: WireGuardDraft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub socks5: Socks5Draft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub shadowsocks: ShadowsocksDraft,
 }
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {
@@ -430,9 +472,7 @@ enum WireGuardPeersCompat {
     Items(Vec<WireGuardPeerItem>),
 }
 
-fn deserialize_wireguard_peers<'de, D>(
-    deserializer: D,
-) -> Result<Vec<WireGuardPeerItem>, D::Error>
+fn deserialize_wireguard_peers<'de, D>(deserializer: D) -> Result<Vec<WireGuardPeerItem>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -469,6 +509,19 @@ pub struct Socks5Draft {
     pub port: i32,
     pub username: String,
     pub password: String,
+    pub udp_enabled: bool,
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShadowsocksDraft {
+    pub tag: String,
+    pub server: String,
+    pub port: i32,
+    pub method: String,
+    pub password: String,
+    pub plugin: String,
+    pub plugin_opts: String,
+    pub prefix: String,
     pub udp_enabled: bool,
 }
 
@@ -563,6 +616,8 @@ pub struct AccountInfo {
     #[serde(alias = "access_id")]
     pub token: String,
     pub allowed_ips: Vec<String>,
+    #[serde(default = "default_groups")]
+    pub groups: Vec<String>,
     pub expiry_date: i64,
 }
 
@@ -588,6 +643,7 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
         }
         "HYSTERIA2" => {
             inbound.vless = VlessInboundDraft::default();
@@ -595,6 +651,7 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
         }
         "TRUSTTUNNEL" => {
             inbound.vless = VlessInboundDraft::default();
@@ -602,6 +659,7 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
         }
         "NAIVEPROXY" => {
             inbound.vless = VlessInboundDraft::default();
@@ -609,6 +667,7 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.trust_tunnel = TrustTunnelDraft::default();
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
         }
         "WIREGUARD" => {
             inbound.vless = VlessInboundDraft::default();
@@ -616,6 +675,7 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.trust_tunnel = TrustTunnelDraft::default();
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
         }
         "SOCKS5" => {
             inbound.vless = VlessInboundDraft::default();
@@ -623,6 +683,15 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.trust_tunnel = TrustTunnelDraft::default();
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.wireguard = WireGuardDraft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
+        }
+        "SHADOWSOCKS" => {
+            inbound.vless = VlessInboundDraft::default();
+            inbound.hysteria2 = Hysteria2Draft::default();
+            inbound.trust_tunnel = TrustTunnelDraft::default();
+            inbound.naive_proxy = NaiveProxyDraft::default();
+            inbound.wireguard = WireGuardDraft::default();
+            inbound.socks5 = Socks5Draft::default();
         }
         _ => {}
     }
@@ -634,27 +703,38 @@ fn sanitize_outbound_for_storage(outbound: &mut OutboundEntryDraft) {
             outbound.trust_tunnel = TrustTunnelOutboundDraft::default();
             outbound.wireguard = WireGuardDraft::default();
             outbound.socks5 = Socks5Draft::default();
+            outbound.shadowsocks = ShadowsocksDraft::default();
         }
         "TRUSTTUNNEL" => {
             outbound.vless = VlessOutboundDraft::default();
             outbound.wireguard = WireGuardDraft::default();
             outbound.socks5 = Socks5Draft::default();
+            outbound.shadowsocks = ShadowsocksDraft::default();
         }
         "WIREGUARD" => {
             outbound.vless = VlessOutboundDraft::default();
             outbound.trust_tunnel = TrustTunnelOutboundDraft::default();
             outbound.socks5 = Socks5Draft::default();
+            outbound.shadowsocks = ShadowsocksDraft::default();
         }
         "SOCKS5" => {
             outbound.vless = VlessOutboundDraft::default();
             outbound.trust_tunnel = TrustTunnelOutboundDraft::default();
             outbound.wireguard = WireGuardDraft::default();
+            outbound.shadowsocks = ShadowsocksDraft::default();
+        }
+        "SHADOWSOCKS" => {
+            outbound.vless = VlessOutboundDraft::default();
+            outbound.trust_tunnel = TrustTunnelOutboundDraft::default();
+            outbound.wireguard = WireGuardDraft::default();
+            outbound.socks5 = Socks5Draft::default();
         }
         "DIRECT" | "BLOCK" => {
             outbound.vless = VlessOutboundDraft::default();
             outbound.trust_tunnel = TrustTunnelOutboundDraft::default();
             outbound.wireguard = WireGuardDraft::default();
             outbound.socks5 = Socks5Draft::default();
+            outbound.shadowsocks = ShadowsocksDraft::default();
         }
         _ => {}
     }

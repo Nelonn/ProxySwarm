@@ -3,9 +3,9 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"proxyswarm/node/internal/pb"
 	"os"
 	"path/filepath"
+	"proxyswarm/node/internal/pb"
 	"sort"
 	"strings"
 	"time"
@@ -534,6 +534,11 @@ func sampleConnectionStats(config *pb.FullConfig) (map[string]*pb.ConnectionStat
 		case *pb.InboundConfig_Socks5:
 			entry.tcp = true
 			if inbound.GetSocks5() != nil && inbound.GetSocks5().UdpEnabled {
+				entry.udp = true
+			}
+		case *pb.InboundConfig_Shadowsocks:
+			entry.tcp = true
+			if inbound.GetShadowsocks() != nil && inbound.GetShadowsocks().UdpEnabled {
 				entry.udp = true
 			}
 		default:

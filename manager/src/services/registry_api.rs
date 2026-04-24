@@ -5,8 +5,8 @@ use sha2::{Digest, Sha256};
 use wasm_bindgen::JsValue;
 
 use crate::pb::proxyswarm::{
-    RegistryServiceConfig, RegistryStatusRequest, RegistryStatusResponse, RegistryUpdateConfigRequest,
-    RegistryUpdateConfigResponse,
+    RegistryServiceConfig, RegistryStatusRequest, RegistryStatusResponse,
+    RegistryUpdateConfigRequest, RegistryUpdateConfigResponse,
 };
 
 struct GrpcWebResponse {
@@ -152,7 +152,10 @@ impl RegistryApiService {
         let request = RegistryStatusRequest {};
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);
-        let url = format!("{}/proxyswarm.RegistryManagementService/Status", self.base_url);
+        let url = format!(
+            "{}/proxyswarm.RegistryManagementService/Status",
+            self.base_url
+        );
         let js_body = Uint8Array::from(framed.as_slice());
 
         let resp = Request::post(&url)

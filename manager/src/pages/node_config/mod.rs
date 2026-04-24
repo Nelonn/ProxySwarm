@@ -13,25 +13,28 @@ use yew_router::prelude::use_navigator;
 
 use crate::components::{
     Button, ButtonType, Chip, ChipMode, Dropdown, DropdownOption, IconButton, Popup, PopupSize,
-    SnackbarBus, SvgIcon, Switch, SwitchField, TextBox, WideNavigationBar, WideNavigationBarItem, RichTable,
+    RichTable, SnackbarBus, SvgIcon, Switch, SwitchField, TextBox, WideNavigationBar,
+    WideNavigationBarItem,
 };
 use crate::pb::proxyswarm::{
     outbound_config, Account, AccountStatus, CertificateConfig, CoreType, DnsConfig,
     DnsHostMapping, DnsServerConfig, FullConfig, Hysteria2Config, InboundConfig, InboundStatus,
     NaiveProxyConfig, NodeStatus, OutboundConfig, OutboundStatus, OutboundType, RoutingRule,
-    SecurityMode, Socks5InboundConfig, Socks5OutboundConfig, TlsConfig, TrafficStats,
-    TrustTunnelConfig, VlessConfig, VlessOutboundConfig, VlessRealityConfig, WireGuardConfig,
-    WireGuardPeer,
+    SecurityMode, ShadowsocksInboundConfig, ShadowsocksOutboundConfig, Socks5InboundConfig,
+    Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, VlessConfig,
+    VlessOutboundConfig, VlessRealityConfig, WireGuardConfig, WireGuardPeer,
 };
 use crate::services::node_api::{AcmeIssueRequest, AcmeIssueResponse};
-use crate::services::warp::{generate_wireguard_keypair, register_warp_with_keypair, update_warp_license};
+use crate::services::warp::{
+    generate_wireguard_keypair, register_warp_with_keypair, update_warp_license,
+};
 use crate::services::ApiService;
 use crate::state::{
-    AccountInfo, CertificateDraft, DnsDraft, DnsHostDraft, DnsServerDraft, Hysteria2Draft,
-    InboundEntryDraft, NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision, OutboundEntryDraft,
-    ProxyNode, RoutingRuleDraft, Socks5Draft, State, TlsDraft, TrustTunnelDraft,
-    TrustTunnelOutboundDraft, VlessInboundDraft, VlessOutboundDraft, WireGuardDraft,
-    WireGuardPeerItem, WarpRegistrationDraft,
+    normalize_groups, AccountInfo, CertificateDraft, DnsDraft, DnsHostDraft, DnsServerDraft,
+    Hysteria2Draft, InboundEntryDraft, NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision,
+    OutboundEntryDraft, ProxyNode, RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State,
+    TlsDraft, TrustTunnelDraft, TrustTunnelOutboundDraft, VlessInboundDraft, VlessOutboundDraft,
+    WarpRegistrationDraft, WireGuardDraft, WireGuardPeerItem,
 };
 use crate::storage;
 use crate::Route;
@@ -152,6 +155,12 @@ fn default_inbound_entry() -> InboundEntryDraft {
             port: 1080,
             ..Socks5Draft::default()
         },
+        shadowsocks: ShadowsocksDraft {
+            port: 8388,
+            method: "2022-blake3-aes-128-gcm".to_string(),
+            udp_enabled: true,
+            ..ShadowsocksDraft::default()
+        },
     }
 }
 
@@ -224,6 +233,10 @@ fn default_builtin_outbound(tag: &str, outbound_type: &str) -> OutboundEntryDraf
             tag: tag.to_string(),
             ..Socks5Draft::default()
         },
+        shadowsocks: ShadowsocksDraft {
+            tag: tag.to_string(),
+            ..ShadowsocksDraft::default()
+        },
     }
 }
 
@@ -242,6 +255,7 @@ fn default_vless_outbound() -> OutboundEntryDraft {
         trust_tunnel: TrustTunnelOutboundDraft::default(),
         wireguard: WireGuardDraft::default(),
         socks5: Socks5Draft::default(),
+        shadowsocks: ShadowsocksDraft::default(),
     }
 }
 
@@ -260,6 +274,28 @@ fn default_warp_outbound() -> OutboundEntryDraft {
             ..WireGuardDraft::default()
         },
         socks5: Socks5Draft::default(),
+        shadowsocks: ShadowsocksDraft::default(),
+    }
+}
+
+fn default_shadowsocks_outbound() -> OutboundEntryDraft {
+    OutboundEntryDraft {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: "Shadowsocks".to_string(),
+        outbound_type: "SHADOWSOCKS".to_string(),
+        enabled: true,
+        builtin: false,
+        vless: VlessOutboundDraft::default(),
+        trust_tunnel: TrustTunnelOutboundDraft::default(),
+        wireguard: WireGuardDraft::default(),
+        socks5: Socks5Draft::default(),
+        shadowsocks: ShadowsocksDraft {
+            tag: "proxy-ss".to_string(),
+            port: 8388,
+            method: "2022-blake3-aes-128-gcm".to_string(),
+            udp_enabled: true,
+            ..ShadowsocksDraft::default()
+        },
     }
 }
 
@@ -267,10 +303,16 @@ fn warp_registration_from_outbounds(
     outbounds: &[OutboundEntryDraft],
 ) -> Option<crate::services::warp::WarpRegistration> {
     outbounds.iter().find_map(|outbound| {
-        if !outbound.outbound_type.trim().eq_ignore_ascii_case("WIREGUARD") {
+        if !outbound
+            .outbound_type
+            .trim()
+            .eq_ignore_ascii_case("WIREGUARD")
+        {
             return None;
         }
-        if outbound.wireguard.warp_id.trim().is_empty() || outbound.wireguard.warp_token.trim().is_empty() {
+        if outbound.wireguard.warp_id.trim().is_empty()
+            || outbound.wireguard.warp_token.trim().is_empty()
+        {
             return None;
         }
         let (peer_public_key, endpoint) = outbound
@@ -349,7 +391,9 @@ fn warp_registration_to_draft(
     }
 }
 
-fn initial_warp_registration(draft: &NodeConfigDraft) -> Option<crate::services::warp::WarpRegistration> {
+fn initial_warp_registration(
+    draft: &NodeConfigDraft,
+) -> Option<crate::services::warp::WarpRegistration> {
     warp_registration_from_draft(&draft.warp_registration)
         .or_else(|| warp_registration_from_outbounds(&draft.outbounds))
 }
@@ -455,6 +499,7 @@ fn outbound_tag_for_routing(outbound: &OutboundEntryDraft) -> String {
         "TRUSTTUNNEL" => outbound.trust_tunnel.tag.clone(),
         "WIREGUARD" => outbound.name.clone(),
         "SOCKS5" => outbound.socks5.tag.clone(),
+        "SHADOWSOCKS" => outbound.shadowsocks.tag.clone(),
         _ => outbound.vless.tag.clone(),
     }
 }
@@ -516,6 +561,43 @@ fn vless_link_type(value: &str) -> &'static str {
     }
 }
 
+fn shadowsocks_method_options() -> Vec<DropdownOption> {
+    vec![
+        DropdownOption {
+            value: "2022-blake3-aes-128-gcm".to_string(),
+            label: "2022-blake3-aes-128-gcm".to_string(),
+        },
+        DropdownOption {
+            value: "2022-blake3-aes-256-gcm".to_string(),
+            label: "2022-blake3-aes-256-gcm".to_string(),
+        },
+        DropdownOption {
+            value: "2022-blake3-chacha20-poly1305".to_string(),
+            label: "2022-blake3-chacha20-poly1305".to_string(),
+        },
+        DropdownOption {
+            value: "aes-256-gcm".to_string(),
+            label: "aes-256-gcm".to_string(),
+        },
+        DropdownOption {
+            value: "aes-128-gcm".to_string(),
+            label: "aes-128-gcm".to_string(),
+        },
+        DropdownOption {
+            value: "chacha20-poly1305".to_string(),
+            label: "chacha20-poly1305 (or chacha20-ietf-poly1305)".to_string(),
+        },
+        DropdownOption {
+            value: "xchacha20-poly1305".to_string(),
+            label: "xchacha20-poly1305 (or xchacha20-ietf-poly1305)".to_string(),
+        },
+        DropdownOption {
+            value: "none".to_string(),
+            label: "none (or plain)".to_string(),
+        },
+    ]
+}
+
 fn core_from(value: &str) -> i32 {
     match value.trim().to_uppercase().as_str() {
         "XRAY" => CoreType::Xray as i32,
@@ -554,6 +636,10 @@ fn protocol_options_for_core(core_type: &str) -> Vec<DropdownOption> {
         DropdownOption {
             value: "SOCKS5".to_string(),
             label: "SOCKS5".to_string(),
+        },
+        DropdownOption {
+            value: "SHADOWSOCKS".to_string(),
+            label: "Shadowsocks".to_string(),
         },
     ];
     if supports_hysteria2(core_type) {
@@ -605,6 +691,13 @@ fn inbound_traffic_label(inbound: &InboundEntryDraft) -> String {
         "WIREGUARD" => "UDP".to_string(),
         "SOCKS5" => {
             if inbound.socks5.udp_enabled {
+                "TCP+UDP".to_string()
+            } else {
+                "TCP".to_string()
+            }
+        }
+        "SHADOWSOCKS" => {
+            if inbound.shadowsocks.udp_enabled {
                 "TCP+UDP".to_string()
             } else {
                 "TCP".to_string()
@@ -1422,8 +1515,30 @@ fn build_dns_config(draft: &NodeConfigDraft) -> Option<DnsConfig> {
     Some(dns)
 }
 
-fn build_full_config(draft: &NodeConfigDraft, accounts: &[AccountInfo]) -> FullConfig {
+fn build_full_config(
+    draft: &NodeConfigDraft,
+    node: &ProxyNode,
+    accounts: &[AccountInfo],
+) -> FullConfig {
     let certificates = normalized_certificates(draft);
+    let node_accounts: Vec<Account> = accounts
+        .iter()
+        .filter(|account| {
+            let account_groups = normalize_groups(&account.groups);
+            let node_groups = normalize_groups(&node.groups);
+            account_groups
+                .iter()
+                .any(|value| node_groups.iter().any(|candidate| candidate == value))
+        })
+        .map(|account| Account {
+            id: account.id.clone(),
+            name: account.name.clone(),
+            allowed_ips: account.allowed_ips.clone(),
+            groups: normalize_groups(&account.groups),
+            expiry_time: account.expiry_date,
+            token: account.token.clone(),
+        })
+        .collect();
     let inbounds = normalized_inbounds(draft)
         .into_iter()
         .map(|inbound| {
@@ -1468,23 +1583,25 @@ fn build_full_config(draft: &NodeConfigDraft, accounts: &[AccountInfo]) -> FullC
                         brutal_debug: inbound.hysteria2.brutal_debug,
                     },
                 )),
-                "TRUSTTUNNEL" => Some(crate::pb::proxyswarm::inbound_config::Protocol::Trusttunnel(
-                    TrustTunnelConfig {
-                        http1_upload_buffer_size: inbound.trust_tunnel.http1_upload_buffer_size,
-                        http2_initial_connection_window_size: inbound
-                            .trust_tunnel
-                            .http2_initial_connection_window_size,
-                        http2_initial_stream_window_size: inbound
-                            .trust_tunnel
-                            .http2_initial_stream_window_size,
-                        http2_max_concurrent_streams: inbound
-                            .trust_tunnel
-                            .http2_max_concurrent_streams,
-                        http2_max_frame_size: inbound.trust_tunnel.http2_max_frame_size,
-                        http2_header_table_size: inbound.trust_tunnel.http2_header_table_size,
-                        tls: tls.clone(),
-                    },
-                )),
+                "TRUSTTUNNEL" => Some(
+                    crate::pb::proxyswarm::inbound_config::Protocol::Trusttunnel(
+                        TrustTunnelConfig {
+                            http1_upload_buffer_size: inbound.trust_tunnel.http1_upload_buffer_size,
+                            http2_initial_connection_window_size: inbound
+                                .trust_tunnel
+                                .http2_initial_connection_window_size,
+                            http2_initial_stream_window_size: inbound
+                                .trust_tunnel
+                                .http2_initial_stream_window_size,
+                            http2_max_concurrent_streams: inbound
+                                .trust_tunnel
+                                .http2_max_concurrent_streams,
+                            http2_max_frame_size: inbound.trust_tunnel.http2_max_frame_size,
+                            http2_header_table_size: inbound.trust_tunnel.http2_header_table_size,
+                            tls: tls.clone(),
+                        },
+                    ),
+                ),
                 "NAIVEPROXY" => Some(crate::pb::proxyswarm::inbound_config::Protocol::Naiveproxy(
                     NaiveProxyConfig {
                         username: inbound.naive_proxy.username.clone(),
@@ -1512,6 +1629,15 @@ fn build_full_config(draft: &NodeConfigDraft, accounts: &[AccountInfo]) -> FullC
                         udp_enabled: inbound.socks5.udp_enabled,
                     },
                 )),
+                "SHADOWSOCKS" => Some(
+                    crate::pb::proxyswarm::inbound_config::Protocol::Shadowsocks(
+                        ShadowsocksInboundConfig {
+                            method: inbound.shadowsocks.method.clone(),
+                            password: inbound.shadowsocks.password.clone(),
+                            udp_enabled: inbound.shadowsocks.udp_enabled,
+                        },
+                    ),
+                ),
                 _ => Some(crate::pb::proxyswarm::inbound_config::Protocol::Vless(
                     VlessConfig {
                         uuid: String::new(),
@@ -1528,6 +1654,7 @@ fn build_full_config(draft: &NodeConfigDraft, accounts: &[AccountInfo]) -> FullC
                 name: inbound.name.clone(),
                 listen: inbound.listen.clone(),
                 port: inbound.port,
+                accounts: node_accounts.clone(),
                 enabled: inbound.enabled,
                 core: core_from(&inbound.core_type),
                 protocol,
@@ -1639,6 +1766,24 @@ fn build_full_config(draft: &NodeConfigDraft, accounts: &[AccountInfo]) -> FullC
                     password: outbound.socks5.password.clone(),
                 })),
             }),
+            "SHADOWSOCKS" if !outbound.shadowsocks.tag.trim().is_empty() => {
+                outbounds.push(OutboundConfig {
+                    tag: outbound.shadowsocks.tag.clone(),
+                    r#type: OutboundType::Shadowsocks as i32,
+                    settings: Some(outbound_config::Settings::Shadowsocks(
+                        ShadowsocksOutboundConfig {
+                            server: outbound.shadowsocks.server.clone(),
+                            port: outbound.shadowsocks.port,
+                            method: outbound.shadowsocks.method.clone(),
+                            password: outbound.shadowsocks.password.clone(),
+                            plugin: outbound.shadowsocks.plugin.clone(),
+                            plugin_opts: outbound.shadowsocks.plugin_opts.clone(),
+                            prefix: outbound.shadowsocks.prefix.clone(),
+                            udp_enabled: outbound.shadowsocks.udp_enabled,
+                        },
+                    )),
+                })
+            }
             _ => {}
         }
     }
@@ -1669,16 +1814,7 @@ fn build_full_config(draft: &NodeConfigDraft, accounts: &[AccountInfo]) -> FullC
                 key_pem: certificate.key_pem,
             })
             .collect(),
-        accounts: accounts
-            .iter()
-            .map(|account| Account {
-                id: account.id.clone(),
-                name: account.name.clone(),
-                allowed_ips: account.allowed_ips.clone(),
-                expiry_time: account.expiry_date,
-                token: account.token.clone(),
-            })
-            .collect(),
+        accounts: node_accounts,
         outbounds,
         routing_rules: normalized_routing_rules(draft)
             .into_iter()
@@ -2766,7 +2902,6 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                         match data.protocol.as_str() {
                                             "HYSTERIA2" => html! {
                                                 <ConfigSection title="Hysteria2">
-                                                    <TextBox label="Default Password" value={data.hysteria2.password.clone()} onchange={update_text(|inbound, value| inbound.hysteria2.password = value)} placeholder="Fallback if account token is empty" />
                                                     <Dropdown
                                                         label="Obfuscation Type"
                                                         value={data.hysteria2.obfs_type.clone()}
@@ -2841,6 +2976,22 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                                         label="UDP enabled"
                                                         checked={data.socks5.udp_enabled}
                                                         onchange={update_bool(|inbound, value| inbound.socks5.udp_enabled = value)}
+                                                    />
+                                                </ConfigSection>
+                                            },
+                                            "SHADOWSOCKS" => html! {
+                                                <ConfigSection title="Shadowsocks">
+                                                    <Dropdown
+                                                        label="Method"
+                                                        value={data.shadowsocks.method.clone()}
+                                                        options={shadowsocks_method_options()}
+                                                        onchange={update_text(|inbound, value| inbound.shadowsocks.method = value)}
+                                                    />
+                                                    <TextBox label="Default Password" value={data.shadowsocks.password.clone()} onchange={update_text(|inbound, value| inbound.shadowsocks.password = value)} placeholder="Fallback if account token is empty" />
+                                                    <SwitchField
+                                                        label="UDP enabled"
+                                                        checked={data.shadowsocks.udp_enabled}
+                                                        onchange={update_bool(|inbound, value| inbound.shadowsocks.udp_enabled = value)}
                                                     />
                                                 </ConfigSection>
                                             },
@@ -3162,7 +3313,6 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                     match data.protocol.as_str() {
                         "HYSTERIA2" => html! {
                             <ConfigSection title="Hysteria2">
-                                <TextBox label="Default Password" value={data.hysteria2.password.clone()} onchange={update_text(|inbound, value| inbound.hysteria2.password = value)} placeholder="Fallback if account token is empty" />
                                 <Dropdown
                                     label="Obfuscation Type"
                                     value={data.hysteria2.obfs_type.clone()}
@@ -3237,6 +3387,22 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                     label="UDP enabled"
                                     checked={data.socks5.udp_enabled}
                                     onchange={update_bool(|inbound, value| inbound.socks5.udp_enabled = value)}
+                                />
+                            </ConfigSection>
+                        },
+                        "SHADOWSOCKS" => html! {
+                            <ConfigSection title="Shadowsocks">
+                                <Dropdown
+                                    label="Method"
+                                    value={data.shadowsocks.method.clone()}
+                                    options={shadowsocks_method_options()}
+                                    onchange={update_text(|inbound, value| inbound.shadowsocks.method = value)}
+                                />
+                                <TextBox label="Default Password" value={data.shadowsocks.password.clone()} onchange={update_text(|inbound, value| inbound.shadowsocks.password = value)} placeholder="Fallback if account token is empty" />
+                                <SwitchField
+                                    label="UDP enabled"
+                                    checked={data.shadowsocks.udp_enabled}
+                                    onchange={update_bool(|inbound, value| inbound.shadowsocks.udp_enabled = value)}
                                 />
                             </ConfigSection>
                         },
@@ -3602,6 +3768,7 @@ fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                             DropdownOption { value: "TRUSTTUNNEL".to_string(), label: "TrustTunnel".to_string() },
                                             DropdownOption { value: "WIREGUARD".to_string(), label: "WireGuard".to_string() },
                                             DropdownOption { value: "SOCKS5".to_string(), label: "SOCKS5".to_string() },
+                                            DropdownOption { value: "SHADOWSOCKS".to_string(), label: "Shadowsocks".to_string() },
                                         ]}
                                         onchange={Callback::from({
                                             let outbound = outbound.clone();
@@ -3739,6 +3906,23 @@ fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                     <TextBox label="Port" value={data.socks5.port.to_string()} onchange={update_text(|outbound, value| outbound.socks5.port = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="Username" value={data.socks5.username.clone()} onchange={update_text(|outbound, value| outbound.socks5.username = value)} />
                                                     <TextBox label="Password" value={data.socks5.password.clone()} onchange={update_text(|outbound, value| outbound.socks5.password = value)} />
+                                                </div>
+                                            },
+                                            "SHADOWSOCKS" => html! {
+                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                    <TextBox label="Tag" value={data.shadowsocks.tag.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.tag = value)} />
+                                                    <TextBox label="Server" value={data.shadowsocks.server.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.server = value)} />
+                                                    <TextBox label="Port" value={data.shadowsocks.port.to_string()} onchange={update_text(|outbound, value| outbound.shadowsocks.port = value.parse().unwrap_or(0))} input_type="number" />
+                                                    <Dropdown
+                                                        label="Method"
+                                                        value={data.shadowsocks.method.clone()}
+                                                        options={shadowsocks_method_options()}
+                                                        onchange={update_text(|outbound, value| outbound.shadowsocks.method = value)}
+                                                    />
+                                                    <TextBox label="Password" value={data.shadowsocks.password.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.password = value)} />
+                                                    <TextBox label="Plugin" value={data.shadowsocks.plugin.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.plugin = value)} placeholder="Optional" />
+                                                    <TextBox label="Plugin Opts" value={data.shadowsocks.plugin_opts.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.plugin_opts = value)} placeholder="Optional" />
+                                                    <TextBox label="Prefix (anti-DPI)" value={data.shadowsocks.prefix.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.prefix = value)} placeholder="Appended into plugin opts as prefix=..." />
                                                 </div>
                                             },
                                             _ => html! {
@@ -3891,6 +4075,8 @@ fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                             DropdownOption { value: "TRUSTTUNNEL".to_string(), label: "TrustTunnel".to_string() },
                             DropdownOption { value: "WIREGUARD".to_string(), label: "WireGuard".to_string() },
                             DropdownOption { value: "SOCKS5".to_string(), label: "SOCKS5".to_string() },
+                            DropdownOption { value: "SHADOWSOCKS".to_string(), label: "Shadowsocks".to_string() },
+                            DropdownOption { value: "SHADOWSOCKS".to_string(), label: "Shadowsocks".to_string() },
                         ]}
                         onchange={Callback::from({
                             let outbound = outbound.clone();
@@ -4026,6 +4212,23 @@ fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                 <TextBox label="Port" value={data.socks5.port.to_string()} onchange={update_text(|outbound, value| outbound.socks5.port = value.parse().unwrap_or(0))} input_type="number" />
                                 <TextBox label="Username" value={data.socks5.username.clone()} onchange={update_text(|outbound, value| outbound.socks5.username = value)} />
                                 <TextBox label="Password" value={data.socks5.password.clone()} onchange={update_text(|outbound, value| outbound.socks5.password = value)} />
+                            </div>
+                        },
+                        "SHADOWSOCKS" => html! {
+                            <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                <TextBox label="Tag" value={data.shadowsocks.tag.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.tag = value)} />
+                                <TextBox label="Server" value={data.shadowsocks.server.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.server = value)} />
+                                <TextBox label="Port" value={data.shadowsocks.port.to_string()} onchange={update_text(|outbound, value| outbound.shadowsocks.port = value.parse().unwrap_or(0))} input_type="number" />
+                                <Dropdown
+                                    label="Method"
+                                    value={data.shadowsocks.method.clone()}
+                                    options={shadowsocks_method_options()}
+                                    onchange={update_text(|outbound, value| outbound.shadowsocks.method = value)}
+                                />
+                                <TextBox label="Password" value={data.shadowsocks.password.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.password = value)} />
+                                <TextBox label="Plugin" value={data.shadowsocks.plugin.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.plugin = value)} placeholder="Optional" />
+                                <TextBox label="Plugin Opts" value={data.shadowsocks.plugin_opts.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.plugin_opts = value)} placeholder="Optional" />
+                                <TextBox label="Prefix (anti-DPI)" value={data.shadowsocks.prefix.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.prefix = value)} placeholder="Appended into plugin opts as prefix=..." />
                             </div>
                         },
                         _ => html! {
@@ -5158,6 +5361,7 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
         let draft = draft.clone();
         let snackbar = snackbar.clone();
         let node_id = node.id.clone();
+        let node_for_deploy = node.clone();
         let address = node.address.clone();
         Callback::from(move |_: ()| {
             let mut draft_value = (*draft).clone();
@@ -5168,13 +5372,14 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
             let address = address.clone();
             let accounts = (*state).accounts.clone();
             let snackbar = snackbar.clone();
+            let node_for_deploy = node_for_deploy.clone();
             spawn_local(async move {
                 let applying_id = snackbar
                     .as_ref()
                     .map(|bus| bus.push("Deploying configuration..."));
                 let api = ApiService::new(address.clone());
                 let result = api
-                    .update_config(build_full_config(&draft_value, &accounts))
+                    .update_config(build_full_config(&draft_value, &node_for_deploy, &accounts))
                     .await;
                 if let Some(bus) = &snackbar {
                     if let Some(id) = applying_id {

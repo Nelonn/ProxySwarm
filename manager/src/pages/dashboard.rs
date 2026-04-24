@@ -228,14 +228,28 @@ fn render_country(country: &str) -> Html {
     }
 }
 
-fn current_traffic_usage(inbound: Option<&TrafficStats>, outbound: Option<&TrafficStats>) -> String {
-    let inbound_rate = inbound.map(|traffic| traffic.rx_rate + traffic.tx_rate).unwrap_or(0.0);
-    let outbound_rate = outbound.map(|traffic| traffic.rx_rate + traffic.tx_rate).unwrap_or(0.0);
-    format!("{}/s", format_bytes((inbound_rate + outbound_rate).round() as u64))
+fn current_traffic_usage(
+    inbound: Option<&TrafficStats>,
+    outbound: Option<&TrafficStats>,
+) -> String {
+    let inbound_rate = inbound
+        .map(|traffic| traffic.rx_rate + traffic.tx_rate)
+        .unwrap_or(0.0);
+    let outbound_rate = outbound
+        .map(|traffic| traffic.rx_rate + traffic.tx_rate)
+        .unwrap_or(0.0);
+    format!(
+        "{}/s",
+        format_bytes((inbound_rate + outbound_rate).round() as u64)
+    )
 }
 
 fn total_traffic_usage(inbound: Option<&TrafficStats>, outbound: Option<&TrafficStats>) -> String {
-    let inbound_total = inbound.map(|traffic| traffic.rx.saturating_add(traffic.tx)).unwrap_or(0);
-    let outbound_total = outbound.map(|traffic| traffic.rx.saturating_add(traffic.tx)).unwrap_or(0);
+    let inbound_total = inbound
+        .map(|traffic| traffic.rx.saturating_add(traffic.tx))
+        .unwrap_or(0);
+    let outbound_total = outbound
+        .map(|traffic| traffic.rx.saturating_add(traffic.tx))
+        .unwrap_or(0);
     format_bytes(inbound_total.saturating_add(outbound_total))
 }

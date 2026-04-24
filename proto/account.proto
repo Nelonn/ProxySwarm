@@ -8,4 +8,5 @@ message Account {
     string token = 3; // Used as UUID for VLESS/etc
     int64 expiry_time = 4; // Unix timestamp
     repeated string allowed_ips = 5;
+    repeated string groups = 6;
 }
