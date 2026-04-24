@@ -683,6 +683,7 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 			stream.Security = "reality"
 			stream.REALITYSettings = &conf.REALITYConfig{
 				Show:        true,
+				Target:      toRaw(realityCfg.Dest),
 				Dest:        toRaw(realityCfg.Dest),
 				Xver:        0,
 				ServerNames: []string{realitySNI},
