@@ -28,6 +28,7 @@ message FullConfig {
     repeated RoutingRule routing_rules = 5;
     repeated CertificateConfig certificates = 6;
     DnsConfig dns = 7;
+    string link_remark_template = 8;
 }
 
 message InboundConfig {

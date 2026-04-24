@@ -37,9 +37,31 @@ pub(super) fn render_settings_tab(
             draft.set(next);
         })
     };
+    let update_link_remark_template = {
+        let draft = draft.clone();
+        Callback::from(move |value: String| {
+            let mut next = (*draft).clone();
+            next.link_remark_template = value;
+            sync_draft(&mut next);
+            draft.set(next);
+        })
+    };
 
     html! {
         <div class="space-y-6">
+            <ConfigSection title="Access Link Remark">
+                <div class="space-y-3">
+                    <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">
+                        { "Controls generated access-link names in node UI and registry template links. Available placeholders: {node}, {inbound}, {user}." }
+                    </div>
+                    <TextBox
+                        label="Remark Template"
+                        value={d.link_remark_template.clone()}
+                        onchange={update_link_remark_template}
+                        placeholder="{node}-{inbound}-{user}"
+                    />
+                </div>
+            </ConfigSection>
             <ConfigSection title="Certificates">
                 <div class="flex justify-between" style="align-items: center; gap: 0.75rem;">
                     <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">

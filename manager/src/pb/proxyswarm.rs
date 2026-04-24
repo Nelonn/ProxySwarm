@@ -354,6 +354,8 @@ pub struct FullConfig {
     pub certificates: ::prost::alloc::vec::Vec<CertificateConfig>,
     #[prost(message, optional, tag = "7")]
     pub dns: ::core::option::Option<DnsConfig>,
+    #[prost(string, tag = "8")]
+    pub link_remark_template: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InboundConfig {

@@ -226,8 +226,8 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 					},
 					"private_key": realityCfg.PrivateKey,
 				}
-				if len(realityCfg.ShortId) > 0 {
-					reality["short_id"] = realityCfg.ShortId
+				if shortIDs := normalizedRealityShortIDs(realityCfg.ShortId); len(shortIDs) > 0 {
+					reality["short_id"] = shortIDs
 				}
 				host, portStr, splitErr := net.SplitHostPort(realityCfg.Dest)
 				if splitErr == nil {

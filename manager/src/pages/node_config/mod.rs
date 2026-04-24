@@ -30,11 +30,12 @@ use crate::services::warp::{
 };
 use crate::services::ApiService;
 use crate::state::{
-    normalize_groups, AccountInfo, CertificateDraft, DnsDraft, DnsHostDraft, DnsServerDraft,
-    Hysteria2Draft, InboundEntryDraft, NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision,
-    OutboundEntryDraft, ProxyNode, RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State,
-    TlsDraft, TrustTunnelDraft, TrustTunnelOutboundDraft, VlessInboundDraft, VlessOutboundDraft,
-    WarpRegistrationDraft, WireGuardDraft, WireGuardPeerItem,
+    default_link_remark_template, format_link_remark, normalize_groups, AccountInfo,
+    CertificateDraft, DnsDraft, DnsHostDraft, DnsServerDraft, Hysteria2Draft, InboundEntryDraft,
+    NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision, OutboundEntryDraft, ProxyNode,
+    RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State, TlsDraft, TrustTunnelDraft,
+    TrustTunnelOutboundDraft, VlessInboundDraft, VlessOutboundDraft, WarpRegistrationDraft,
+    WireGuardDraft, WireGuardPeerItem,
 };
 use crate::storage;
 use crate::Route;
@@ -178,8 +179,41 @@ fn default_node_draft(node: &ProxyNode) -> NodeConfigDraft {
             ..RoutingRuleDraft::default()
         }],
         dns: DnsDraft::default(),
+        link_remark_template: default_link_remark_template(),
         warp_registration: WarpRegistrationDraft::default(),
     }
+}
+
+fn inbound_display_name(inbound: &InboundEntryDraft) -> String {
+    let name = inbound.name.trim();
+    if name.is_empty() {
+        inbound.protocol.trim().to_uppercase()
+    } else {
+        name.to_string()
+    }
+}
+
+fn account_display_name(account: &AccountInfo) -> String {
+    let name = account.name.trim();
+    if name.is_empty() {
+        account.id.trim().to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+fn rendered_link_remark(
+    draft: &NodeConfigDraft,
+    node: &ProxyNode,
+    inbound: &InboundEntryDraft,
+    account: &AccountInfo,
+) -> String {
+    format_link_remark(
+        &draft.link_remark_template,
+        node.name.trim(),
+        &inbound_display_name(inbound),
+        &account_display_name(account),
+    )
 }
 
 fn certificate_display_name(certificate: &CertificateDraft) -> String {
@@ -1835,6 +1869,7 @@ fn build_full_config(
             })
             .collect(),
         dns: build_dns_config(draft),
+        link_remark_template: draft.link_remark_template.clone(),
     }
 }
 
@@ -1867,6 +1902,7 @@ fn persist_revision(
 }
 
 fn build_vless_access_link(
+    draft: &NodeConfigDraft,
     node: &ProxyNode,
     inbound: &InboundEntryDraft,
     account: &AccountInfo,
@@ -1926,12 +1962,6 @@ fn build_vless_access_link(
                     inbound.vless.reality_public_key.trim().to_string(),
                 ));
             }
-            if let Some(first_sid) = normalize_reality_short_ids(&inbound.vless.reality_short_ids)
-                .first()
-                .cloned()
-            {
-                query.push(("sid".to_string(), first_sid));
-            }
             if !inbound.vless.reality_spider_x.trim().is_empty() {
                 query.push((
                     "spx".to_string(),
@@ -1973,7 +2003,7 @@ fn build_vless_access_link(
         host,
         inbound.port,
         query_string,
-        js_sys::encode_uri_component(&format!("{}-{}", node.name, account.name))
+        js_sys::encode_uri_component(&rendered_link_remark(draft, node, inbound, account))
     ))
 }
 
@@ -2036,6 +2066,7 @@ fn normalized_node_host(node: &ProxyNode) -> Result<String, String> {
 }
 
 fn build_trusttunnel_access_link(
+    draft: &NodeConfigDraft,
     node: &ProxyNode,
     inbound: &InboundEntryDraft,
     account: &AccountInfo,
@@ -2064,9 +2095,7 @@ fn build_trusttunnel_access_link(
     }
 
     let custom_sni = inbound.tls.server_name.trim().to_string();
-    let config_name = format!("{}-{}", node.name.trim(), account.name.trim())
-        .trim_matches('-')
-        .to_string();
+    let config_name = rendered_link_remark(draft, node, inbound, account);
 
     let config = DeepLinkConfig::builder()
         .hostname(host.clone())
@@ -2074,7 +2103,7 @@ fn build_trusttunnel_access_link(
         .username(username)
         .password(password)
         .custom_sni((!custom_sni.is_empty() && custom_sni != host).then_some(custom_sni))
-        .name((!config_name.is_empty()).then_some(config_name))
+        .name((!config_name.trim().is_empty()).then_some(config_name))
         .build()
         .map_err(|err| format!("Failed to build TrustTunnel deep-link config: {err}"))?;
 
@@ -2082,13 +2111,14 @@ fn build_trusttunnel_access_link(
 }
 
 fn build_access_link(
+    draft: &NodeConfigDraft,
     node: &ProxyNode,
     inbound: &InboundEntryDraft,
     account: &AccountInfo,
 ) -> Result<String, String> {
     match inbound.protocol.trim().to_uppercase().as_str() {
-        "VLESS" => build_vless_access_link(node, inbound, account),
-        "TRUSTTUNNEL" => build_trusttunnel_access_link(node, inbound, account),
+        "VLESS" => build_vless_access_link(draft, node, inbound, account),
+        "TRUSTTUNNEL" => build_trusttunnel_access_link(draft, node, inbound, account),
         _ => Err("Access link is available only for VLESS and TrustTunnel inbounds".to_string()),
     }
 }
@@ -4436,7 +4466,7 @@ fn access_link_popup(props: &AccessLinkPopupProps) -> Html {
                                         match selected_account
                                             .as_ref()
                                             .ok_or_else(|| "Select user first".to_string())
-                                            .and_then(|account| build_access_link(&node, &inbound, account))
+                                            .and_then(|account| build_access_link(&node.config, &node, &inbound, account))
                                         {
                                             Ok(link) => generated_link.set(Some(link)),
                                             Err(error) => {

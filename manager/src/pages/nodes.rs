@@ -529,6 +529,7 @@ fn node_modal(props: &NodeModalProps) -> Html {
                     active_revision_id: String::new(),
                     config: crate::state::NodeConfigDraft {
                         master_key: (*master_key_for_submit).clone(),
+                        link_remark_template: crate::state::default_link_remark_template(),
                         ..Default::default()
                     },
                     bandwidth_mbps: bandwidth_value,

@@ -3,7 +3,8 @@ use trusttunnel_deeplink::{encode, DeepLinkConfig};
 use crate::pb::proxyswarm::{Account, RegistryServiceConfig, RegistryTemplateLink};
 use crate::services::registry_api::RegistryApiService;
 use crate::state::{
-    normalize_groups, AccountInfo, InboundEntryDraft, ProxyNode, RegistryInfo, State,
+    format_link_remark, normalize_groups, AccountInfo, InboundEntryDraft, ProxyNode,
+    RegistryInfo, State,
 };
 
 #[derive(Default, Clone)]
@@ -69,7 +70,7 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
                 continue;
             }
 
-            match build_template_link(node, inbound) {
+            match build_template_link(node, &node.config, inbound) {
                 Ok(template) => {
                     result.config.template_links.push(RegistryTemplateLink {
                         node_id: node.id.clone(),
@@ -132,18 +133,26 @@ fn inbound_display_name(inbound: &InboundEntryDraft) -> String {
     }
 }
 
-fn build_template_link(node: &ProxyNode, inbound: &InboundEntryDraft) -> Result<String, String> {
+fn build_template_link(
+    node: &ProxyNode,
+    config: &crate::state::NodeConfigDraft,
+    inbound: &InboundEntryDraft,
+) -> Result<String, String> {
     match inbound.protocol.trim().to_uppercase().as_str() {
-        "VLESS" => build_vless_template(node, inbound),
-        "TRUSTTUNNEL" => build_trusttunnel_template(node, inbound),
-        "HYSTERIA2" => build_hysteria2_template(node, inbound),
-        "NAIVEPROXY" => build_naiveproxy_template(node, inbound),
-        "SOCKS5" => build_socks5_template(node, inbound),
+        "VLESS" => build_vless_template(node, config, inbound),
+        "TRUSTTUNNEL" => build_trusttunnel_template(node, config, inbound),
+        "HYSTERIA2" => build_hysteria2_template(node, config, inbound),
+        "NAIVEPROXY" => build_naiveproxy_template(node, config, inbound),
+        "SOCKS5" => build_socks5_template(node, config, inbound),
         protocol => Err(format!("unsupported protocol {}", protocol)),
     }
 }
 
-fn build_vless_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Result<String, String> {
+fn build_vless_template(
+    node: &ProxyNode,
+    config: &crate::state::NodeConfigDraft,
+    inbound: &InboundEntryDraft,
+) -> Result<String, String> {
     let mut host = normalized_public_ip_host(node)?;
     if host.contains(':') && !host.starts_with('[') && !host.contains('.') {
         host = format!("[{}]", host);
@@ -185,12 +194,6 @@ fn build_vless_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Result
                     inbound.vless.reality_public_key.trim().to_string(),
                 ));
             }
-            if let Some(first_sid) = normalize_reality_short_ids(&inbound.vless.reality_short_ids)
-                .first()
-                .cloned()
-            {
-                query.push(("sid".to_string(), first_sid));
-            }
             if !inbound.vless.reality_spider_x.trim().is_empty() {
                 query.push((
                     "spx".to_string(),
@@ -227,12 +230,13 @@ fn build_vless_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Result
         host,
         inbound.port,
         query_string,
-        template_label(node)
+        template_label(node, config, inbound)
     ))
 }
 
 fn build_trusttunnel_template(
     node: &ProxyNode,
+    config: &crate::state::NodeConfigDraft,
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
     let host = normalized_node_host(node)?;
@@ -246,7 +250,7 @@ fn build_trusttunnel_template(
         .username(username)
         .password(password)
         .custom_sni((!custom_sni.is_empty() && custom_sni != host).then_some(custom_sni))
-        .name(Some(template_label(node)))
+        .name(Some(template_label(node, config, inbound)))
         .build()
         .map_err(|error| format!("failed to build TrustTunnel template: {error}"))?;
 
@@ -255,6 +259,7 @@ fn build_trusttunnel_template(
 
 fn build_hysteria2_template(
     node: &ProxyNode,
+    config: &crate::state::NodeConfigDraft,
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
     let host = normalized_public_ip_host(node)?;
@@ -302,12 +307,13 @@ fn build_hysteria2_template(
         host,
         inbound.port,
         suffix,
-        template_label(node)
+        template_label(node, config, inbound)
     ))
 }
 
 fn build_naiveproxy_template(
     node: &ProxyNode,
+    config: &crate::state::NodeConfigDraft,
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
     let host = normalized_node_host(node)?;
@@ -323,11 +329,15 @@ fn build_naiveproxy_template(
         js_sys::encode_uri_component(password),
         host,
         inbound.port,
-        template_label(node)
+        template_label(node, config, inbound)
     ))
 }
 
-fn build_socks5_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Result<String, String> {
+fn build_socks5_template(
+    node: &ProxyNode,
+    config: &crate::state::NodeConfigDraft,
+    inbound: &InboundEntryDraft,
+) -> Result<String, String> {
     let host = normalized_node_host(node)?;
     let username = inbound.socks5.username.trim();
     let password = inbound.socks5.password.trim();
@@ -346,12 +356,28 @@ fn build_socks5_template(node: &ProxyNode, inbound: &InboundEntryDraft) -> Resul
         auth,
         host,
         inbound.port,
-        template_label(node)
+        template_label(node, config, inbound)
     ))
 }
 
-fn template_label(node: &ProxyNode) -> String {
-    format!("{}-{{id}}", js_sys::encode_uri_component(node.name.trim()))
+fn template_label(
+    node: &ProxyNode,
+    config: &crate::state::NodeConfigDraft,
+    inbound: &InboundEntryDraft,
+) -> String {
+    let inbound_name = inbound_display_name(inbound);
+    let encoded_node = js_sys::encode_uri_component(node.name.trim())
+        .as_string()
+        .unwrap_or_default();
+    let encoded_inbound = js_sys::encode_uri_component(&inbound_name)
+        .as_string()
+        .unwrap_or_default();
+    format_link_remark(
+        &config.link_remark_template,
+        &encoded_node,
+        &encoded_inbound,
+        "{{name}}",
+    )
 }
 
 fn normalized_public_ip_host(node: &ProxyNode) -> Result<String, String> {

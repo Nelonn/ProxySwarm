@@ -129,16 +129,17 @@ func (OutboundType) EnumDescriptor() ([]byte, []int) {
 }
 
 type FullConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MasterKey     string                 `protobuf:"bytes,1,opt,name=master_key,json=masterKey,proto3" json:"master_key,omitempty"`
-	Inbounds      []*InboundConfig       `protobuf:"bytes,2,rep,name=inbounds,proto3" json:"inbounds,omitempty"`
-	Accounts      []*Account             `protobuf:"bytes,3,rep,name=accounts,proto3" json:"accounts,omitempty"`
-	Outbounds     []*OutboundConfig      `protobuf:"bytes,4,rep,name=outbounds,proto3" json:"outbounds,omitempty"`
-	RoutingRules  []*RoutingRule         `protobuf:"bytes,5,rep,name=routing_rules,json=routingRules,proto3" json:"routing_rules,omitempty"`
-	Certificates  []*CertificateConfig   `protobuf:"bytes,6,rep,name=certificates,proto3" json:"certificates,omitempty"`
-	Dns           *DnsConfig             `protobuf:"bytes,7,opt,name=dns,proto3" json:"dns,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	MasterKey          string                 `protobuf:"bytes,1,opt,name=master_key,json=masterKey,proto3" json:"master_key,omitempty"`
+	Inbounds           []*InboundConfig       `protobuf:"bytes,2,rep,name=inbounds,proto3" json:"inbounds,omitempty"`
+	Accounts           []*Account             `protobuf:"bytes,3,rep,name=accounts,proto3" json:"accounts,omitempty"`
+	Outbounds          []*OutboundConfig      `protobuf:"bytes,4,rep,name=outbounds,proto3" json:"outbounds,omitempty"`
+	RoutingRules       []*RoutingRule         `protobuf:"bytes,5,rep,name=routing_rules,json=routingRules,proto3" json:"routing_rules,omitempty"`
+	Certificates       []*CertificateConfig   `protobuf:"bytes,6,rep,name=certificates,proto3" json:"certificates,omitempty"`
+	Dns                *DnsConfig             `protobuf:"bytes,7,opt,name=dns,proto3" json:"dns,omitempty"`
+	LinkRemarkTemplate string                 `protobuf:"bytes,8,opt,name=link_remark_template,json=linkRemarkTemplate,proto3" json:"link_remark_template,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *FullConfig) Reset() {
@@ -218,6 +219,13 @@ func (x *FullConfig) GetDns() *DnsConfig {
 		return x.Dns
 	}
 	return nil
+}
+
+func (x *FullConfig) GetLinkRemarkTemplate() string {
+	if x != nil {
+		return x.LinkRemarkTemplate
+	}
+	return ""
 }
 
 type InboundConfig struct {
@@ -1685,7 +1693,7 @@ var File_node_service_proto protoreflect.FileDescriptor
 const file_node_service_proto_rawDesc = "" +
 	"\n" +
 	"\x12node/service.proto\x12\n" +
-	"proxyswarm\x1a\raccount.proto\x1a\x11node/common.proto\x1a\x10node/vless.proto\x1a\x14node/hysteria2.proto\x1a\x16node/trusttunnel.proto\x1a\x15node/naiveproxy.proto\x1a\x14node/wireguard.proto\x1a\x11node/socks5.proto\x1a\x16node/shadowsocks.proto\"\xf7\x02\n" +
+	"proxyswarm\x1a\raccount.proto\x1a\x11node/common.proto\x1a\x10node/vless.proto\x1a\x14node/hysteria2.proto\x1a\x16node/trusttunnel.proto\x1a\x15node/naiveproxy.proto\x1a\x14node/wireguard.proto\x1a\x11node/socks5.proto\x1a\x16node/shadowsocks.proto\"\xa9\x03\n" +
 	"\n" +
 	"FullConfig\x12\x1d\n" +
 	"\n" +
@@ -1695,7 +1703,8 @@ const file_node_service_proto_rawDesc = "" +
 	"\toutbounds\x18\x04 \x03(\v2\x1a.proxyswarm.OutboundConfigR\toutbounds\x12<\n" +
 	"\rrouting_rules\x18\x05 \x03(\v2\x17.proxyswarm.RoutingRuleR\froutingRules\x12A\n" +
 	"\fcertificates\x18\x06 \x03(\v2\x1d.proxyswarm.CertificateConfigR\fcertificates\x12'\n" +
-	"\x03dns\x18\a \x01(\v2\x15.proxyswarm.DnsConfigR\x03dns\"\x83\x05\n" +
+	"\x03dns\x18\a \x01(\v2\x15.proxyswarm.DnsConfigR\x03dns\x120\n" +
+	"\x14link_remark_template\x18\b \x01(\tR\x12linkRemarkTemplate\"\x83\x05\n" +
 	"\rInboundConfig\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06listen\x18\x02 \x01(\tR\x06listen\x12\x12\n" +

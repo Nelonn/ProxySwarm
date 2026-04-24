@@ -52,6 +52,32 @@ fn default_groups() -> Vec<String> {
     vec!["default".to_string()]
 }
 
+pub fn default_link_remark_template() -> String {
+    "{node}-{inbound}-{user}".to_string()
+}
+
+pub fn effective_link_remark_template(value: &str) -> String {
+    let value = value.trim();
+    if value.is_empty() {
+        default_link_remark_template()
+    } else {
+        value.to_string()
+    }
+}
+
+pub fn format_link_remark(
+    template: &str,
+    node_name: &str,
+    inbound_name: &str,
+    user_name: &str,
+) -> String {
+    let rendered = effective_link_remark_template(template)
+        .replace("{node}", node_name.trim())
+        .replace("{inbound}", inbound_name.trim())
+        .replace("{user}", user_name.trim());
+    rendered.trim().to_string()
+}
+
 pub fn normalize_groups(values: &[String]) -> Vec<String> {
     let mut groups = values
         .iter()
@@ -111,6 +137,8 @@ pub struct NodeConfigDraft {
     pub routing_rules: Vec<RoutingRuleDraft>,
     #[serde(default)]
     pub dns: DnsDraft,
+    #[serde(default = "default_link_remark_template")]
+    pub link_remark_template: String,
     #[serde(default, skip_serializing_if = "is_default")]
     pub warp_registration: WarpRegistrationDraft,
 }

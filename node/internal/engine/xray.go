@@ -348,6 +348,22 @@ func normalizedXrayServerNames(values ...string) []string {
 	return serverNames
 }
 
+func normalizedRealityShortIDs(values []string) []string {
+	shortIDs := make([]string, 0, len(values)+1)
+	seen := make(map[string]struct{}, len(values)+1)
+	seen[""] = struct{}{}
+	shortIDs = append(shortIDs, "")
+	for _, value := range values {
+		token := strings.TrimSpace(value)
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		shortIDs = append(shortIDs, token)
+	}
+	return shortIDs
+}
+
 func xrayRuleHasMatchers(rule *pb.RoutingRule) bool {
 	return len(normalizedXrayRuleValues(rule.Domain)) > 0 ||
 		len(normalizedXrayRuleValues(rule.InboundTag)) > 0 ||
@@ -710,7 +726,7 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 				Xver:        0,
 				ServerNames: serverNames,
 				PrivateKey:  realityCfg.PrivateKey,
-				ShortIds:    realityCfg.ShortId,
+				ShortIds:    normalizedRealityShortIDs(realityCfg.ShortId),
 				Fingerprint: realityCfg.Utls,
 				SpiderX:     realityCfg.SpiderX,
 			}
