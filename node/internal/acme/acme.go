@@ -88,10 +88,16 @@ func challengePort(challengeType string, configuredPort int32) int32 {
 	}
 }
 
-func NewManager() *Manager {
+func NewManager(dataRoot string) *Manager {
+	statePath := defaultStatePath
+	storageDir := defaultStoragePath
+	if strings.TrimSpace(dataRoot) != "" {
+		statePath = filepath.Join(dataRoot, defaultStatePath)
+		storageDir = filepath.Join(dataRoot, defaultStoragePath)
+	}
 	m := &Manager{
-		statePath: defaultStatePath,
-		storageDir: defaultStoragePath,
+		statePath: statePath,
+		storageDir: storageDir,
 		managed:   make(map[string]ManagedCertificate),
 		timers:    make(map[string]*time.Timer),
 	}

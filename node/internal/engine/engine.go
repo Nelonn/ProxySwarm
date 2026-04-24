@@ -47,9 +47,10 @@ type AcmeIssueParams struct {
 var defaultDataDir = "./data"
 
 func NewManager() *Manager {
+	dataRoot := defaultDataRoot()
 	manager := &Manager{
 		engines:      make(map[string]Engine),
-		acmeManager:  acme.NewManager(),
+		acmeManager:  acme.NewManager(dataRoot),
 		statePath:    defaultManagerStatePath(),
 		metricsPath:  defaultManagerMetricsPath(),
 		metricsState: newPersistedMetricsState(),
