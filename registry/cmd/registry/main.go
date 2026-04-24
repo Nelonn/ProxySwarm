@@ -377,12 +377,22 @@ func setUserCORSHeaders(res http.ResponseWriter) {
 	res.Header().Set("Access-Control-Allow-Origin", "*")
 	res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	res.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	setNoCacheHeaders(res)
 }
 
 func setManageCORSHeaders(res http.ResponseWriter) {
 	res.Header().Set("Access-Control-Allow-Origin", "*")
 	res.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Grpc-Web, X-User-Agent, X-Registry-Master-Key")
 	res.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
+	setNoCacheHeaders(res)
+}
+
+func setNoCacheHeaders(res http.ResponseWriter) {
+	res.Header().Set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0")
+	res.Header().Set("CDN-Cache-Control", "no-store")
+	res.Header().Set("Cloudflare-CDN-Cache-Control", "no-store")
+	res.Header().Set("Pragma", "no-cache")
+	res.Header().Set("Expires", "0")
 }
 
 func writeErrorJSON(res http.ResponseWriter, statusCode int, message string) {
