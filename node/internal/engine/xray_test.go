@@ -180,36 +180,36 @@ func TestXrayNeedsRestartForConfigShapeChanges(t *testing.T) {
 		Servers: []*pb.DnsServerConfig{{Address: "1.1.1.1", Port: 53}},
 	}
 
-	engine.lastConfig = cloneProtoMessage(baseConfig)
+	engine.lastConfigs = cloneProtoSlice([]*pb.InboundConfig{baseConfig})
 	engine.lastDnsConfig = cloneProtoMessage(baseDNS)
 	engine.lastOutboundsSnapshot = cloneProtoSlice(baseOutbounds)
 	engine.lastRules = cloneProtoSlice(baseRules)
 
-	if engine.needsRestart(baseConfig, baseOutbounds, baseRules, baseDNS) {
+	if engine.needsRestart([]*pb.InboundConfig{baseConfig}, baseOutbounds, baseRules, baseDNS) {
 		t.Fatal("expected no restart when xray-relevant config is unchanged")
 	}
 
 	changedConfig := cloneProtoMessage(baseConfig)
 	changedConfig.Port = 8443
-	if !engine.needsRestart(changedConfig, baseOutbounds, baseRules, baseDNS) {
+	if !engine.needsRestart([]*pb.InboundConfig{changedConfig}, baseOutbounds, baseRules, baseDNS) {
 		t.Fatal("expected restart when inbound config changes")
 	}
 
 	changedOutbounds := cloneProtoSlice(baseOutbounds)
 	changedOutbounds[0].Tag = "proxy"
-	if !engine.needsRestart(baseConfig, changedOutbounds, baseRules, baseDNS) {
+	if !engine.needsRestart([]*pb.InboundConfig{baseConfig}, changedOutbounds, baseRules, baseDNS) {
 		t.Fatal("expected restart when outbounds change")
 	}
 
 	changedRules := cloneProtoSlice(baseRules)
 	changedRules[0].OutboundTag = "proxy"
-	if !engine.needsRestart(baseConfig, baseOutbounds, changedRules, baseDNS) {
+	if !engine.needsRestart([]*pb.InboundConfig{baseConfig}, baseOutbounds, changedRules, baseDNS) {
 		t.Fatal("expected restart when routing rules change")
 	}
 
 	changedDNS := cloneProtoMessage(baseDNS)
 	changedDNS.Servers[0].Address = "8.8.8.8"
-	if !engine.needsRestart(baseConfig, baseOutbounds, baseRules, changedDNS) {
+	if !engine.needsRestart([]*pb.InboundConfig{baseConfig}, baseOutbounds, baseRules, changedDNS) {
 		t.Fatal("expected restart when dns config changes")
 	}
 }

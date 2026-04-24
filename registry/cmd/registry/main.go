@@ -33,6 +33,15 @@ const registryMasterKeyHeader = "x-registry-master-key"
 
 var defaultDataDir = "./data"
 
+type logLevel int
+
+const (
+	logLevelDebug logLevel = iota
+	logLevelInfo
+	logLevelWarn
+	logLevelError
+)
+
 type registryStore struct {
 	mu        sync.Mutex
 	path      string
@@ -110,7 +119,7 @@ func main() {
 			Handler: handler,
 		}
 
-		log.Printf("registry mode=%s user+manage listening on %s", mode, listenAddr)
+		logInfof("registry mode=%s user+manage listening on %s", mode, listenAddr)
 		if err := httpServer.Serve(lis); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}
@@ -147,9 +156,32 @@ func main() {
 		}
 	}()
 
-	log.Printf("registry mode=%s user listening on %s, manage listening on %s", mode, listenAddr, manageListenAddr)
+	logInfof("registry mode=%s user listening on %s, manage listening on %s", mode, listenAddr, manageListenAddr)
 	if err := <-errCh; err != nil {
 		log.Fatal(err)
+	}
+}
+
+func currentLogLevel() logLevel {
+	value := strings.TrimSpace(os.Getenv("PS_LOG_LEVEL"))
+	if value == "" {
+		value = strings.TrimSpace(os.Getenv("LOG_LEVEL"))
+	}
+	switch strings.ToUpper(value) {
+	case "DEBUG":
+		return logLevelDebug
+	case "WARN", "WARNING":
+		return logLevelWarn
+	case "ERROR", "ERR":
+		return logLevelError
+	default:
+		return logLevelInfo
+	}
+}
+
+func logInfof(format string, args ...any) {
+	if currentLogLevel() <= logLevelInfo {
+		log.Printf(format, args...)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"proxyswarm/node/internal/logging"
 	"strings"
 	"sync"
 	"time"
@@ -194,7 +195,7 @@ func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) ([]byte, []strin
 	logger := zap.New(zapcore.NewCore(
 		zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig()),
 		zapcore.AddSync(capture),
-		zap.DebugLevel,
+		logging.ZapLevel(),
 	))
 	storage := &certmagic.FileStorage{Path: m.storageDir}
 	magic := certmagic.NewDefault()

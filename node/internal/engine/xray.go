@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
+	"proxyswarm/node/internal/logging"
 	"proxyswarm/node/internal/pb"
 	"slices"
 	"strings"
@@ -37,7 +37,7 @@ type XrayEngine struct {
 	instance              *core.Instance
 	name                  string
 	apiPort               int
-	lastConfig            *pb.InboundConfig
+	lastConfigs           []*pb.InboundConfig
 	lastDnsConfig         *pb.DnsConfig
 	lastRules             []*pb.RoutingRule
 	lastAccounts          map[string]string // email -> token
@@ -72,21 +72,26 @@ func NewXrayEngine(name string) *XrayEngine {
 	}
 }
 
-func (e *XrayEngine) UpdateConfig(ctx context.Context, config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	return e.restart(config, accounts, outbounds, rules, dns, certificates)
+	return e.restart(inbounds, outbounds, rules, dns, certificates)
 }
 
-func (e *XrayEngine) needsRestart(config *pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig) bool {
-	if _, ok := config.Protocol.(*pb.InboundConfig_Wireguard); ok {
+func (e *XrayEngine) needsRestart(configs []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig) bool {
+	for _, config := range configs {
+		if config == nil {
+			return true
+		}
+		if _, ok := config.Protocol.(*pb.InboundConfig_Wireguard); ok {
+			return true
+		}
+	}
+	if len(e.lastConfigs) == 0 {
 		return true
 	}
-	if e.lastConfig == nil {
-		return true
-	}
-	if !proto.Equal(e.lastConfig, config) {
+	if !equalProtoSlices(e.lastConfigs, configs) {
 		return true
 	}
 	if !proto.Equal(e.lastDnsConfig, dns) {
@@ -101,7 +106,10 @@ func (e *XrayEngine) needsRestart(config *pb.InboundConfig, outbounds []*pb.Outb
 	return false
 }
 
-func (e *XrayEngine) restart(config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+	if len(inbounds) == 0 {
+		return fmt.Errorf("xray engine requires at least one inbound")
+	}
 	if e.instance != nil {
 		e.instance.Close()
 	}
@@ -112,7 +120,7 @@ func (e *XrayEngine) restart(config *pb.InboundConfig, accounts []*pb.Account, o
 	}
 	e.apiPort = apiPort
 
-	coreConfig, err := e.convertToConfig(config, accounts, outbounds, rules, dns, certificates, apiPort)
+	coreConfig, err := e.convertToConfig(inbounds, outbounds, rules, dns, certificates, apiPort)
 	if err != nil {
 		return fmt.Errorf("failed to convert xray config: %w", err)
 	}
@@ -127,14 +135,19 @@ func (e *XrayEngine) restart(config *pb.InboundConfig, accounts []*pb.Account, o
 	}
 
 	e.instance = instance
-	e.lastConfig = cloneProtoMessage(config)
+	e.lastConfigs = cloneProtoSlice(inbounds)
 	e.lastDnsConfig = cloneProtoMessage(dns)
 	e.lastOutboundsSnapshot = cloneProtoSlice(outbounds)
 	e.lastRules = cloneProtoSlice(rules)
 	e.lastAccounts = make(map[string]string)
 	e.lastOutbounds = make(map[string]*pb.OutboundStatus)
-	for _, acc := range accounts {
-		e.lastAccounts[acc.Name] = acc.Token
+	for _, inbound := range inbounds {
+		for _, acc := range inbound.GetAccounts() {
+			if acc == nil || strings.TrimSpace(acc.Name) == "" {
+				continue
+			}
+			e.lastAccounts[acc.Name] = acc.Token
+		}
 	}
 	for _, outbound := range outbounds {
 		if outbound == nil || strings.TrimSpace(outbound.Tag) == "" {
@@ -364,6 +377,226 @@ func normalizedRealityShortIDs(values []string) []string {
 	return shortIDs
 }
 
+func buildXrayInboundConfig(config *pb.InboundConfig, certificates []*pb.CertificateConfig) (conf.InboundDetourConfig, error) {
+	inbound := conf.InboundDetourConfig{
+		Tag:      config.Name,
+		ListenOn: &conf.Address{Address: xnet.ParseAddress(config.Listen)},
+		PortList: &conf.PortList{
+			Range: []conf.PortRange{
+				{From: uint32(config.Port), To: uint32(config.Port)},
+			},
+		},
+	}
+
+	accounts := config.GetAccounts()
+	if vlessCfg := config.GetVless(); vlessCfg != nil {
+		inbound.StreamSetting = &conf.StreamConfig{
+			Network: xrayVlessNetwork(vlessCfg.Transmission),
+		}
+	} else if hy2Cfg := config.GetHysteria2(); hy2Cfg != nil {
+		masquerade, err := parseXrayMasquerade(hy2Cfg.Masquerade)
+		if err != nil {
+			return inbound, err
+		}
+		inbound.StreamSetting = &conf.StreamConfig{
+			Network:  xrayHysteriaNetwork(),
+			Security: "tls",
+			HysteriaSettings: &conf.HysteriaConfig{
+				Version:        2,
+				UdpIdleTimeout: 60,
+				Masquerade:     masquerade,
+			},
+			FinalMask: &conf.FinalMask{
+				QuicParams: &conf.QuicParamsConfig{
+					Congestion: "bbr",
+					Debug:      hy2Cfg.BrutalDebug,
+					BrutalUp:   hysteriaBandwidth(hy2Cfg.UpMbps),
+					BrutalDown: hysteriaBandwidth(hy2Cfg.DownMbps),
+				},
+			},
+		}
+		if strings.TrimSpace(hy2Cfg.ObfsType) != "" && strings.EqualFold(strings.TrimSpace(hy2Cfg.ObfsType), "salamander") {
+			maskSettings := toRaw(map[string]any{
+				"password": hy2Cfg.ObfsPassword,
+			})
+			inbound.StreamSetting.FinalMask.Udp = []conf.Mask{{
+				Type:     "salamander",
+				Settings: &maskSettings,
+			}}
+		}
+	}
+
+	tlsConfig := inboundTLSConfig(config)
+	tlsCertificate, err := resolveInboundTLSCertificate(tlsConfig, certificates)
+	if err != nil {
+		return inbound, err
+	}
+	switch config.Protocol.(type) {
+	case *pb.InboundConfig_Vless:
+		vlessCfg := config.Protocol.(*pb.InboundConfig_Vless).Vless
+		if inbound.StreamSetting == nil {
+			inbound.StreamSetting = &conf.StreamConfig{}
+		}
+		stream := inbound.StreamSetting
+		stream.Network = xrayVlessNetwork(vlessCfg.Transmission)
+		if vlessCfg.Security == pb.SecurityMode_TLS {
+			if tlsConfig == nil || !tlsConfig.Enabled {
+				return inbound, fmt.Errorf("vless tls requires tls to be enabled")
+			}
+			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
+				return inbound, fmt.Errorf("vless tls requires tls certificate_name with valid certificate_path and key_path")
+			}
+			stream.Security = "tls"
+			stream.TLSSettings = &conf.TLSConfig{
+				Certs: []*conf.TLSCertConfig{{
+					CertFile: tlsCertificate.CertificatePath,
+					KeyFile:  tlsCertificate.KeyPath,
+				}},
+			}
+		} else if vlessCfg.Security == pb.SecurityMode_REALITY {
+			realityCfg := vlessCfg.Reality
+			if realityCfg == nil {
+				return inbound, fmt.Errorf("vless reality requires reality settings")
+			}
+			serverNames := normalizedXrayServerNames(realityCfg.Sni)
+			if len(serverNames) == 0 && tlsConfig != nil {
+				serverNames = normalizedXrayServerNames(tlsConfig.ServerName)
+			}
+			stream.Security = "reality"
+			stream.REALITYSettings = &conf.REALITYConfig{
+				Show:        true,
+				Target:      toRaw(realityCfg.Dest),
+				Dest:        toRaw(realityCfg.Dest),
+				Xver:        0,
+				ServerNames: serverNames,
+				PrivateKey:  realityCfg.PrivateKey,
+				ShortIds:    normalizedRealityShortIDs(realityCfg.ShortId),
+				Fingerprint: realityCfg.Utls,
+				SpiderX:     realityCfg.SpiderX,
+			}
+		}
+	case *pb.InboundConfig_Hysteria2:
+		if tlsConfig != nil && tlsConfig.Enabled {
+			if inbound.StreamSetting == nil {
+				inbound.StreamSetting = &conf.StreamConfig{}
+			}
+			stream := inbound.StreamSetting
+			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
+				return inbound, fmt.Errorf("hysteria2 requires tls certificate_name with valid certificate_path and key_path")
+			}
+			stream.Security = "tls"
+			stream.TLSSettings = &conf.TLSConfig{
+				ServerName: tlsConfig.ServerName,
+				Certs: []*conf.TLSCertConfig{{
+					CertFile: tlsCertificate.CertificatePath,
+					KeyFile:  tlsCertificate.KeyPath,
+				}},
+			}
+		}
+	}
+
+	switch p := config.Protocol.(type) {
+	case *pb.InboundConfig_Vless:
+		inbound.Protocol = "vless"
+		var clients []map[string]any
+		for _, acc := range accounts {
+			clients = append(clients, map[string]any{
+				"id":    acc.Token,
+				"email": acc.Name,
+				"flow":  p.Vless.Flow,
+			})
+		}
+		inbound.Settings = toRawPtr(map[string]any{
+			"clients":    clients,
+			"decryption": "none",
+		})
+	case *pb.InboundConfig_Wireguard:
+		inbound.Protocol = "wireguard"
+		peers := make([]*conf.WireGuardPeerConfig, 0, len(accounts))
+		for _, acc := range accounts {
+			allowedIPs := append([]string{}, acc.AllowedIps...)
+			peers = append(peers, &conf.WireGuardPeerConfig{
+				PublicKey:  acc.Token,
+				AllowedIPs: allowedIPs,
+			})
+		}
+		inbound.Settings = toRawPtr(&conf.WireGuardConfig{
+			IsClient:  false,
+			SecretKey: p.Wireguard.PrivateKey,
+			Address:   p.Wireguard.Addresses,
+			Peers:     peers,
+			MTU:       p.Wireguard.Mtu,
+		})
+	case *pb.InboundConfig_Hysteria2:
+		inbound.Protocol = "hysteria"
+		clients := make([]map[string]any, 0, len(accounts))
+		for _, acc := range accounts {
+			clients = append(clients, map[string]any{
+				"auth":  strings.TrimSpace(acc.Token),
+				"email": acc.Name,
+				"level": 0,
+			})
+		}
+		inbound.Settings = toRawPtr(map[string]any{
+			"version": 2,
+			"clients": clients,
+		})
+	case *pb.InboundConfig_Socks5:
+		inbound.Protocol = "socks"
+		settings := map[string]any{
+			"auth": "noauth",
+			"udp":  p.Socks5.UdpEnabled,
+		}
+		accountsList := make([]map[string]any, 0, len(accounts))
+		for _, acc := range accounts {
+			accountsList = append(accountsList, map[string]any{
+				"user": acc.Name,
+				"pass": acc.Token,
+			})
+		}
+		if len(accountsList) > 0 {
+			settings["auth"] = "password"
+			settings["accounts"] = accountsList
+		} else if p.Socks5.Username != "" {
+			settings["auth"] = "password"
+			settings["accounts"] = []map[string]any{{
+				"user": p.Socks5.Username,
+				"pass": p.Socks5.Password,
+			}}
+		}
+		inbound.Settings = toRawPtr(settings)
+	case *pb.InboundConfig_Shadowsocks:
+		inbound.Protocol = "shadowsocks"
+		users := make([]map[string]any, 0, len(accounts))
+		for _, acc := range accounts {
+			password := strings.TrimSpace(acc.Token)
+			if password == "" {
+				password = strings.TrimSpace(p.Shadowsocks.Password)
+			}
+			users = append(users, map[string]any{
+				"email":    acc.Name,
+				"method":   p.Shadowsocks.Method,
+				"password": password,
+			})
+		}
+		settings := map[string]any{"network": "tcp"}
+		if p.Shadowsocks.UdpEnabled {
+			settings["network"] = "tcp,udp"
+		}
+		if len(users) > 0 {
+			settings["clients"] = users
+		} else {
+			settings["method"] = p.Shadowsocks.Method
+			settings["password"] = p.Shadowsocks.Password
+		}
+		inbound.Settings = toRawPtr(settings)
+	default:
+		return inbound, fmt.Errorf("protocol not supported by Xray engine")
+	}
+
+	return inbound, nil
+}
+
 func xrayRuleHasMatchers(rule *pb.RoutingRule) bool {
 	return len(normalizedXrayRuleValues(rule.Domain)) > 0 ||
 		len(normalizedXrayRuleValues(rule.InboundTag)) > 0 ||
@@ -585,11 +818,11 @@ func buildXrayDNSConfig(dnsConfig *pb.DnsConfig) (*conf.DNSConfig, error) {
 	return dns, nil
 }
 
-func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dnsConfig *pb.DnsConfig, certificates []*pb.CertificateConfig, apiPort int) (*core.Config, error) {
+func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dnsConfig *pb.DnsConfig, certificates []*pb.CertificateConfig, apiPort int) (*core.Config, error) {
 	c := &conf.Config{}
 
 	c.LogConfig = &conf.LogConfig{
-		LogLevel: "debug",
+		LogLevel: logging.XrayLogLevel(),
 	}
 
 	xrayDNS, err := buildXrayDNSConfig(dnsConfig)
@@ -630,232 +863,16 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 		}),
 	}
 	c.InboundConfigs = append(c.InboundConfigs, apiInbound)
-
-	inbound := conf.InboundDetourConfig{
-		Tag:      config.Name,
-		ListenOn: &conf.Address{Address: xnet.ParseAddress(config.Listen)},
-		PortList: &conf.PortList{
-			Range: []conf.PortRange{
-				{From: uint32(config.Port), To: uint32(config.Port)},
-			},
-		},
-	}
-
-	if vlessCfg := config.GetVless(); vlessCfg != nil {
-		inbound.StreamSetting = &conf.StreamConfig{
-			Network: xrayVlessNetwork(vlessCfg.Transmission),
+	for _, config := range configs {
+		if config == nil {
+			continue
 		}
-	} else if hy2Cfg := config.GetHysteria2(); hy2Cfg != nil {
-		masquerade, err := parseXrayMasquerade(hy2Cfg.Masquerade)
+		inbound, err := buildXrayInboundConfig(config, certificates)
 		if err != nil {
 			return nil, err
 		}
-		inbound.StreamSetting = &conf.StreamConfig{
-			Network:  xrayHysteriaNetwork(),
-			Security: "tls",
-			HysteriaSettings: &conf.HysteriaConfig{
-				Version:        2,
-				UdpIdleTimeout: 60,
-				Masquerade:     masquerade,
-			},
-			FinalMask: &conf.FinalMask{
-				QuicParams: &conf.QuicParamsConfig{
-					Congestion: "bbr",
-					Debug:      hy2Cfg.BrutalDebug,
-					BrutalUp:   hysteriaBandwidth(hy2Cfg.UpMbps),
-					BrutalDown: hysteriaBandwidth(hy2Cfg.DownMbps),
-				},
-			},
-		}
-		if strings.TrimSpace(hy2Cfg.ObfsType) != "" && strings.EqualFold(strings.TrimSpace(hy2Cfg.ObfsType), "salamander") {
-			maskSettings := toRaw(map[string]any{
-				"password": hy2Cfg.ObfsPassword,
-			})
-			inbound.StreamSetting.FinalMask.Udp = []conf.Mask{
-				{
-					Type:     "salamander",
-					Settings: &maskSettings,
-				},
-			}
-		}
+		c.InboundConfigs = append(c.InboundConfigs, inbound)
 	}
-
-	tlsConfig := inboundTLSConfig(config)
-	tlsCertificate, err := resolveInboundTLSCertificate(tlsConfig, certificates)
-	if err != nil {
-		return nil, err
-	}
-	switch config.Protocol.(type) {
-	case *pb.InboundConfig_Vless:
-		vlessCfg := config.Protocol.(*pb.InboundConfig_Vless).Vless
-		if inbound.StreamSetting == nil {
-			inbound.StreamSetting = &conf.StreamConfig{}
-		}
-		stream := inbound.StreamSetting
-		stream.Network = xrayVlessNetwork(vlessCfg.Transmission)
-		if vlessCfg.Security == pb.SecurityMode_TLS {
-			if tlsConfig == nil || !tlsConfig.Enabled {
-				return nil, fmt.Errorf("vless tls requires tls to be enabled")
-			}
-			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
-				return nil, fmt.Errorf("vless tls requires tls certificate_name with valid certificate_path and key_path")
-			}
-			stream.Security = "tls"
-			stream.TLSSettings = &conf.TLSConfig{
-				Certs: []*conf.TLSCertConfig{
-					{
-						CertFile: tlsCertificate.CertificatePath,
-						KeyFile:  tlsCertificate.KeyPath,
-					},
-				},
-			}
-		} else if vlessCfg.Security == pb.SecurityMode_REALITY {
-			realityCfg := vlessCfg.Reality
-			if realityCfg == nil {
-				return nil, fmt.Errorf("vless reality requires reality settings")
-			}
-			serverNames := normalizedXrayServerNames(realityCfg.Sni)
-			if len(serverNames) == 0 && tlsConfig != nil {
-				serverNames = normalizedXrayServerNames(tlsConfig.ServerName)
-			}
-			stream.Security = "reality"
-			stream.REALITYSettings = &conf.REALITYConfig{
-				Show:        true,
-				Target:      toRaw(realityCfg.Dest),
-				Dest:        toRaw(realityCfg.Dest),
-				Xver:        0,
-				ServerNames: serverNames,
-				PrivateKey:  realityCfg.PrivateKey,
-				ShortIds:    normalizedRealityShortIDs(realityCfg.ShortId),
-				Fingerprint: realityCfg.Utls,
-				SpiderX:     realityCfg.SpiderX,
-			}
-		}
-	case *pb.InboundConfig_Hysteria2:
-		if tlsConfig != nil && tlsConfig.Enabled {
-			if inbound.StreamSetting == nil {
-				inbound.StreamSetting = &conf.StreamConfig{}
-			}
-			stream := inbound.StreamSetting
-			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
-				return nil, fmt.Errorf("hysteria2 requires tls certificate_name with valid certificate_path and key_path")
-			}
-			stream.Security = "tls"
-			stream.TLSSettings = &conf.TLSConfig{
-				ServerName: tlsConfig.ServerName,
-				Certs: []*conf.TLSCertConfig{
-					{
-						CertFile: tlsCertificate.CertificatePath,
-						KeyFile:  tlsCertificate.KeyPath,
-					},
-				},
-			}
-		}
-	}
-
-	switch p := config.Protocol.(type) {
-	case *pb.InboundConfig_Vless:
-		inbound.Protocol = "vless"
-		var clients []map[string]any
-		for _, acc := range accounts {
-			clients = append(clients, map[string]any{
-				"id":    acc.Token,
-				"email": acc.Name,
-				"flow":  p.Vless.Flow,
-			})
-		}
-		inbound.Settings = toRawPtr(map[string]any{
-			"clients":    clients,
-			"decryption": "none",
-		})
-	case *pb.InboundConfig_Wireguard:
-		inbound.Protocol = "wireguard"
-		peers := make([]*conf.WireGuardPeerConfig, 0, len(accounts))
-		for _, acc := range accounts {
-			allowedIPs := append([]string{}, acc.AllowedIps...)
-			peers = append(peers, &conf.WireGuardPeerConfig{
-				PublicKey:  acc.Token,
-				AllowedIPs: allowedIPs,
-			})
-		}
-		inbound.Settings = toRawPtr(&conf.WireGuardConfig{
-			IsClient:  false,
-			SecretKey: p.Wireguard.PrivateKey,
-			Address:   p.Wireguard.Addresses,
-			Peers:     peers,
-			MTU:       p.Wireguard.Mtu,
-		})
-	case *pb.InboundConfig_Hysteria2:
-		inbound.Protocol = "hysteria"
-		clients := make([]map[string]any, 0, len(accounts))
-		for _, acc := range accounts {
-			clients = append(clients, map[string]any{
-				"auth":  strings.TrimSpace(acc.Token),
-				"email": acc.Name,
-				"level": 0,
-			})
-		}
-		inbound.Settings = toRawPtr(map[string]any{
-			"version": 2,
-			"clients": clients,
-		})
-	case *pb.InboundConfig_Socks5:
-		inbound.Protocol = "socks"
-		settings := map[string]any{
-			"auth": "noauth",
-			"udp":  p.Socks5.UdpEnabled,
-		}
-		accountsList := make([]map[string]any, 0, len(accounts))
-		for _, acc := range accounts {
-			accountsList = append(accountsList, map[string]any{
-				"user": acc.Name,
-				"pass": acc.Token,
-			})
-		}
-		if len(accountsList) > 0 {
-			settings["auth"] = "password"
-			settings["accounts"] = accountsList
-		} else if p.Socks5.Username != "" {
-			settings["auth"] = "password"
-			settings["accounts"] = []map[string]any{{
-				"user": p.Socks5.Username,
-				"pass": p.Socks5.Password,
-			}}
-		}
-		inbound.Settings = toRawPtr(settings)
-	case *pb.InboundConfig_Shadowsocks:
-		inbound.Protocol = "shadowsocks"
-		users := make([]map[string]any, 0, len(accounts))
-		for _, acc := range accounts {
-			password := strings.TrimSpace(acc.Token)
-			if password == "" {
-				password = strings.TrimSpace(p.Shadowsocks.Password)
-			}
-			users = append(users, map[string]any{
-				"email":    acc.Name,
-				"method":   p.Shadowsocks.Method,
-				"password": password,
-			})
-		}
-		settings := map[string]any{
-			"network": "tcp",
-		}
-		if p.Shadowsocks.UdpEnabled {
-			settings["network"] = "tcp,udp"
-		}
-		if len(users) > 0 {
-			settings["clients"] = users
-		} else {
-			settings["method"] = p.Shadowsocks.Method
-			settings["password"] = p.Shadowsocks.Password
-		}
-		inbound.Settings = toRawPtr(settings)
-
-	default:
-		return nil, fmt.Errorf("protocol not supported by Xray engine")
-	}
-
-	c.InboundConfigs = append(c.InboundConfigs, inbound)
 
 	allowedOutboundTags := map[string]struct{}{}
 	for _, out := range outbounds {
@@ -1061,9 +1078,9 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 	}
 
 	if dumped, err := json.Marshal(c); err == nil {
-		log.Printf("[xray] generated config json=%s", string(dumped))
+		logging.Debugf("[xray] generated config json=%s", string(dumped))
 	} else {
-		log.Printf("[xray] failed to dump config: %v", err)
+		logging.Warnf("[xray] failed to dump config: %v", err)
 	}
 
 	return c.Build()
@@ -1073,12 +1090,16 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	metrics := &RuntimeMetrics{
-		Inbound: &pb.InboundStatus{
-			Name:        e.name,
+	metrics := &RuntimeMetrics{}
+	for _, inbound := range e.lastConfigs {
+		if inbound == nil {
+			continue
+		}
+		metrics.Inbounds = append(metrics.Inbounds, &pb.InboundStatus{
+			Name:        inbound.Name,
 			Traffic:     &pb.TrafficStats{},
 			Connections: &pb.ConnectionStats{},
-		},
+		})
 	}
 
 	if e.instance == nil {
@@ -1091,12 +1112,14 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 	}
 	defer conn.Close()
 
-	metrics.Inbound.Traffic = querySingleStatPair(
-		ctx,
-		client,
-		fmt.Sprintf("inbound>>>%s>>>traffic>>>downlink", e.name),
-		fmt.Sprintf("inbound>>>%s>>>traffic>>>uplink", e.name),
-	)
+	for _, inbound := range metrics.Inbounds {
+		inbound.Traffic = querySingleStatPair(
+			ctx,
+			client,
+			fmt.Sprintf("inbound>>>%s>>>traffic>>>downlink", inbound.Name),
+			fmt.Sprintf("inbound>>>%s>>>traffic>>>uplink", inbound.Name),
+		)
+	}
 
 	onlineUsers := make(map[string]struct{})
 	if allOnline, err := client.GetAllOnlineUsers(ctx, &statsService.GetAllOnlineUsersRequest{}); err == nil {

@@ -35,12 +35,17 @@ func NewTrustTunnelEngine(name string) *TrustTunnelEngine {
 	return &TrustTunnelEngine{name: name}
 }
 
-func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	_ = outbounds
 	_ = rules
 	_ = dns
+	if len(inbounds) != 1 || inbounds[0] == nil {
+		return fmt.Errorf("trusttunnel engine requires exactly one inbound")
+	}
+	config := inbounds[0]
+	accounts := config.GetAccounts()
 
 	if e.cmd != nil && e.cmd.Process != nil {
 		e.cmd.Process.Kill()
@@ -196,13 +201,15 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, config *pb.Inbound
 
 func (e *TrustTunnelEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 	return &RuntimeMetrics{
-		Inbound: &pb.InboundStatus{
-			Name: e.name,
-			Traffic: &pb.TrafficStats{
-				Rx: atomic.LoadUint64(&e.rx),
-				Tx: atomic.LoadUint64(&e.tx),
+		Inbounds: []*pb.InboundStatus{
+			{
+				Name: e.name,
+				Traffic: &pb.TrafficStats{
+					Rx: atomic.LoadUint64(&e.rx),
+					Tx: atomic.LoadUint64(&e.tx),
+				},
+				Connections: &pb.ConnectionStats{},
 			},
-			Connections: &pb.ConnectionStats{},
 		},
 	}, nil
 }

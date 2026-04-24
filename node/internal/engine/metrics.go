@@ -28,7 +28,7 @@ type inboundConnKinds struct {
 }
 
 type RuntimeMetrics struct {
-	Inbound   *pb.InboundStatus
+	Inbounds  []*pb.InboundStatus
 	Accounts  []*pb.AccountStatus
 	Outbounds []*pb.OutboundStatus
 }
@@ -183,9 +183,12 @@ func (m *Manager) sampleMetrics() {
 
 	windowSeconds := float64(metricsSampleWindow) / float64(time.Second)
 	for _, snapshot := range snapshots {
-		if inbound := snapshot.metrics.Inbound; inbound != nil {
+		for _, inbound := range snapshot.metrics.Inbounds {
+			if inbound == nil {
+				continue
+			}
 			stateInbound := ensureInboundMetric(m.metricsState, inbound.Name)
-			sourceKey := "inbound:" + snapshot.name
+			sourceKey := "inbound:" + snapshot.name + ":" + inbound.Name
 			seenRaw[sourceKey] = struct{}{}
 			delta := applyTrafficDelta(m.lastRaw, sourceKey, inbound.Traffic, stateInbound.Traffic, windowSeconds)
 			addTrafficDelta(m.metricsState.TotalInboundTraffic, delta, windowSeconds)

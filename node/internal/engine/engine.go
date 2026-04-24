@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"proxyswarm/node/internal/acme"
+	"proxyswarm/node/internal/logging"
 	"proxyswarm/node/internal/pb"
 	"strings"
 	"sync"
@@ -18,7 +18,7 @@ import (
 )
 
 type Engine interface {
-	UpdateConfig(ctx context.Context, config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error
+	UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error
 	GetMetrics(ctx context.Context) (*RuntimeMetrics, error)
 	Stop(ctx context.Context) error
 }
@@ -43,6 +43,8 @@ type AcmeIssueParams struct {
 	CertificatePath string
 	KeyPath         string
 }
+
+const sharedXrayEngineKey = "xray"
 
 var defaultDataDir = "./data"
 
@@ -220,7 +222,8 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 		}
 	}
 
-	newInboundNames := make(map[string]bool)
+	newEngineKeys := make(map[string]bool)
+	groupedInbounds := make(map[string][]*pb.InboundConfig)
 	for _, inbound := range config.Inbounds {
 		if inbound == nil {
 			continue
@@ -228,58 +231,63 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 		if !inbound.Enabled {
 			continue
 		}
-		newInboundNames[inbound.Name] = true
+		engineKey := engineKeyForInbound(inbound)
+		if engineKey == "" {
+			return fmt.Errorf("no engine available for inbound %s", inbound.Name)
+		}
+		newEngineKeys[engineKey] = true
+		groupedInbounds[engineKey] = append(groupedInbounds[engineKey], preparedInboundConfig(inbound, activeAccounts))
+	}
 
-		for _, cert := range config.Certificates {
-			if cert == nil || strings.ToUpper(strings.TrimSpace(cert.CertType)) != "ACME" {
-				if err := materializeInlineCertificate(cert); err != nil {
-					return fmt.Errorf("failed to materialize certificate %s: %w", cert.Name, err)
-				}
-				continue
+	for _, cert := range config.Certificates {
+		if cert == nil || strings.ToUpper(strings.TrimSpace(cert.CertType)) != "ACME" {
+			if err := materializeInlineCertificate(cert); err != nil {
+				return fmt.Errorf("failed to materialize certificate %s: %w", cert.Name, err)
 			}
-			logs := m.acmeManager.EnsureManagedCertificate(
-				cert.AcmeEmail,
-				cert.AcmeDomain,
-				coalesceString(cert.AcmeType, "HTTP"),
-				coalesceString(cert.AcmeCa, "letsencrypt"),
-				acmeChallengePort(cert.AcmeType, cert.AcmePort, cert.AcmeHttpPort),
-				cert.CertificatePath,
-				cert.KeyPath,
-			)
-			for _, line := range logs {
-				fmt.Printf("[acme][%s] %s\n", cert.AcmeDomain, line)
-			}
+			continue
 		}
-
-		var e Engine
-		var exists bool
-		if e, exists = m.engines[inbound.Name]; exists && !engineMatchesInbound(e, inbound) {
-			_ = e.Stop(ctx)
-			delete(m.engines, inbound.Name)
-			exists = false
-		}
-		if !exists {
-			e = newEngineForInbound(inbound)
-			if e == nil {
-				return fmt.Errorf("no engine available for inbound %s", inbound.Name)
-			}
-			m.engines[inbound.Name] = e
-		}
-		log.Printf("[engine] inbound=%s core=%s engine=%T", inbound.Name, inbound.Core.String(), e)
-
-		inboundAccounts := inbound.GetAccounts()
-		if len(inboundAccounts) == 0 {
-			inboundAccounts = activeAccounts
-		}
-
-		if err := e.UpdateConfig(ctx, inbound, inboundAccounts, config.Outbounds, config.RoutingRules, config.Dns, config.Certificates); err != nil {
-			return fmt.Errorf("failed to update inbound %s: %w", inbound.Name, err)
+		logs := m.acmeManager.EnsureManagedCertificate(
+			cert.AcmeEmail,
+			cert.AcmeDomain,
+			coalesceString(cert.AcmeType, "HTTP"),
+			coalesceString(cert.AcmeCa, "letsencrypt"),
+			acmeChallengePort(cert.AcmeType, cert.AcmePort, cert.AcmeHttpPort),
+			cert.CertificatePath,
+			cert.KeyPath,
+		)
+		for _, line := range logs {
+			fmt.Printf("[acme][%s] %s\n", cert.AcmeDomain, line)
 		}
 	}
 
-	// Remove old inbounds
+	for engineKey, inbounds := range groupedInbounds {
+		var e Engine
+		var exists bool
+		if e, exists = m.engines[engineKey]; exists && !engineMatchesInbounds(e, inbounds) {
+			_ = e.Stop(ctx)
+			delete(m.engines, engineKey)
+			exists = false
+		}
+		if !exists {
+			e = newEngineForInbounds(inbounds)
+			if e == nil {
+				return fmt.Errorf("no engine available for group %s", engineKey)
+			}
+			m.engines[engineKey] = e
+		}
+		inboundNames := make([]string, 0, len(inbounds))
+		for _, inbound := range inbounds {
+			inboundNames = append(inboundNames, inbound.GetName())
+		}
+		logging.Infof("[engine] key=%s inbounds=%s engine=%T", engineKey, strings.Join(inboundNames, ","), e)
+
+		if err := e.UpdateConfig(ctx, inbounds, config.Outbounds, config.RoutingRules, config.Dns, config.Certificates); err != nil {
+			return fmt.Errorf("failed to update engine %s: %w", engineKey, err)
+		}
+	}
+
 	for name, engine := range m.engines {
-		if !newInboundNames[name] {
+		if !newEngineKeys[name] {
 			engine.Stop(ctx)
 			delete(m.engines, name)
 		}
@@ -354,21 +362,71 @@ func (m *Manager) GetSampleWindowSeconds() uint32 {
 	return m.metricsState.SampleWindowSeconds
 }
 
-func newEngineForInbound(inbound *pb.InboundConfig) Engine {
+func preparedInboundConfig(inbound *pb.InboundConfig, activeAccounts []*pb.Account) *pb.InboundConfig {
+	cloned := cloneProtoMessage(inbound)
+	if cloned == nil {
+		return nil
+	}
+	if len(cloned.GetAccounts()) == 0 {
+		cloned.Accounts = cloneProtoSlice(activeAccounts)
+	}
+	return cloned
+}
+
+func engineKeyForInbound(inbound *pb.InboundConfig) string {
+	if inbound == nil {
+		return ""
+	}
+	if _, ok := inbound.Protocol.(*pb.InboundConfig_Trusttunnel); ok {
+		return "trusttunnel:" + inbound.Name
+	}
+	if _, ok := inbound.Protocol.(*pb.InboundConfig_Wireguard); ok {
+		return sharedXrayEngineKey
+	}
+	switch inbound.Core {
+	case pb.CoreType_SING_BOX:
+		return "singbox:" + inbound.Name
+	case pb.CoreType_XRAY:
+		return sharedXrayEngineKey
+	default:
+		return ""
+	}
+}
+
+func newEngineForInbounds(inbounds []*pb.InboundConfig) Engine {
+	if len(inbounds) == 0 || inbounds[0] == nil {
+		return nil
+	}
+	inbound := inbounds[0]
 	if _, ok := inbound.Protocol.(*pb.InboundConfig_Trusttunnel); ok {
 		return NewTrustTunnelEngine(inbound.Name)
 	}
 	if _, ok := inbound.Protocol.(*pb.InboundConfig_Wireguard); ok {
-		return NewXrayEngine(inbound.Name)
+		return NewXrayEngine(sharedXrayEngineKey)
 	}
 	switch inbound.Core {
 	case pb.CoreType_SING_BOX:
 		return NewSingBoxEngine(inbound.Name)
 	case pb.CoreType_XRAY:
-		return NewXrayEngine(inbound.Name)
+		return NewXrayEngine(sharedXrayEngineKey)
 	default:
 		return nil
 	}
+}
+
+func engineMatchesInbounds(e Engine, inbounds []*pb.InboundConfig) bool {
+	if len(inbounds) == 0 {
+		return false
+	}
+	for _, inbound := range inbounds {
+		if inbound == nil {
+			return false
+		}
+		if !engineMatchesInbound(e, inbound) {
+			return false
+		}
+	}
+	return true
 }
 
 func engineMatchesInbound(e Engine, inbound *pb.InboundConfig) bool {

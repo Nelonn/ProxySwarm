@@ -119,12 +119,16 @@ func NewSingBoxEngine(name string) *SingBoxEngine {
 	return &SingBoxEngine{name: name}
 }
 
-func (e *SingBoxEngine) UpdateConfig(ctx context.Context, config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *SingBoxEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	_ = dns
+	if len(inbounds) != 1 || inbounds[0] == nil {
+		return fmt.Errorf("sing-box engine requires exactly one inbound")
+	}
+	config := inbounds[0]
 
-	cfg, err := e.convertToConfig(config, accounts, outbounds, rules, certificates)
+	cfg, err := e.convertToConfig(config, config.GetAccounts(), outbounds, rules, certificates)
 	if err != nil {
 		return fmt.Errorf("failed to convert config: %w", err)
 	}
@@ -538,13 +542,15 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 
 func (e *SingBoxEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 	return &RuntimeMetrics{
-		Inbound: &pb.InboundStatus{
-			Name: e.name,
-			Traffic: &pb.TrafficStats{
-				Rx: atomic.LoadUint64(&e.rx),
-				Tx: atomic.LoadUint64(&e.tx),
+		Inbounds: []*pb.InboundStatus{
+			{
+				Name: e.name,
+				Traffic: &pb.TrafficStats{
+					Rx: atomic.LoadUint64(&e.rx),
+					Tx: atomic.LoadUint64(&e.tx),
+				},
+				Connections: &pb.ConnectionStats{},
 			},
-			Connections: &pb.ConnectionStats{},
 		},
 	}, nil
 }

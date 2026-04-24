@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"proxyswarm/node/internal/engine"
+	"proxyswarm/node/internal/logging"
 	"proxyswarm/node/internal/pb"
 	"proxyswarm/node/internal/service"
 	"proxyswarm/node/internal/stats"
@@ -45,9 +46,9 @@ func main() {
 	)
 	mgr := engine.NewManager()
 	if restored, err := mgr.RestoreLastConfig(context.Background()); err != nil {
-		log.Printf("failed to restore last deployed configuration: %v", err)
+		logging.Warnf("failed to restore last deployed configuration: %v", err)
 	} else if restored {
-		log.Printf("restored last deployed configuration")
+		logging.Infof("restored last deployed configuration")
 	}
 	sts := stats.NewCollector()
 	nodeService := &service.NodeServiceServer{
@@ -89,7 +90,7 @@ func main() {
 		Handler: http.HandlerFunc(handler),
 	}
 
-	log.Printf("Starting Node on %s...", listenAddr)
+	logging.Infof("starting node on %s", listenAddr)
 	if err := httpServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
@@ -117,14 +118,14 @@ func loggingUnaryInterceptor(
 		peerAddr = p.Addr.String()
 	}
 
-	log.Printf("[grpc] start method=%s peer=%s req=%T", info.FullMethod, peerAddr, req)
+	logging.Debugf("[grpc] start method=%s peer=%s req=%T", info.FullMethod, peerAddr, req)
 	resp, err := handler(ctx, req)
 	duration := time.Since(start)
 	if err != nil {
-		log.Printf("[grpc] done method=%s peer=%s duration=%s err=%v", info.FullMethod, peerAddr, duration, err)
+		logging.Warnf("[grpc] done method=%s peer=%s duration=%s err=%v", info.FullMethod, peerAddr, duration, err)
 		return resp, err
 	}
 
-	log.Printf("[grpc] done method=%s peer=%s duration=%s resp=%T", info.FullMethod, peerAddr, duration, resp)
+	logging.Debugf("[grpc] done method=%s peer=%s duration=%s resp=%T", info.FullMethod, peerAddr, duration, resp)
 	return resp, nil
 }
