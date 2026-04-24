@@ -1,15 +1,17 @@
 use wasm_bindgen::JsCast;
+use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::HtmlInputElement;
+use web_sys::{window, HtmlInputElement};
 use yew::prelude::*;
 
 use crate::components::{
-    Button, ButtonType, Popup, PopupSize, RichTable, SnackbarBus, Switch, TextBox,
+    Button, ButtonType, Dropdown, DropdownOption, Popup, PopupSize, RichTable, SnackbarBus,
+    Switch, TextBox,
 };
 use crate::pb::proxyswarm::RegistryStatusResponse;
 use crate::services::registry_api::RegistryApiService;
 use crate::services::registry_deploy::deploy_all_registries;
-use crate::state::{RegistryInfo, State};
+use crate::state::{AccountInfo, RegistryInfo, State};
 
 #[function_component(Registries)]
 pub fn registries() -> Html {
@@ -21,6 +23,7 @@ pub fn registries() -> Html {
     let pending_deploy = use_state(|| false);
     let deploy_loading = use_state(|| false);
     let status_registry = use_state(|| Option::<RegistryInfo>::None);
+    let access_link_registry = use_state(|| Option::<RegistryInfo>::None);
 
     let on_open_modal = {
         let show_modal = show_modal.clone();
@@ -127,6 +130,7 @@ pub fn registries() -> Html {
                                 let registry_for_edit = registry.clone();
                                 let registry_for_delete = registry.clone();
                                 let registry_for_status = registry.clone();
+                                let registry_for_access_link = registry.clone();
                                 html! {
                                     <>
                                         <div class="md3-list-row">
@@ -146,6 +150,14 @@ pub fn registries() -> Html {
                                             </div>
                                             <div class="md3-list-col md3-list-col-actions">
                                                 <div class="md3-list-actions">
+                                                    <Button
+                                                        label="Access Link"
+                                                        button_type={ButtonType::Outlined}
+                                                        onclick={{
+                                                            let access_link_registry = access_link_registry.clone();
+                                                            Callback::from(move |_| access_link_registry.set(Some(registry_for_access_link.clone())))
+                                                        }}
+                                                    />
                                                     <Button
                                                         label="Status"
                                                         button_type={ButtonType::Outlined}
@@ -247,6 +259,23 @@ pub fn registries() -> Html {
             }
 
             {
+                if let Some(registry) = &*access_link_registry {
+                    html! {
+                        <RegistryAccessLinkPopup
+                            registry={registry.clone()}
+                            accounts={state.accounts.clone()}
+                            on_close={Callback::from({
+                                let access_link_registry = access_link_registry.clone();
+                                move |_| access_link_registry.set(None)
+                            })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
                 if let Some(registry) = &*status_registry {
                     html! {
                         <RegistryStatusPopup
@@ -262,6 +291,203 @@ pub fn registries() -> Html {
                 }
             }
         </div>
+    }
+}
+
+fn build_registry_access_link(registry: &RegistryInfo, account: &AccountInfo) -> Result<String, String> {
+    let mut endpoint = registry.public_endpoint.trim().to_string();
+    if endpoint.is_empty() {
+        return Err("Registry public endpoint is empty".to_string());
+    }
+    let token = if !account.token.trim().is_empty() {
+        account.token.trim().to_string()
+    } else {
+        account.id.trim().to_string()
+    };
+    if token.is_empty() {
+        return Err("User token is empty".to_string());
+    }
+
+    endpoint = endpoint.trim_end_matches('/').to_string();
+    Ok(format!(
+        "{}/v1/subscription?token={}",
+        endpoint,
+        js_sys::encode_uri_component(&token)
+    ))
+}
+
+async fn copy_to_clipboard(text: String) -> Result<(), String> {
+    let Some(window) = window() else {
+        return Err("Clipboard unavailable".to_string());
+    };
+
+    let navigator = js_sys::Reflect::get(&window, &JsValue::from_str("navigator"))
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+    let clipboard = js_sys::Reflect::get(&navigator, &JsValue::from_str("clipboard"))
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+    let write_text = js_sys::Reflect::get(&clipboard, &JsValue::from_str("writeText"))
+        .map_err(|_| "Clipboard unavailable".to_string())?
+        .dyn_into::<js_sys::Function>()
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+
+    let promise = write_text
+        .call1(&clipboard, &JsValue::from_str(&text))
+        .map_err(|_| "Clipboard unavailable".to_string())?
+        .dyn_into::<js_sys::Promise>()
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+
+    wasm_bindgen_futures::JsFuture::from(promise)
+        .await
+        .map(|_| ())
+        .map_err(|_| "Copy failed".to_string())
+}
+
+#[derive(Properties, PartialEq)]
+struct RegistryAccessLinkPopupProps {
+    registry: RegistryInfo,
+    accounts: Vec<AccountInfo>,
+    on_close: Callback<()>,
+}
+
+#[function_component(RegistryAccessLinkPopup)]
+fn registry_access_link_popup(props: &RegistryAccessLinkPopupProps) -> Html {
+    let snackbar = use_context::<SnackbarBus>();
+    let initial_account = props
+        .accounts
+        .first()
+        .map(|account| account.id.clone())
+        .unwrap_or_default();
+    let selected_account_id = use_state(|| initial_account);
+    let generated_link = use_state(|| Option::<String>::None);
+    let copy_status = use_state(|| Option::<String>::None);
+
+    let selected_account = props
+        .accounts
+        .iter()
+        .find(|account| account.id == *selected_account_id)
+        .cloned();
+
+    {
+        let registry = props.registry.clone();
+        let selected_account = selected_account.clone();
+        let generated_link = generated_link.clone();
+        let copy_status = copy_status.clone();
+        use_effect_with(
+            ((*selected_account_id).clone(), props.registry.id.clone(), props.accounts.clone()),
+            move |_| {
+                copy_status.set(None);
+                match selected_account
+                    .as_ref()
+                    .ok_or_else(|| "Select user first".to_string())
+                    .and_then(|account| build_registry_access_link(&registry, account))
+                {
+                    Ok(link) => generated_link.set(Some(link)),
+                    Err(error) => {
+                        generated_link.set(None);
+                        copy_status.set(Some(error));
+                    }
+                }
+                || ()
+            },
+        );
+    }
+
+    html! {
+        <Popup title="Generate Subscription Link" size={PopupSize::Md} on_close={props.on_close.clone()}>
+            <div class="space-y-4">
+                <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">
+                    { format!("Registry: {}", props.registry.name) }
+                </div>
+                <div>
+                    <Dropdown
+                        label="User"
+                        value={(*selected_account_id).clone()}
+                        options={props.accounts.iter().map(|account| {
+                            let label = if account.name.trim().is_empty() {
+                                "Unnamed user".to_string()
+                            } else {
+                                account.name.clone()
+                            };
+                            DropdownOption {
+                                value: account.id.clone(),
+                                label,
+                            }
+                        }).collect::<Vec<_>>()}
+                        onchange={Callback::from({
+                            let selected_account_id = selected_account_id.clone();
+                            let generated_link = generated_link.clone();
+                            let copy_status = copy_status.clone();
+                            move |value: String| {
+                                selected_account_id.set(value);
+                                generated_link.set(None);
+                                copy_status.set(None);
+                            }
+                        })}
+                    />
+                </div>
+                <div>
+                    <TextBox
+                        label="Subscription Link"
+                        value={(*generated_link).clone().unwrap_or_default()}
+                        onchange={Callback::from(|_: String| {})}
+                        disabled={true}
+                        is_textarea={true}
+                    />
+                </div>
+                {
+                    if let Some(status) = &*copy_status {
+                        html! {
+                            <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">
+                                { status.clone() }
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+                <div class="md3-popup-actions" style="justify-content: space-between;">
+                    <Button
+                        label="Close"
+                        button_type={ButtonType::Text}
+                        onclick={{
+                            let on_close = props.on_close.clone();
+                            Callback::from(move |_| on_close.emit(()))
+                        }}
+                    />
+                    <div class="flex items-center" style="gap: 0.5rem;">
+                        <Button
+                            label="Copy"
+                            button_type={ButtonType::Filled}
+                            disabled={generated_link.is_none()}
+                            onclick={{
+                                let generated_link = generated_link.clone();
+                                let copy_status = copy_status.clone();
+                                let snackbar = snackbar.clone();
+                                Callback::from(move |_| {
+                                    let Some(link) = (*generated_link).clone() else {
+                                        copy_status.set(Some("Generate link first".to_string()));
+                                        return;
+                                    };
+                                    let copy_status = copy_status.clone();
+                                    let snackbar = snackbar.clone();
+                                    spawn_local(async move {
+                                        match copy_to_clipboard(link).await {
+                                            Ok(()) => {
+                                                copy_status.set(None);
+                                                if let Some(bus) = snackbar {
+                                                    bus.push("Copied subscription link");
+                                                }
+                                            }
+                                            Err(err) => copy_status.set(Some(err)),
+                                        }
+                                    });
+                                })
+                            }}
+                        />
+                    </div>
+                </div>
+            </div>
+        </Popup>
     }
 }
 
