@@ -123,7 +123,7 @@ services:
     network_mode: host
     environment:
       - PS_MASTER_KEY=${PS_MASTER_KEY:-my-secret-key}
-      - GRPC_LISTEN=:9090
+      - GRPC_LISTEN=127.0.0.1:9090
     volumes:
       - ./data:/data
 ```

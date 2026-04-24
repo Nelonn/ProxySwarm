@@ -647,51 +647,57 @@ func (e *XrayEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Ac
 	if err != nil {
 		return nil, err
 	}
-	if tlsConfig != nil && tlsConfig.Enabled {
+	switch config.Protocol.(type) {
+	case *pb.InboundConfig_Vless:
+		vlessCfg := config.Protocol.(*pb.InboundConfig_Vless).Vless
 		if inbound.StreamSetting == nil {
 			inbound.StreamSetting = &conf.StreamConfig{}
 		}
 		stream := inbound.StreamSetting
-
-		switch config.Protocol.(type) {
-		case *pb.InboundConfig_Vless:
-			vlessCfg := config.Protocol.(*pb.InboundConfig_Vless).Vless
-			stream.Network = xrayVlessNetwork(vlessCfg.Transmission)
-			if vlessCfg.Security == pb.SecurityMode_TLS {
-				if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
-					return nil, fmt.Errorf("vless tls requires tls certificate_name with valid certificate_path and key_path")
-				}
-				stream.Security = "tls"
-				stream.TLSSettings = &conf.TLSConfig{
-					Certs: []*conf.TLSCertConfig{
-						{
-							CertFile: tlsCertificate.CertificatePath,
-							KeyFile:  tlsCertificate.KeyPath,
-						},
-					},
-				}
-			} else if vlessCfg.Security == pb.SecurityMode_REALITY {
-				realityCfg := vlessCfg.Reality
-				if realityCfg == nil {
-					break
-				}
-				realitySNI := realityCfg.Sni
-				if realitySNI == "" {
-					realitySNI = tlsConfig.ServerName
-				}
-				stream.Security = "reality"
-				stream.REALITYSettings = &conf.REALITYConfig{
-					Show:        true,
-					Dest:        toRaw(realityCfg.Dest),
-					Xver:        0,
-					ServerNames: []string{realitySNI},
-					PrivateKey:  realityCfg.PrivateKey,
-					ShortIds:    realityCfg.ShortId,
-					Fingerprint: realityCfg.Utls,
-					SpiderX:     realityCfg.SpiderX,
-				}
+		stream.Network = xrayVlessNetwork(vlessCfg.Transmission)
+		if vlessCfg.Security == pb.SecurityMode_TLS {
+			if tlsConfig == nil || !tlsConfig.Enabled {
+				return nil, fmt.Errorf("vless tls requires tls to be enabled")
 			}
-		case *pb.InboundConfig_Hysteria2:
+			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
+				return nil, fmt.Errorf("vless tls requires tls certificate_name with valid certificate_path and key_path")
+			}
+			stream.Security = "tls"
+			stream.TLSSettings = &conf.TLSConfig{
+				Certs: []*conf.TLSCertConfig{
+					{
+						CertFile: tlsCertificate.CertificatePath,
+						KeyFile:  tlsCertificate.KeyPath,
+					},
+				},
+			}
+		} else if vlessCfg.Security == pb.SecurityMode_REALITY {
+			realityCfg := vlessCfg.Reality
+			if realityCfg == nil {
+				return nil, fmt.Errorf("vless reality requires reality settings")
+			}
+			realitySNI := strings.TrimSpace(realityCfg.Sni)
+			if realitySNI == "" && tlsConfig != nil {
+				realitySNI = strings.TrimSpace(tlsConfig.ServerName)
+			}
+			stream.Security = "reality"
+			stream.REALITYSettings = &conf.REALITYConfig{
+				Show:        true,
+				Dest:        toRaw(realityCfg.Dest),
+				Xver:        0,
+				ServerNames: []string{realitySNI},
+				PrivateKey:  realityCfg.PrivateKey,
+				ShortIds:    realityCfg.ShortId,
+				Fingerprint: realityCfg.Utls,
+				SpiderX:     realityCfg.SpiderX,
+			}
+		}
+	case *pb.InboundConfig_Hysteria2:
+		if tlsConfig != nil && tlsConfig.Enabled {
+			if inbound.StreamSetting == nil {
+				inbound.StreamSetting = &conf.StreamConfig{}
+			}
+			stream := inbound.StreamSetting
 			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
 				return nil, fmt.Errorf("hysteria2 requires tls certificate_name with valid certificate_path and key_path")
 			}

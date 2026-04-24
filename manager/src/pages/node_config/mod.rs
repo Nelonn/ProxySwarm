@@ -5805,13 +5805,18 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                                     let acme_logs = acme_logs.clone();
                                     let acme_loading = acme_loading.clone();
                                     spawn_local(async move {
+                                        let challenge_port = if selected_certificate.acme_type.eq_ignore_ascii_case("HTTP") {
+                                            selected_certificate.acme_http_port
+                                        } else {
+                                            selected_certificate.acme_port
+                                        };
                                         let response = api.issue_acme_certificate(AcmeIssueRequest {
                                             master_key: draft_value.master_key.clone(),
                                             email: selected_certificate.acme_email.clone(),
                                             domain: selected_certificate.acme_domain.clone(),
                                             challenge_type: selected_certificate.acme_type.clone(),
                                             ca: selected_certificate.acme_ca.clone(),
-                                            port: selected_certificate.acme_port,
+                                            port: challenge_port,
                                             certificate_path: selected_certificate.certificate_path.clone(),
                                             key_path: selected_certificate.key_path.clone(),
                                         }).await;

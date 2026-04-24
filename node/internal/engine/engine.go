@@ -184,6 +184,26 @@ func coalesceString(value string, fallback string) string {
 	return value
 }
 
+func acmeChallengePort(challengeType string, tlsPort, httpPort int32) int32 {
+	switch strings.ToUpper(strings.TrimSpace(challengeType)) {
+	case "TLS":
+		if tlsPort > 0 {
+			return tlsPort
+		}
+		return 443
+	case "DNS":
+		return 0
+	default:
+		if httpPort > 0 {
+			return httpPort
+		}
+		if tlsPort > 0 {
+			return tlsPort
+		}
+		return 80
+	}
+}
+
 func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -221,7 +241,7 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 				cert.AcmeDomain,
 				coalesceString(cert.AcmeType, "HTTP"),
 				coalesceString(cert.AcmeCa, "letsencrypt"),
-				cert.AcmePort,
+				acmeChallengePort(cert.AcmeType, cert.AcmePort, cert.AcmeHttpPort),
 				cert.CertificatePath,
 				cert.KeyPath,
 			)

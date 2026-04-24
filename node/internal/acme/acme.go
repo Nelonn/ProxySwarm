@@ -68,6 +68,23 @@ type Manager struct {
 	timers    map[string]*time.Timer
 }
 
+func challengePort(challengeType string, configuredPort int32) int32 {
+	switch normalizedChallengeType(challengeType) {
+	case "TLS":
+		if configuredPort > 0 {
+			return configuredPort
+		}
+		return 443
+	case "DNS":
+		return 0
+	default:
+		if configuredPort > 0 {
+			return configuredPort
+		}
+		return 80
+	}
+}
+
 func NewManager() *Manager {
 	m := &Manager{
 		statePath: defaultStatePath,
@@ -102,7 +119,7 @@ func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca stri
 		Domain:          domain,
 		ChallengeType:   normalizedChallengeType(challengeType),
 		CA:              normalizedCA(ca),
-		Port:            port,
+		Port:            challengePort(challengeType, port),
 		CertificatePath: certificatePath,
 		KeyPath:         keyPath,
 	}
@@ -148,7 +165,7 @@ func (m *Manager) IssueWithLogs(email, domain, challengeType, ca string, port in
 		Domain:          domain,
 		ChallengeType:   normalizedChallengeType(challengeType),
 		CA:              normalizedCA(ca),
-		Port:            port,
+		Port:            challengePort(challengeType, port),
 		CertificatePath: certificatePath,
 		KeyPath:         keyPath,
 	})
