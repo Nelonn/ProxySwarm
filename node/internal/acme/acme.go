@@ -1,52 +1,29 @@
 package acme
 
 import (
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
+	"context"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/challenge/http01"
-	"github.com/go-acme/lego/v4/challenge/tlsalpn01"
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/registration"
+	"github.com/caddyserver/certmagic"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
 	defaultStatePath         = "acme_state.json"
+	defaultStoragePath       = "acme_storage"
 	renewBefore              = 30 * 24 * time.Hour
 	failedRenewRetryInterval = time.Hour
 	minScheduleDelay         = time.Minute
 )
-
-type User struct {
-	Email        string
-	Registration *registration.Resource
-	key          crypto.PrivateKey
-}
-
-func (u *User) GetEmail() string {
-	return u.Email
-}
-
-func (u *User) GetRegistration() *registration.Resource {
-	return u.Registration
-}
-
-func (u *User) GetPrivateKey() crypto.PrivateKey {
-	return u.key
-}
 
 type ManagedCertificate struct {
 	Email           string    `json:"email"`
@@ -64,8 +41,34 @@ type ManagedCertificate struct {
 type Manager struct {
 	mu        sync.Mutex
 	statePath string
+	storageDir string
 	managed   map[string]ManagedCertificate
 	timers    map[string]*time.Timer
+}
+
+type acmeLogCapture struct {
+	domain string
+	lines  *[]string
+}
+
+func (c *acmeLogCapture) append(line string) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return
+	}
+	*c.lines = append(*c.lines, line)
+	fmt.Printf("[acme][%s] %s\n", c.domain, line)
+}
+
+func (c *acmeLogCapture) Write(p []byte) (int, error) {
+	for _, line := range strings.Split(string(p), "\n") {
+		c.append(line)
+	}
+	return len(p), nil
+}
+
+func (c *acmeLogCapture) Sync() error {
+	return nil
 }
 
 func challengePort(challengeType string, configuredPort int32) int32 {
@@ -88,6 +91,7 @@ func challengePort(challengeType string, configuredPort int32) int32 {
 func NewManager() *Manager {
 	m := &Manager{
 		statePath: defaultStatePath,
+		storageDir: defaultStoragePath,
 		managed:   make(map[string]ManagedCertificate),
 		timers:    make(map[string]*time.Timer),
 	}
@@ -96,7 +100,7 @@ func NewManager() *Manager {
 	return m
 }
 
-func (m *Manager) Issue(email, domain string, port, httpPort int32) (*certificate.Resource, error) {
+func (m *Manager) Issue(email, domain string, port, httpPort int32) ([]byte, error) {
 	resource, _, err := m.IssueWithLogs(email, domain, "HTTP", "letsencrypt", port, "", "")
 	return resource, err
 }
@@ -142,7 +146,7 @@ func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca stri
 			entry.NextRenewAt = time.Now().Add(failedRenewRetryInterval)
 			logs = append(logs, fmt.Sprintf("Renew retry scheduled for %s", entry.NextRenewAt.Format(time.RFC3339)))
 		} else if resource != nil {
-			if leaf, parseErr := leafCertificate(resource.Certificate); parseErr == nil {
+			if leaf, parseErr := leafCertificate(resource); parseErr == nil {
 				entry.LastIssuedAt = time.Now()
 				entry.NextRenewAt = renewalTime(leaf.NotAfter)
 				entry.LastError = ""
@@ -157,7 +161,7 @@ func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca stri
 	return logs
 }
 
-func (m *Manager) IssueWithLogs(email, domain, challengeType, ca string, port int32, certificatePath, keyPath string) (*certificate.Resource, []string, error) {
+func (m *Manager) IssueWithLogs(email, domain, challengeType, ca string, port int32, certificatePath, keyPath string) ([]byte, []string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.issueWithLogsLocked(ManagedCertificate{
@@ -171,92 +175,88 @@ func (m *Manager) IssueWithLogs(email, domain, challengeType, ca string, port in
 	})
 }
 
-func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) (*certificate.Resource, []string, error) {
+func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) ([]byte, []string, error) {
 	logs := []string{
 		fmt.Sprintf("Preparing ACME request for %s", entry.Domain),
 		fmt.Sprintf("Challenge type: %s", entry.ChallengeType),
 		fmt.Sprintf("Certificate authority: %s", entry.CA),
 	}
-
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		logs = append(logs, fmt.Sprintf("Failed to generate private key: %v", err))
-		return nil, logs, err
+	capture := &acmeLogCapture{
+		domain: entry.Domain,
+		lines:  &logs,
 	}
-	logs = append(logs, "Generated account key")
+	logger := zap.New(zapcore.NewCore(
+		zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig()),
+		zapcore.AddSync(capture),
+		zap.DebugLevel,
+	))
+	storage := &certmagic.FileStorage{Path: m.storageDir}
+	magic := certmagic.NewDefault()
+	magic.Storage = storage
+	magic.Logger = logger
+	magic.Issuers = nil
 
-	user := User{
-		Email: entry.Email,
-		key:   privateKey,
+	issuerTemplate := certmagic.ACMEIssuer{
+		Email:  entry.Email,
+		Agreed: true,
+		Logger: logger,
 	}
-
-	config := lego.NewConfig(&user)
 	if caURL, ok := caDirectoryURL(entry.CA); ok {
-		config.CADirURL = caURL
+		issuerTemplate.CA = caURL
 		logs = append(logs, fmt.Sprintf("Using CA directory: %s", caURL))
 	} else {
-		config.CADirURL = lego.LEDirectoryProduction
+		issuerTemplate.CA = certmagic.LetsEncryptProductionCA
 		logs = append(logs, fmt.Sprintf("Unknown CA %q, falling back to Let's Encrypt", entry.CA))
 	}
-
-	client, err := lego.NewClient(config)
-	if err != nil {
-		logs = append(logs, fmt.Sprintf("Failed to create ACME client: %v", err))
-		return nil, logs, err
-	}
-	logs = append(logs, "ACME client created")
-
-	reg, err := client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
-	if err != nil {
-		logs = append(logs, fmt.Sprintf("Registration failed: %v", err))
-		return nil, logs, err
-	}
-	user.Registration = reg
-	logs = append(logs, "ACME account registered")
-
 	switch entry.ChallengeType {
 	case "", "HTTP":
-		challengePort := strconv.Itoa(int(entry.Port))
-		if err = client.Challenge.SetHTTP01Provider(http01.NewProviderServer("", challengePort)); err != nil {
-			logs = append(logs, fmt.Sprintf("Failed to configure HTTP-01 provider: %v", err))
-			return nil, logs, err
-		}
-		logs = append(logs, fmt.Sprintf("HTTP-01 provider bound to port %s", challengePort))
+		issuerTemplate.DisableHTTPChallenge = false
+		issuerTemplate.DisableTLSALPNChallenge = true
+		issuerTemplate.AltHTTPPort = int(entry.Port)
+		logs = append(logs, fmt.Sprintf("HTTP-01 challenge enabled on port %d", entry.Port))
 	case "TLS":
-		if err = client.Challenge.SetTLSALPN01Provider(tlsalpn01.NewProviderServer("", "443")); err != nil {
-			logs = append(logs, fmt.Sprintf("Failed to configure TLS-ALPN-01 provider: %v", err))
-			return nil, logs, err
-		}
-		logs = append(logs, "TLS-ALPN-01 provider bound to port 443")
+		issuerTemplate.DisableHTTPChallenge = true
+		issuerTemplate.DisableTLSALPNChallenge = false
+		issuerTemplate.AltTLSALPNPort = int(entry.Port)
+		logs = append(logs, fmt.Sprintf("TLS-ALPN-01 challenge enabled on port %d", entry.Port))
 	case "DNS":
-		err = fmt.Errorf("DNS challenge requires provider-specific credentials and is not implemented yet")
+		err := fmt.Errorf("DNS challenge requires provider-specific credentials and is not implemented yet")
 		logs = append(logs, err.Error())
 		return nil, logs, err
 	default:
-		err = fmt.Errorf("unsupported ACME challenge type: %s", entry.ChallengeType)
+		err := fmt.Errorf("unsupported ACME challenge type: %s", entry.ChallengeType)
 		logs = append(logs, err.Error())
 		return nil, logs, err
 	}
-
-	request := certificate.ObtainRequest{
-		Domains: []string{entry.Domain},
-		Bundle:  true,
-	}
+	issuer := certmagic.NewACMEIssuer(magic, issuerTemplate)
+	magic.Issuers = []certmagic.Issuer{issuer}
 
 	logs = append(logs, "Starting certificate obtain flow")
-	resource, err := client.Certificate.Obtain(request)
-	if err != nil {
+	if err := magic.ObtainCertSync(context.Background(), entry.Domain); err != nil {
 		logs = append(logs, fmt.Sprintf("Certificate obtain failed: %v", err))
 		return nil, logs, err
 	}
 	logs = append(logs, "Certificate obtained successfully")
+
+	certKey := certmagic.StorageKeys.SiteCert(issuer.IssuerKey(), entry.Domain)
+	keyKey := certmagic.StorageKeys.SitePrivateKey(issuer.IssuerKey(), entry.Domain)
+	resource, err := storage.Load(context.Background(), certKey)
+	if err != nil {
+		logs = append(logs, fmt.Sprintf("Failed to load certificate from certmagic storage: %v", err))
+		return nil, logs, err
+	}
+	privateKey, err := storage.Load(context.Background(), keyKey)
+	if err != nil {
+		logs = append(logs, fmt.Sprintf("Failed to load private key from certmagic storage: %v", err))
+		return nil, logs, err
+	}
 
 	if entry.CertificatePath != "" {
 		if err := os.MkdirAll(filepath.Dir(entry.CertificatePath), 0o755); err != nil {
 			logs = append(logs, fmt.Sprintf("Failed to prepare certificate directory: %v", err))
 			return resource, logs, err
 		}
-		if err := os.WriteFile(entry.CertificatePath, resource.Certificate, 0o600); err != nil {
+		if err := os.WriteFile(entry.CertificatePath, resource, 0o600); err != nil {
 			logs = append(logs, fmt.Sprintf("Failed to write certificate: %v", err))
 			return resource, logs, err
 		}
@@ -268,7 +268,7 @@ func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) (*certificate.Re
 			logs = append(logs, fmt.Sprintf("Failed to prepare key directory: %v", err))
 			return resource, logs, err
 		}
-		if err := os.WriteFile(entry.KeyPath, resource.PrivateKey, 0o600); err != nil {
+		if err := os.WriteFile(entry.KeyPath, privateKey, 0o600); err != nil {
 			logs = append(logs, fmt.Sprintf("Failed to write private key: %v", err))
 			return resource, logs, err
 		}
@@ -276,7 +276,7 @@ func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) (*certificate.Re
 	}
 
 	if entry.CertificatePath != "" && entry.KeyPath != "" {
-		if leaf, parseErr := leafCertificate(resource.Certificate); parseErr == nil {
+		if leaf, parseErr := leafCertificate(resource); parseErr == nil {
 			entry.LastIssuedAt = time.Now()
 			entry.NextRenewAt = renewalTime(leaf.NotAfter)
 			entry.LastError = ""
@@ -348,7 +348,7 @@ func (m *Manager) runScheduledRenewal(domain string) {
 		current.LastError = err.Error()
 		current.NextRenewAt = time.Now().Add(failedRenewRetryInterval)
 	} else if resource != nil {
-		if leaf, parseErr := leafCertificate(resource.Certificate); parseErr == nil {
+		if leaf, parseErr := leafCertificate(resource); parseErr == nil {
 			current.LastIssuedAt = time.Now()
 			current.NextRenewAt = renewalTime(leaf.NotAfter)
 			current.LastError = ""
@@ -470,7 +470,7 @@ func normalizedCA(value string) string {
 func caDirectoryURL(ca string) (string, bool) {
 	switch normalizedCA(ca) {
 	case "letsencrypt":
-		return lego.LEDirectoryProduction, true
+		return certmagic.LetsEncryptProductionCA, true
 	case "zerossl":
 		return "https://acme.zerossl.com/v2/DV90", true
 	case "google":

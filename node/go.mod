@@ -3,6 +3,7 @@ module proxyswarm/node
 go 1.26
 
 require (
+	github.com/caddyserver/certmagic v0.25.2
 	github.com/go-acme/lego/v4 v4.33.0
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/shirou/gopsutil/v3 v3.24.5
@@ -14,7 +15,6 @@ require (
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/apernet/quic-go v0.59.1-0.20260217092621-db4786c77a22 // indirect
-	github.com/caddyserver/certmagic v0.25.2 // indirect
 	github.com/caddyserver/zerossl v0.1.5 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
