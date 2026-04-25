@@ -60,6 +60,16 @@ type registryManagementServer struct {
 	masterKeyHash string
 }
 
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *loggingResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
 func main() {
 	listenAddr := strings.TrimSpace(os.Getenv("REGISTRY_LISTEN"))
 	if listenAddr == "" {
@@ -116,7 +126,7 @@ func main() {
 		})
 		httpServer := &http.Server{
 			Addr:    listenAddr,
-			Handler: handler,
+			Handler: withRequestLogging(handler),
 		}
 
 		logInfof("registry mode=%s user+manage listening on %s", mode, listenAddr)
@@ -137,11 +147,11 @@ func main() {
 
 	userServer := &http.Server{
 		Addr:    listenAddr,
-		Handler: userHandler,
+		Handler: withRequestLogging(userHandler),
 	}
 	managementServer := &http.Server{
 		Addr:    manageListenAddr,
-		Handler: manageHandler,
+		Handler: withRequestLogging(manageHandler),
 	}
 
 	errCh := make(chan error, 2)
@@ -183,6 +193,26 @@ func logInfof(format string, args ...any) {
 	if currentLogLevel() <= logLevelInfo {
 		log.Printf(format, args...)
 	}
+}
+
+func withRequestLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		start := time.Now()
+		writer := &loggingResponseWriter{
+			ResponseWriter: res,
+			statusCode:     http.StatusOK,
+		}
+		next.ServeHTTP(writer, req)
+		logInfof(
+			"[http] method=%s path=%s status=%d duration=%s remote=%s ua=%q",
+			req.Method,
+			req.URL.RequestURI(),
+			writer.statusCode,
+			time.Since(start),
+			req.RemoteAddr,
+			req.UserAgent(),
+		)
+	})
 }
 
 func makeUserAPIHandler(store *registryStore) http.Handler {

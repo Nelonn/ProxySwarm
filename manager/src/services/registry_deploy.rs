@@ -48,6 +48,37 @@ pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
     summary
 }
 
+pub async fn deploy_registry_by_id(state: &State, registry_id: &str) -> Result<DeployAllSummary, String> {
+    let registry = state
+        .registries
+        .iter()
+        .find(|registry| registry.id == registry_id)
+        .cloned()
+        .ok_or_else(|| "Registry not found".to_string())?;
+    let generated = build_registry_config(state);
+
+    let mut summary = DeployAllSummary {
+        registries_total: 1,
+        skipped_inbounds: generated.skipped_inbounds,
+        failures: generated.failures,
+        ..DeployAllSummary::default()
+    };
+
+    match deploy_registry(&registry, generated.config).await {
+        Ok(()) => {
+            summary.registries_succeeded = 1;
+            summary.services_deployed = 1;
+            Ok(summary)
+        }
+        Err(error) => {
+            summary
+                .failures
+                .push(format!("{}: {}", registry.name.trim(), error));
+            Err(summary.failures.join("; "))
+        }
+    }
+}
+
 #[derive(Default)]
 struct BuildConfigResult {
     config: RegistryServiceConfig,

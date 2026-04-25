@@ -10,7 +10,7 @@ use crate::components::{
 };
 use crate::pb::proxyswarm::RegistryStatusResponse;
 use crate::services::registry_api::RegistryApiService;
-use crate::services::registry_deploy::deploy_all_registries;
+use crate::services::registry_deploy::{deploy_all_registries, deploy_registry_by_id};
 use crate::state::{AccountInfo, RegistryInfo, State};
 
 #[function_component(Registries)]
@@ -22,6 +22,7 @@ pub fn registries() -> Html {
     let pending_delete = use_state(|| Option::<RegistryInfo>::None);
     let pending_deploy = use_state(|| false);
     let deploy_loading = use_state(|| false);
+    let deploy_registry_id = use_state(|| Option::<String>::None);
     let status_registry = use_state(|| Option::<RegistryInfo>::None);
     let access_link_registry = use_state(|| Option::<RegistryInfo>::None);
 
@@ -151,6 +152,16 @@ pub fn registries() -> Html {
                                             <div class="md3-list-col md3-list-col-actions">
                                                 <div class="md3-list-actions">
                                                     <Button
+                                                        label="Deploy"
+                                                        button_type={ButtonType::Outlined}
+                                                        disabled={*deploy_loading}
+                                                        onclick={{
+                                                            let deploy_registry_id = deploy_registry_id.clone();
+                                                            let registry_id = registry.id.clone();
+                                                            Callback::from(move |_| deploy_registry_id.set(Some(registry_id.clone())))
+                                                        }}
+                                                    />
+                                                    <Button
                                                         label="Access Link"
                                                         button_type={ButtonType::Outlined}
                                                         onclick={{
@@ -208,6 +219,77 @@ pub fn registries() -> Html {
                             on_close={Callback::from({
                                 let show_modal = show_modal.clone();
                                 move |_| show_modal.set(false)
+                            })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
+                if let Some(registry_id) = &*deploy_registry_id {
+                    let deploy_registry_id_cancel = deploy_registry_id.clone();
+                    let deploy_registry_id_confirm = deploy_registry_id.clone();
+                    let deploy_loading = deploy_loading.clone();
+                    let snackbar = snackbar.clone();
+                    let state = state.clone();
+                    let registry = state
+                        .registries
+                        .iter()
+                        .find(|item| item.id == *registry_id)
+                        .cloned();
+                    let registry_name = registry
+                        .as_ref()
+                        .map(|item| item.name.clone())
+                        .unwrap_or_else(|| "Registry".to_string());
+                    html! {
+                        <DeleteConfirmPopup
+                            title={"Deploy Registry"}
+                            message={format!("Deploy current node/account configuration to \"{}\"?", registry_name)}
+                            confirm_label={"Deploy"}
+                            on_cancel={Callback::from(move |_| deploy_registry_id_cancel.set(None))}
+                            on_confirm={Callback::from(move |_| {
+                                if *deploy_loading {
+                                    return;
+                                }
+                                let Some(registry_id) = (*deploy_registry_id_confirm).clone() else {
+                                    return;
+                                };
+                                deploy_registry_id_confirm.set(None);
+                                let state_snapshot = (*state).clone();
+                                deploy_loading.set(true);
+                                let deploy_loading = deploy_loading.clone();
+                                let snackbar = snackbar.clone();
+                                spawn_local(async move {
+                                    let loading_id = snackbar
+                                        .as_ref()
+                                        .map(|bus| bus.push("Deploying registry service..."));
+                                    let result = deploy_registry_by_id(&state_snapshot, &registry_id).await;
+
+                                    if let (Some(bus), Some(id)) = (&snackbar, loading_id) {
+                                        bus.hide(id);
+                                    }
+
+                                    if let Some(bus) = &snackbar {
+                                        match result {
+                                            Ok(summary) if summary.failures.is_empty() => {
+                                                bus.push("Registry deploy complete.");
+                                            }
+                                            Ok(summary) => {
+                                                bus.push(format!(
+                                                    "Registry deploy finished with issues. {} inbounds skipped.",
+                                                    summary.skipped_inbounds
+                                                ));
+                                            }
+                                            Err(error) => {
+                                                bus.push(format!("Registry deploy failed: {}", error));
+                                            }
+                                        }
+                                    }
+
+                                    deploy_loading.set(false);
+                                });
                             })}
                         />
                     }
