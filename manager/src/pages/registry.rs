@@ -391,11 +391,21 @@ fn build_registry_access_link(registry: &RegistryInfo, account: &AccountInfo) ->
     }
 
     endpoint = endpoint.trim_end_matches('/').to_string();
-    Ok(format!(
+    let mut link = format!(
         "{}/v1/subscription?token={}",
         endpoint,
         js_sys::encode_uri_component(&token)
-    ))
+    );
+    let account_name = account.name.trim();
+    if !account_name.is_empty() {
+        link.push('#');
+        link.push_str(
+            &js_sys::encode_uri_component(account_name)
+                .as_string()
+                .unwrap_or_else(|| account_name.to_string()),
+        );
+    }
+    Ok(link)
 }
 
 async fn copy_to_clipboard(text: String) -> Result<(), String> {
