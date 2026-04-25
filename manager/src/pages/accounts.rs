@@ -1,8 +1,14 @@
+use crate::country::flag_emoji;
 use crate::components::{
     Button, ButtonType, DatePicker, DatePickerType, Popup, PopupSize, RichTable, TextBox,
 };
+use crate::services::registry_deploy::collect_account_proxy_links;
 use crate::state::{normalize_groups, AccountInfo, State};
 use uuid::Uuid;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::{spawn_local, JsFuture};
+use web_sys::window;
 use yew::prelude::*;
 
 #[function_component(Accounts)]
@@ -12,6 +18,7 @@ pub fn accounts() -> Html {
     let editing_account = use_state(|| Option::<AccountInfo>::None);
     let pending_delete = use_state(|| Option::<AccountInfo>::None);
     let show_groups_popup = use_state(|| false);
+    let proxies_account = use_state(|| Option::<AccountInfo>::None);
 
     let on_add = {
         let show_modal = show_modal.clone();
@@ -77,6 +84,11 @@ pub fn accounts() -> Html {
                                 <>
                                     <AccountRow
                                         account={account.clone()}
+                                        on_proxies={{
+                                            let proxies_account = proxies_account.clone();
+                                            let account_for_proxies = account.clone();
+                                            Callback::from(move |_| proxies_account.set(Some(account_for_proxies.clone())))
+                                        }}
                                         on_edit={{
                                             let show_modal = show_modal.clone();
                                             let editing_account = editing_account.clone();
@@ -122,6 +134,21 @@ pub fn accounts() -> Html {
                 html! {}
             } }
 
+            { if let Some(account) = &*proxies_account {
+                html! {
+                    <AccountProxiesPopup
+                        state={state.clone()}
+                        account={account.clone()}
+                        on_close={Callback::from({
+                            let proxies_account = proxies_account.clone();
+                            move |_| proxies_account.set(None)
+                        })}
+                    />
+                }
+            } else {
+                html! {}
+            } }
+
             { if let Some(account) = &*pending_delete {
                 let state = state.clone();
                 let pending_delete_close = pending_delete.clone();
@@ -151,6 +178,7 @@ pub fn accounts() -> Html {
 #[derive(Properties, PartialEq)]
 struct AccountCardProps {
     account: AccountInfo,
+    on_proxies: Callback<MouseEvent>,
     on_edit: Callback<MouseEvent>,
     on_delete: Callback<MouseEvent>,
 }
@@ -169,6 +197,7 @@ fn account_row(props: &AccountCardProps) -> Html {
 
     let on_edit_click = props.on_edit.clone();
     let on_delete_click = props.on_delete.clone();
+    let on_proxies_click = props.on_proxies.clone();
     let token_click = {
         let show_token = show_token.clone();
         Callback::from(move |e: MouseEvent| {
@@ -218,6 +247,11 @@ fn account_row(props: &AccountCardProps) -> Html {
             <div class="md3-list-col md3-list-col-actions">
                 <div class="md3-list-actions">
                     <Button
+                        label="Proxies"
+                        button_type={ButtonType::Outlined}
+                        onclick={on_proxies_click}
+                    />
+                    <Button
                         label="Edit"
                         button_type={ButtonType::Outlined}
                         onclick={on_edit_click}
@@ -231,6 +265,173 @@ fn account_row(props: &AccountCardProps) -> Html {
                 </div>
             </div>
         </div>
+    }
+}
+
+async fn copy_to_clipboard(text: String) -> Result<(), String> {
+    let Some(window) = window() else {
+        return Err("Clipboard unavailable".to_string());
+    };
+
+    let navigator = js_sys::Reflect::get(&window, &JsValue::from_str("navigator"))
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+    let clipboard = js_sys::Reflect::get(&navigator, &JsValue::from_str("clipboard"))
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+    let write_text = js_sys::Reflect::get(&clipboard, &JsValue::from_str("writeText"))
+        .map_err(|_| "Clipboard unavailable".to_string())?
+        .dyn_into::<js_sys::Function>()
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+
+    let promise = write_text
+        .call1(&clipboard, &JsValue::from_str(&text))
+        .map_err(|_| "Clipboard unavailable".to_string())?
+        .dyn_into::<js_sys::Promise>()
+        .map_err(|_| "Clipboard unavailable".to_string())?;
+
+    JsFuture::from(promise)
+        .await
+        .map(|_| ())
+        .map_err(|_| "Copy failed".to_string())
+}
+
+#[derive(Properties, PartialEq)]
+struct AccountProxiesPopupProps {
+    state: UseStateHandle<State>,
+    account: AccountInfo,
+    on_close: Callback<()>,
+}
+
+#[function_component(AccountProxiesPopup)]
+fn account_proxies_popup(props: &AccountProxiesPopupProps) -> Html {
+    let result = collect_account_proxy_links(&props.state, &props.account);
+    let links = result.links;
+    let skipped = result.skipped;
+    let copy_error = use_state(|| Option::<String>::None);
+
+    html! {
+        <Popup
+            title={format!("Proxies: {}", props.account.name)}
+            size={PopupSize::Lg}
+            on_close={props.on_close.clone()}
+        >
+            <div class="space-y-4">
+                {
+                    if links.is_empty() {
+                        html! {
+                            <div class="text-sm opacity-70">{ "No available access links for this account." }</div>
+                        }
+                    } else {
+                        html! {
+                            <RichTable columns={vec![
+                                "Source".to_string(),
+                                "Link".to_string(),
+                                "Actions".to_string(),
+                            ]} header_in_list={true} card_class={Some("bg-surface-container".to_string())}>
+                                {
+                                    for links.iter().cloned().map(|item| {
+                                        let link_for_copy = item.link.clone();
+                                        let flag = flag_emoji(&item.node_country);
+                                        let source = {
+                                            let node = item.node_name.trim();
+                                            let inbound = item.inbound_name.trim();
+                                            let mut parts = Vec::new();
+                                            if !node.is_empty() {
+                                                parts.push(node.to_string());
+                                            }
+                                            if !inbound.is_empty() {
+                                                parts.push(inbound.to_string());
+                                            }
+                                            if parts.is_empty() {
+                                                "-".to_string()
+                                            } else if flag.is_empty() {
+                                                parts.join(" | ")
+                                            } else {
+                                                format!("{} {}", flag, parts.join(" | "))
+                                            }
+                                        };
+                                        html! {
+                                            <>
+                                                <div class="md3-divider"></div>
+                                                <div class="md3-list-row">
+                                                    <div class="md3-list-col">
+                                                        <div class="text-sm opacity-70">{ source }</div>
+                                                    </div>
+                                                    <div class="md3-list-col md3-list-col-main">
+                                                        <TextBox
+                                                            label="Proxy"
+                                                            value={item.link}
+                                                            onchange={Callback::from(|_: String| {})}
+                                                            disabled={true}
+                                                            is_textarea={true}
+                                                        />
+                                                    </div>
+                                                    <div class="md3-list-col md3-list-col-actions">
+                                                        <div class="md3-list-actions">
+                                                            <Button
+                                                                label="Copy"
+                                                                button_type={ButtonType::Outlined}
+                                                                onclick={Callback::from({
+                                                                    let copy_error = copy_error.clone();
+                                                                    move |_| {
+                                                                        copy_error.set(None);
+                                                                        let copy_error = copy_error.clone();
+                                                                        let link = link_for_copy.clone();
+                                                                        spawn_local(async move {
+                                                                            if let Err(error) = copy_to_clipboard(link).await {
+                                                                                copy_error.set(Some(error));
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        }
+                                    })
+                                }
+                            </RichTable>
+                        }
+                    }
+                }
+                {
+                    if !skipped.is_empty() {
+                        html! {
+                            <div class="space-y-2">
+                                <div class="text-sm font-medium opacity-80">{ "Skipped" }</div>
+                                <div class="space-y-1">
+                                    {
+                                        for skipped.iter().map(|item| html! {
+                                            <div class="text-sm opacity-70">{ item }</div>
+                                        })
+                                    }
+                                </div>
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+                {
+                    if let Some(error) = &*copy_error {
+                        html! { <div class="text-sm opacity-70">{ error }</div> }
+                    } else {
+                        html! {}
+                    }
+                }
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button
+                        label="Close"
+                        button_type={ButtonType::Text}
+                        onclick={Callback::from({
+                            let on_close = props.on_close.clone();
+                            move |_| on_close.emit(())
+                        })}
+                    />
+                </div>
+            </div>
+        </Popup>
     }
 }
 

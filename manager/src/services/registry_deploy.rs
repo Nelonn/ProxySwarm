@@ -2,9 +2,10 @@ use trusttunnel_deeplink::{encode, DeepLinkConfig};
 
 use crate::pb::proxyswarm::{Account, RegistryServiceConfig, RegistryTemplateLink};
 use crate::services::registry_api::RegistryApiService;
+use crate::storage;
 use crate::state::{
-    format_link_remark, normalize_groups, AccountInfo, InboundEntryDraft, ProxyNode,
-    RegistryInfo, State,
+    format_link_remark, normalize_groups, AccountInfo, InboundEntryDraft, NodeConfigDraft,
+    ProxyNode, RegistryInfo, State,
 };
 
 #[derive(Default, Clone)]
@@ -15,6 +16,20 @@ pub struct DeployAllSummary {
     pub services_deleted: usize,
     pub skipped_inbounds: usize,
     pub failures: Vec<String>,
+}
+
+#[derive(Default, Clone)]
+pub struct AccountProxyLinksResult {
+    pub links: Vec<AccountProxyLink>,
+    pub skipped: Vec<String>,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct AccountProxyLink {
+    pub link: String,
+    pub node_country: String,
+    pub node_name: String,
+    pub inbound_name: String,
 }
 
 pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
@@ -79,6 +94,51 @@ pub async fn deploy_registry_by_id(state: &State, registry_id: &str) -> Result<D
     }
 }
 
+pub fn collect_account_proxy_links(state: &State, account: &AccountInfo) -> AccountProxyLinksResult {
+    let mut result = AccountProxyLinksResult::default();
+    let mut seen = std::collections::HashSet::new();
+
+    for node in &state.nodes {
+        let node_config = effective_node_config(node);
+        for inbound in &node_config.inbounds {
+            if !inbound.enabled {
+                continue;
+            }
+            if !groups_intersect(&account.groups, &node.groups) {
+                continue;
+            }
+
+            let template = match build_template_link(node, &node_config, inbound) {
+                Ok(template) => template,
+                Err(error) => {
+                    result.skipped.push(format!(
+                        "Skipped {} / {}: {}",
+                        node.name.trim(),
+                        inbound_display_name(inbound),
+                        error
+                    ));
+                    continue;
+                }
+            };
+            let link = render_template_link(&template, account);
+            let trimmed = link.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if seen.insert(trimmed.to_string()) {
+                result.links.push(AccountProxyLink {
+                    link: trimmed.to_string(),
+                    node_country: node.country.trim().to_string(),
+                    node_name: node.name.trim().to_string(),
+                    inbound_name: inbound_display_name(inbound),
+                });
+            }
+        }
+    }
+
+    result
+}
+
 #[derive(Default)]
 struct BuildConfigResult {
     config: RegistryServiceConfig,
@@ -96,12 +156,13 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
     };
 
     for node in &state.nodes {
-        for inbound in &node.config.inbounds {
+        let node_config = effective_node_config(node);
+        for inbound in &node_config.inbounds {
             if !inbound.enabled {
                 continue;
             }
 
-            match build_template_link(node, &node.config, inbound) {
+            match build_template_link(node, &node_config, inbound) {
                 Ok(template) => {
                     result.config.template_links.push(RegistryTemplateLink {
                         node_id: node.id.clone(),
@@ -127,6 +188,24 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
     }
 
     result
+}
+
+fn effective_node_config(node: &ProxyNode) -> NodeConfigDraft {
+    if let Some(draft) = storage::load_node_draft_local(&node.id) {
+        return draft;
+    }
+    if !node.config.inbounds.is_empty() || !node.config.outbounds.is_empty() {
+        return node.config.clone();
+    }
+    if let Some(revision) = node
+        .revisions
+        .iter()
+        .find(|revision| revision.id == node.active_revision_id)
+        .or_else(|| node.revisions.last())
+    {
+        return revision.config.clone();
+    }
+    NodeConfigDraft::default()
 }
 
 async fn deploy_registry(
@@ -162,6 +241,24 @@ fn inbound_display_name(inbound: &InboundEntryDraft) -> String {
     } else {
         name.to_string()
     }
+}
+
+fn groups_intersect(account_groups: &[String], node_groups: &[String]) -> bool {
+    let account_groups = normalize_groups(account_groups);
+    let node_groups = normalize_groups(node_groups);
+    account_groups
+        .iter()
+        .any(|group| node_groups.iter().any(|candidate| candidate == group))
+}
+
+fn render_template_link(template: &str, account: &AccountInfo) -> String {
+    template
+        .replace("{{token}}", &account.token)
+        .replace("{{name}}", &account.name)
+        .replace("{{id}}", &account.id)
+        .replace("{token}", &account.token)
+        .replace("{name}", &account.name)
+        .replace("{id}", &account.id)
 }
 
 fn build_template_link(
