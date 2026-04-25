@@ -5386,6 +5386,8 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
     let editing_dns_host = use_state(|| Option::<(usize, DnsHostDraft, bool)>::None);
     let editing_routing_rule = use_state(|| Option::<(usize, RoutingRuleDraft, bool)>::None);
     let pending_routing_delete = use_state(|| Option::<usize>::None);
+    let pending_inbound_delete = use_state(|| Option::<(String, String)>::None);
+    let pending_outbound_delete = use_state(|| Option::<(String, String)>::None);
     let routing_move_anim = use_state(|| Option::<(usize, bool)>::None);
     let warp_popup_open = use_state(|| false);
     let access_link_inbound_id = use_state(|| Option::<String>::None);
@@ -5707,8 +5709,8 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
 
             {
                 match &*active_tab {
-                    ConfigTab::Inbounds => inbounds::render_inbounds_tab(&draft, &inbounds, &editing_inbound, &access_link_inbound_id),
-                    ConfigTab::Outbounds => outbounds::render_outbounds_tab(&draft, &d.outbounds, &editing_outbound, &warp_popup_open),
+                    ConfigTab::Inbounds => inbounds::render_inbounds_tab(&draft, &inbounds, &editing_inbound, &access_link_inbound_id, &pending_inbound_delete),
+                    ConfigTab::Outbounds => outbounds::render_outbounds_tab(&draft, &d.outbounds, &editing_outbound, &warp_popup_open, &pending_outbound_delete),
                     ConfigTab::Routing => routing::render_routing_tab(
                         &draft,
                         &routing_rules,
@@ -5801,6 +5803,68 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                                 move |_| {
                                     deploy_confirm_open.set(false);
                                     deploy_revision.emit(());
+                                }
+                            })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
+                if let Some((inbound_id, inbound_name)) = (*pending_inbound_delete).clone() {
+                    html! {
+                        <ConfirmPopup
+                            title="Delete Inbound"
+                            body={format!("Are you sure you want to delete inbound \"{}\"?", inbound_name)}
+                            confirm_label="Delete"
+                            align_actions_end={true}
+                            on_close={Callback::from({
+                                let pending_inbound_delete = pending_inbound_delete.clone();
+                                move |_| pending_inbound_delete.set(None)
+                            })}
+                            on_confirm={Callback::from({
+                                let draft = draft.clone();
+                                let pending_inbound_delete = pending_inbound_delete.clone();
+                                move |_| {
+                                    let mut next = (*draft).clone();
+                                    sync_draft(&mut next);
+                                    next.inbounds.retain(|item| item.id != inbound_id);
+                                    sync_draft(&mut next);
+                                    draft.set(next);
+                                    pending_inbound_delete.set(None);
+                                }
+                            })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
+                if let Some((outbound_id, outbound_name)) = (*pending_outbound_delete).clone() {
+                    html! {
+                        <ConfirmPopup
+                            title="Delete Outbound"
+                            body={format!("Are you sure you want to delete outbound \"{}\"?", outbound_name)}
+                            confirm_label="Delete"
+                            align_actions_end={true}
+                            on_close={Callback::from({
+                                let pending_outbound_delete = pending_outbound_delete.clone();
+                                move |_| pending_outbound_delete.set(None)
+                            })}
+                            on_confirm={Callback::from({
+                                let draft = draft.clone();
+                                let pending_outbound_delete = pending_outbound_delete.clone();
+                                move |_| {
+                                    let mut next = (*draft).clone();
+                                    sync_draft(&mut next);
+                                    next.outbounds.retain(|item| item.id != outbound_id);
+                                    sync_draft(&mut next);
+                                    draft.set(next);
+                                    pending_outbound_delete.set(None);
                                 }
                             })}
                         />

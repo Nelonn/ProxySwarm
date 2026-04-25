@@ -45,7 +45,7 @@ RUN apk add --no-cache git
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux \
-    go install github.com/sagernet/sing-box/cmd/sing-box@v${SING_BOX_VERSION}
+    go install -tags with_quic github.com/sagernet/sing-box/cmd/sing-box@v${SING_BOX_VERSION}
 
 RUN install -Dm755 /go/bin/sing-box /out/sing-box
 

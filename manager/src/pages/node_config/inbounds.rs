@@ -5,6 +5,7 @@ pub(super) fn render_inbounds_tab(
     inbounds: &[InboundEntryDraft],
     editing_inbound: &UseStateHandle<Option<(InboundEntryDraft, bool)>>,
     access_link_inbound_id: &UseStateHandle<Option<String>>,
+    pending_inbound_delete: &UseStateHandle<Option<(String, String)>>,
 ) -> Html {
     html! {                        <div class="space-y-6">
                             <div class="flex justify-between" style="align-items: center;">
@@ -80,14 +81,9 @@ pub(super) fn render_inbounds_tab(
                                                                 }
                                                             })} />
                                                             <Button label="Delete" button_type={ButtonType::Text} color={Some("#F2B8B5".to_string())} onclick={Callback::from({
-                                                                let draft = draft.clone();
-                                                            move |_| {
-                                                                let mut next = (*draft).clone();
-                                                                sync_draft(&mut next);
-                                                                next.inbounds.retain(|item| item.id != delete_id);
-                                                                sync_draft(&mut next);
-                                                                draft.set(next);
-                                                            }
+                                                                let pending_inbound_delete = pending_inbound_delete.clone();
+                                                                let inbound_name = inbound_display_name(inbound);
+                                                                move |_| pending_inbound_delete.set(Some((delete_id.clone(), inbound_name.clone())))
                                                             })} />
                                                         </div>
                                                     </div>

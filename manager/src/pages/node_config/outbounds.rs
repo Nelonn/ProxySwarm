@@ -5,6 +5,7 @@ pub(super) fn render_outbounds_tab(
     outbounds: &[OutboundEntryDraft],
     editing_outbound: &UseStateHandle<Option<(OutboundEntryDraft, bool)>>,
     warp_popup_open: &UseStateHandle<bool>,
+    pending_outbound_delete: &UseStateHandle<Option<(String, String)>>,
 ) -> Html {
     html! {                        <div class="space-y-6">
                             <div class="flex justify-between" style="align-items: center;">
@@ -116,14 +117,9 @@ pub(super) fn render_outbounds_tab(
                                                                 } else {
                                                                     html! {
                                                                         <Button label="Delete" button_type={ButtonType::Text} color={Some("#F2B8B5".to_string())} onclick={Callback::from({
-                                                                            let draft = draft.clone();
-                                                                            move |_| {
-                                                                                let mut next = (*draft).clone();
-                                                                                sync_draft(&mut next);
-                                                                                next.outbounds.retain(|item| item.id != delete_id);
-                                                                                sync_draft(&mut next);
-                                                                                draft.set(next);
-                                                                            }
+                                                                            let pending_outbound_delete = pending_outbound_delete.clone();
+                                                                            let outbound_name = outbound.name.clone();
+                                                                            move |_| pending_outbound_delete.set(Some((delete_id.clone(), outbound_name.clone())))
                                                                         })} />
                                                                     }
                                                                 }
