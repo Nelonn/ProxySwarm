@@ -30,6 +30,12 @@ fn decode_grpc_message(value: &str) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
+fn header_grpc_status(headers: &gloo_net::http::Headers) -> Option<u32> {
+    headers
+        .get("grpc-status")
+        .and_then(|value| value.trim().parse::<u32>().ok())
+}
+
 fn parse_grpc_web_response(bytes: &[u8]) -> Result<GrpcWebResponse, String> {
     let mut offset = 0usize;
     let mut message = Vec::new();
@@ -98,6 +104,7 @@ impl RegistryApiService {
         &self,
         config: RegistryServiceConfig,
     ) -> Result<RegistryServiceConfig, String> {
+        let fallback_config = config.clone();
         let request = RegistryUpdateConfigRequest {
             config: Some(config),
         };
@@ -125,12 +132,13 @@ impl RegistryApiService {
             .binary()
             .await
             .map_err(|e| format!("Failed to get response bytes: {}", e))?;
+        let header_status = header_grpc_status(&resp.headers());
         let header_error = resp
             .headers()
             .get("grpc-message")
-            .map(|value| decode_grpc_message(value.as_str()));
+            .map(|value| decode_grpc_message(&value));
         let parsed = parse_grpc_web_response(&bytes)?;
-        let grpc_status = parsed.grpc_status.unwrap_or(0);
+        let grpc_status = parsed.grpc_status.or(header_status).unwrap_or(0);
         let grpc_error = parsed.grpc_error.or(header_error);
 
         if !resp.ok() {
@@ -141,11 +149,13 @@ impl RegistryApiService {
             return Err(grpc_error.unwrap_or_else(|| format!("gRPC status {}", grpc_status)));
         }
 
+        if parsed.message.is_empty() {
+            return Ok(fallback_config);
+        }
+
         let response = RegistryUpdateConfigResponse::decode(&parsed.message[..])
             .map_err(|e| format!("Failed to decode response: {}", e))?;
-        response
-            .config
-            .ok_or_else(|| "Missing registry config payload".to_string())
+        Ok(response.config.unwrap_or(fallback_config))
     }
 
     pub async fn status(&self) -> Result<RegistryStatusResponse, String> {
@@ -174,12 +184,13 @@ impl RegistryApiService {
             .binary()
             .await
             .map_err(|e| format!("Failed to get response bytes: {}", e))?;
+        let header_status = header_grpc_status(&resp.headers());
         let header_error = resp
             .headers()
             .get("grpc-message")
-            .map(|value| decode_grpc_message(value.as_str()));
+            .map(|value| decode_grpc_message(&value));
         let parsed = parse_grpc_web_response(&bytes)?;
-        let grpc_status = parsed.grpc_status.unwrap_or(0);
+        let grpc_status = parsed.grpc_status.or(header_status).unwrap_or(0);
         let grpc_error = parsed.grpc_error.or(header_error);
 
         if !resp.ok() {

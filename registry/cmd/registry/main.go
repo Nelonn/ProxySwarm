@@ -323,8 +323,8 @@ func groupsIntersect(accountGroups []string, templateGroups []string) bool {
 }
 
 func normalizeGroups(values []string) []string {
-	groups := make([]string, 0, len(values)+1)
-	seen := make(map[string]struct{}, len(values)+1)
+	groups := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)
 		if value == "" {
@@ -335,9 +335,6 @@ func normalizeGroups(values []string) []string {
 		}
 		seen[value] = struct{}{}
 		groups = append(groups, value)
-	}
-	if _, ok := seen["default"]; !ok {
-		groups = append(groups, "default")
 	}
 	return groups
 }

@@ -85,9 +85,6 @@ pub fn normalize_groups(values: &[String]) -> Vec<String> {
         .filter(|value| !value.is_empty())
         .map(|value| value.to_string())
         .collect::<Vec<_>>();
-    if !groups.iter().any(|value| value == "default") {
-        groups.push("default".to_string());
-    }
     groups.sort();
     groups.dedup();
     groups
