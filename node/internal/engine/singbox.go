@@ -270,6 +270,9 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 
 	case *pb.InboundConfig_Hysteria2:
 		inbound["type"] = "hysteria2"
+		if tlsOptions == nil {
+			return nil, fmt.Errorf("hysteria2 requires tls to be enabled")
+		}
 		inbound["up_mbps"] = p.Hysteria2.UpMbps
 		inbound["down_mbps"] = p.Hysteria2.DownMbps
 		inbound["ignore_client_bandwidth"] = p.Hysteria2.IgnoreClientBandwidth
@@ -296,12 +299,10 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 			})
 		}
 		inbound["users"] = users
-		if tlsOptions != nil && (tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "") {
+		if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
 			return nil, fmt.Errorf("hysteria2 requires tls certificate_name with valid certificate_path and key_path")
 		}
-		if tlsOptions != nil {
-			inbound["tls"] = tlsOptions
-		}
+		inbound["tls"] = tlsOptions
 
 	case *pb.InboundConfig_Naiveproxy:
 		inbound["type"] = "naive"

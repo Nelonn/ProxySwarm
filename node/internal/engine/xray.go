@@ -482,27 +482,28 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates []*pb.Certifi
 			}
 		}
 	case *pb.InboundConfig_Hysteria2:
-		if tlsConfig != nil && tlsConfig.Enabled {
-			if inbound.StreamSetting == nil {
-				inbound.StreamSetting = &conf.StreamConfig{}
-			}
-			stream := inbound.StreamSetting
-			stream.Network = xrayHysteriaNetwork()
-			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
-				return inbound, fmt.Errorf("hysteria2 requires tls certificate_name with valid certificate_path and key_path")
-			}
-			stream.Security = "tls"
-			stream.TLSSettings = &conf.TLSConfig{
-				ServerName: tlsConfig.ServerName,
-				ALPN:       &conf.StringList{"h3"},
-				Certs: []*conf.TLSCertConfig{{
-					CertFile: tlsCertificate.CertificatePath,
-					KeyFile:  tlsCertificate.KeyPath,
-				}},
-			}
-			stream.HysteriaSettings = &conf.HysteriaConfig{
-				Version: 2,
-			}
+		if tlsConfig == nil || !tlsConfig.Enabled {
+			return inbound, fmt.Errorf("hysteria2 requires tls to be enabled")
+		}
+		if inbound.StreamSetting == nil {
+			inbound.StreamSetting = &conf.StreamConfig{}
+		}
+		stream := inbound.StreamSetting
+		stream.Network = xrayHysteriaNetwork()
+		if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
+			return inbound, fmt.Errorf("hysteria2 requires tls certificate_name with valid certificate_path and key_path")
+		}
+		stream.Security = "tls"
+		stream.TLSSettings = &conf.TLSConfig{
+			ServerName: tlsConfig.ServerName,
+			ALPN:       &conf.StringList{"h3"},
+			Certs: []*conf.TLSCertConfig{{
+				CertFile: tlsCertificate.CertificatePath,
+				KeyFile:  tlsCertificate.KeyPath,
+			}},
+		}
+		stream.HysteriaSettings = &conf.HysteriaConfig{
+			Version: 2,
 		}
 	}
 
