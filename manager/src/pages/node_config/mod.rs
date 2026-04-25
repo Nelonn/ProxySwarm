@@ -2144,6 +2144,72 @@ fn build_trusttunnel_access_link(
     encode(&config).map_err(|err| format!("Failed to encode TrustTunnel deep-link: {err}"))
 }
 
+fn build_hysteria2_access_link(
+    draft: &NodeConfigDraft,
+    node: &ProxyNode,
+    inbound: &InboundEntryDraft,
+    account: &AccountInfo,
+) -> Result<String, String> {
+    if inbound.protocol.trim().to_uppercase() != "HYSTERIA2" {
+        return Err("Selected inbound is not Hysteria2".to_string());
+    }
+
+    let host = normalized_public_ip_host(node)?;
+    let password = if !account.token.trim().is_empty() {
+        account.token.trim().to_string()
+    } else {
+        account.id.trim().to_string()
+    };
+    if password.is_empty() {
+        return Err("User token is empty".to_string());
+    }
+
+    let mut query = Vec::new();
+    let sni = if inbound.tls.server_name.trim().is_empty() {
+        host.clone()
+    } else {
+        inbound.tls.server_name.trim().to_string()
+    };
+    if !sni.is_empty() {
+        query.push(("sni", sni));
+    }
+    if !inbound.hysteria2.obfs_type.trim().is_empty() {
+        query.push(("obfs", inbound.hysteria2.obfs_type.trim().to_string()));
+    }
+    if !inbound.hysteria2.obfs_password.trim().is_empty() {
+        query.push((
+            "obfs-password",
+            inbound.hysteria2.obfs_password.trim().to_string(),
+        ));
+    }
+    if !inbound.hysteria2.masquerade.trim().is_empty() {
+        query.push((
+            "masquerade",
+            inbound.hysteria2.masquerade.trim().to_string(),
+        ));
+    }
+
+    let query_string = query
+        .into_iter()
+        .map(|(k, v)| format!("{}={}", k, js_sys::encode_uri_component(&v)))
+        .collect::<Vec<_>>()
+        .join("&");
+    let suffix = if query_string.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", query_string)
+    };
+
+    Ok(format!(
+        "hysteria2://{}@{}:{}{}#{}",
+        js_sys::encode_uri_component(&password),
+        host,
+        inbound.port,
+        suffix,
+        js_sys::encode_uri_component(&rendered_link_remark(draft, node, inbound, account))
+    ))
+}
+
 fn build_access_link(
     draft: &NodeConfigDraft,
     node: &ProxyNode,
@@ -2153,7 +2219,8 @@ fn build_access_link(
     match inbound.protocol.trim().to_uppercase().as_str() {
         "VLESS" => build_vless_access_link(draft, node, inbound, account),
         "TRUSTTUNNEL" => build_trusttunnel_access_link(draft, node, inbound, account),
-        _ => Err("Access link is available only for VLESS and TrustTunnel inbounds".to_string()),
+        "HYSTERIA2" => build_hysteria2_access_link(draft, node, inbound, account),
+        _ => Err("Access link is available only for VLESS, Hysteria2, and TrustTunnel inbounds".to_string()),
     }
 }
 
