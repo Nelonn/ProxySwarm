@@ -39,6 +39,14 @@ type ManagedCertificate struct {
 	LastError       string    `json:"last_error"`
 }
 
+type IssueResult struct {
+	Resource        []byte
+	Logs            []string
+	CertificatePath string
+	KeyPath         string
+	ExpiryTime      time.Time
+}
+
 type Manager struct {
 	mu        sync.Mutex
 	statePath string
@@ -108,8 +116,8 @@ func NewManager(dataRoot string) *Manager {
 }
 
 func (m *Manager) Issue(email, domain string, port, httpPort int32) ([]byte, error) {
-	resource, _, err := m.IssueWithLogs(email, domain, "HTTP", "letsencrypt", port, "", "")
-	return resource, err
+	result, err := m.IssueWithLogs(email, domain, "HTTP", "letsencrypt", port, "", "")
+	return result.Resource, err
 }
 
 func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca string, port int32, certificatePath, keyPath string) []string {
@@ -118,11 +126,6 @@ func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca stri
 
 	logs := []string{
 		fmt.Sprintf("Ensuring managed certificate for %s", domain),
-	}
-
-	if strings.TrimSpace(certificatePath) == "" || strings.TrimSpace(keyPath) == "" {
-		logs = append(logs, "Certificate path or key path missing, auto-renew disabled for this certificate")
-		return logs
 	}
 
 	entry := ManagedCertificate{
@@ -134,8 +137,11 @@ func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca stri
 		CertificatePath: certificatePath,
 		KeyPath:         keyPath,
 	}
+	entry = m.withDefaultPaths(entry)
+	logs = append(logs, fmt.Sprintf("Using certificate path %s", entry.CertificatePath))
+	logs = append(logs, fmt.Sprintf("Using key path %s", entry.KeyPath))
 
-	existingCert, certErr := readCertificateExpiry(certificatePath)
+	existingCert, certErr := readCertificateExpiry(entry.CertificatePath)
 	if certErr != nil {
 		logs = append(logs, fmt.Sprintf("Existing certificate not usable: %v", certErr))
 	} else {
@@ -146,19 +152,17 @@ func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca stri
 	}
 
 	if certErr != nil || time.Until(entry.NextRenewAt) <= 0 {
-		resource, issueLogs, err := m.issueWithLogsLocked(entry)
-		logs = append(logs, issueLogs...)
+		result, err := m.issueWithLogsLocked(entry)
+		logs = append(logs, result.Logs...)
 		if err != nil {
 			entry.LastError = err.Error()
 			entry.NextRenewAt = time.Now().Add(failedRenewRetryInterval)
 			logs = append(logs, fmt.Sprintf("Renew retry scheduled for %s", entry.NextRenewAt.Format(time.RFC3339)))
-		} else if resource != nil {
-			if leaf, parseErr := leafCertificate(resource); parseErr == nil {
+		} else if result != nil && !result.ExpiryTime.IsZero() {
 				entry.LastIssuedAt = time.Now()
-				entry.NextRenewAt = renewalTime(leaf.NotAfter)
+				entry.NextRenewAt = renewalTime(result.ExpiryTime)
 				entry.LastError = ""
 				logs = append(logs, fmt.Sprintf("Renewal scheduled for %s", entry.NextRenewAt.Format(time.RFC3339)))
-			}
 		}
 	}
 
@@ -168,7 +172,7 @@ func (m *Manager) EnsureManagedCertificate(email, domain, challengeType, ca stri
 	return logs
 }
 
-func (m *Manager) IssueWithLogs(email, domain, challengeType, ca string, port int32, certificatePath, keyPath string) ([]byte, []string, error) {
+func (m *Manager) IssueWithLogs(email, domain, challengeType, ca string, port int32, certificatePath, keyPath string) (*IssueResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.issueWithLogsLocked(ManagedCertificate{
@@ -182,7 +186,8 @@ func (m *Manager) IssueWithLogs(email, domain, challengeType, ca string, port in
 	})
 }
 
-func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) ([]byte, []string, error) {
+func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) (*IssueResult, error) {
+	entry = m.withDefaultPaths(entry)
 	logs := []string{
 		fmt.Sprintf("Preparing ACME request for %s", entry.Domain),
 		fmt.Sprintf("Challenge type: %s", entry.ChallengeType),
@@ -229,11 +234,11 @@ func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) ([]byte, []strin
 	case "DNS":
 		err := fmt.Errorf("DNS challenge requires provider-specific credentials and is not implemented yet")
 		logs = append(logs, err.Error())
-		return nil, logs, err
+		return &IssueResult{Logs: logs}, err
 	default:
 		err := fmt.Errorf("unsupported ACME challenge type: %s", entry.ChallengeType)
 		logs = append(logs, err.Error())
-		return nil, logs, err
+		return &IssueResult{Logs: logs}, err
 	}
 	issuer := certmagic.NewACMEIssuer(magic, issuerTemplate)
 	magic.Issuers = []certmagic.Issuer{issuer}
@@ -241,63 +246,61 @@ func (m *Manager) issueWithLogsLocked(entry ManagedCertificate) ([]byte, []strin
 	logs = append(logs, "Starting certificate obtain flow")
 	if err := magic.ObtainCertSync(context.Background(), entry.Domain); err != nil {
 		logs = append(logs, fmt.Sprintf("Certificate obtain failed: %v", err))
-		return nil, logs, err
+		return &IssueResult{
+			Logs:            logs,
+			CertificatePath: entry.CertificatePath,
+			KeyPath:         entry.KeyPath,
+		}, err
 	}
 	logs = append(logs, "Certificate obtained successfully")
 
 	certKey := certmagic.StorageKeys.SiteCert(issuer.IssuerKey(), entry.Domain)
 	keyKey := certmagic.StorageKeys.SitePrivateKey(issuer.IssuerKey(), entry.Domain)
+	entry.CertificatePath = filepath.Join(storage.Path, filepath.FromSlash(certKey))
+	entry.KeyPath = filepath.Join(storage.Path, filepath.FromSlash(keyKey))
 	resource, err := storage.Load(context.Background(), certKey)
 	if err != nil {
 		logs = append(logs, fmt.Sprintf("Failed to load certificate from certmagic storage: %v", err))
-		return nil, logs, err
+		return &IssueResult{
+			Logs:            logs,
+			CertificatePath: entry.CertificatePath,
+			KeyPath:         entry.KeyPath,
+		}, err
 	}
-	privateKey, err := storage.Load(context.Background(), keyKey)
-	if err != nil {
+	if _, err := storage.Load(context.Background(), keyKey); err != nil {
 		logs = append(logs, fmt.Sprintf("Failed to load private key from certmagic storage: %v", err))
-		return nil, logs, err
+		return &IssueResult{
+			Resource:        resource,
+			Logs:            logs,
+			CertificatePath: entry.CertificatePath,
+			KeyPath:         entry.KeyPath,
+		}, err
 	}
 
-	if entry.CertificatePath != "" {
-		if err := os.MkdirAll(filepath.Dir(entry.CertificatePath), 0o755); err != nil {
-			logs = append(logs, fmt.Sprintf("Failed to prepare certificate directory: %v", err))
-			return resource, logs, err
-		}
-		if err := os.WriteFile(entry.CertificatePath, resource, 0o600); err != nil {
-			logs = append(logs, fmt.Sprintf("Failed to write certificate: %v", err))
-			return resource, logs, err
-		}
-		logs = append(logs, fmt.Sprintf("Certificate written to %s", entry.CertificatePath))
-	}
+	logs = append(logs, fmt.Sprintf("Using certmagic certificate path %s", entry.CertificatePath))
+	logs = append(logs, fmt.Sprintf("Using certmagic private key path %s", entry.KeyPath))
 
-	if entry.KeyPath != "" {
-		if err := os.MkdirAll(filepath.Dir(entry.KeyPath), 0o755); err != nil {
-			logs = append(logs, fmt.Sprintf("Failed to prepare key directory: %v", err))
-			return resource, logs, err
-		}
-		if err := os.WriteFile(entry.KeyPath, privateKey, 0o600); err != nil {
-			logs = append(logs, fmt.Sprintf("Failed to write private key: %v", err))
-			return resource, logs, err
-		}
-		logs = append(logs, fmt.Sprintf("Private key written to %s", entry.KeyPath))
+	result := &IssueResult{
+		Resource:        resource,
+		Logs:            logs,
+		CertificatePath: entry.CertificatePath,
+		KeyPath:         entry.KeyPath,
 	}
-
-	if entry.CertificatePath != "" && entry.KeyPath != "" {
-		if leaf, parseErr := leafCertificate(resource); parseErr == nil {
-			entry.LastIssuedAt = time.Now()
-			entry.NextRenewAt = renewalTime(leaf.NotAfter)
-			entry.LastError = ""
-			m.managed[entry.Domain] = entry
-			m.scheduleLocked(entry)
-			if err := m.saveStateLocked(); err != nil {
-				logs = append(logs, fmt.Sprintf("Failed to persist renewal state: %v", err))
-			} else {
-				logs = append(logs, fmt.Sprintf("Auto-renew scheduled for %s", entry.NextRenewAt.Format(time.RFC3339)))
-			}
+	if leaf, parseErr := leafCertificate(resource); parseErr == nil {
+		result.ExpiryTime = leaf.NotAfter
+		entry.LastIssuedAt = time.Now()
+		entry.NextRenewAt = renewalTime(leaf.NotAfter)
+		entry.LastError = ""
+		m.managed[entry.Domain] = entry
+		m.scheduleLocked(entry)
+		if err := m.saveStateLocked(); err != nil {
+			logs = append(logs, fmt.Sprintf("Failed to persist renewal state: %v", err))
+		} else {
+			logs = append(logs, fmt.Sprintf("Auto-renew scheduled for %s", entry.NextRenewAt.Format(time.RFC3339)))
 		}
 	}
 
-	return resource, logs, nil
+	return result, nil
 }
 
 func (m *Manager) restoreSchedules() {
@@ -333,7 +336,7 @@ func (m *Manager) runScheduledRenewal(domain string) {
 		return
 	}
 
-	resource, logs, err := m.IssueWithLogs(
+	result, err := m.IssueWithLogs(
 		entry.Email,
 		entry.Domain,
 		entry.ChallengeType,
@@ -342,6 +345,7 @@ func (m *Manager) runScheduledRenewal(domain string) {
 		entry.CertificatePath,
 		entry.KeyPath,
 	)
+	logs := result.Logs
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -354,15 +358,15 @@ func (m *Manager) runScheduledRenewal(domain string) {
 	if err != nil {
 		current.LastError = err.Error()
 		current.NextRenewAt = time.Now().Add(failedRenewRetryInterval)
-	} else if resource != nil {
-		if leaf, parseErr := leafCertificate(resource); parseErr == nil {
+	} else if result != nil && result.Resource != nil {
+		if !result.ExpiryTime.IsZero() {
 			current.LastIssuedAt = time.Now()
-			current.NextRenewAt = renewalTime(leaf.NotAfter)
+			current.NextRenewAt = renewalTime(result.ExpiryTime)
 			current.LastError = ""
 		} else {
-			current.LastError = parseErr.Error()
+			current.LastError = "certificate expiry unavailable after renewal"
 			current.NextRenewAt = time.Now().Add(failedRenewRetryInterval)
-			err = parseErr
+			err = fmt.Errorf(current.LastError)
 		}
 	}
 
@@ -457,6 +461,23 @@ func normalizedChallengeType(value string) string {
 	default:
 		return "HTTP"
 	}
+}
+
+func (m *Manager) withDefaultPaths(entry ManagedCertificate) ManagedCertificate {
+	if strings.TrimSpace(entry.Domain) == "" {
+		return entry
+	}
+	storage := &certmagic.FileStorage{Path: m.storageDir}
+	issuerKey, ok := caDirectoryURL(entry.CA)
+	if !ok {
+		issuerKey = certmagic.LetsEncryptProductionCA
+	}
+	issuer := certmagic.ACMEIssuer{CA: issuerKey}
+	certKey := certmagic.StorageKeys.SiteCert(issuer.IssuerKey(), entry.Domain)
+	keyKey := certmagic.StorageKeys.SitePrivateKey(issuer.IssuerKey(), entry.Domain)
+	entry.CertificatePath = filepath.Join(storage.Path, filepath.FromSlash(certKey))
+	entry.KeyPath = filepath.Join(storage.Path, filepath.FromSlash(keyKey))
+	return entry
 }
 
 func normalizedCA(value string) string {

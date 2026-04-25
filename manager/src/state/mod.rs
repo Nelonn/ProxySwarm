@@ -173,6 +173,8 @@ pub struct CertificateDraft {
     pub key_pem: String,
     pub acme_port: i32,
     pub acme_http_port: i32,
+    #[serde(default)]
+    pub expiry_time: i64,
 }
 
 fn default_certificate_source() -> String {

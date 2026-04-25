@@ -46,6 +46,15 @@ pub(super) fn render_settings_tab(
             draft.set(next);
         })
     };
+    let format_certificate_expiry = |certificate: &CertificateDraft| {
+        if certificate.expiry_time <= 0 {
+            "Expiration: unknown".to_string()
+        } else {
+            chrono::DateTime::from_timestamp(certificate.expiry_time, 0)
+                .map(|dt| format!("Expires: {}", dt.format("%Y-%m-%d %H:%M UTC")))
+                .unwrap_or_else(|| "Expiration: unknown".to_string())
+        }
+    };
 
     html! {
         <div class="space-y-6">
@@ -112,6 +121,9 @@ pub(super) fn render_settings_tab(
                                                                         format!("{} | {}", certificate.certificate_path, certificate.key_path)
                                                                     }
                                                                 }
+                                                            </div>
+                                                            <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">
+                                                                { format_certificate_expiry(certificate) }
                                                             </div>
                                                         </div>
                                                         <div class="md3-list-actions">

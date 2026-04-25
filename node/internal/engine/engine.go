@@ -44,6 +44,13 @@ type AcmeIssueParams struct {
 	KeyPath         string
 }
 
+type AcmeIssueResult struct {
+	Logs            []string
+	CertificatePath string
+	KeyPath         string
+	ExpiryTime      time.Time
+}
+
 const sharedXrayEngineKey = "xray"
 
 var defaultDataDir = "./data"
@@ -452,11 +459,11 @@ func engineMatchesInbound(e Engine, inbound *pb.InboundConfig) bool {
 	}
 }
 
-func (m *Manager) IssueAcmeCertificate(ctx context.Context, params AcmeIssueParams) ([]string, error) {
+func (m *Manager) IssueAcmeCertificate(ctx context.Context, params AcmeIssueParams) (*AcmeIssueResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	_, logs, err := m.acmeManager.IssueWithLogs(
+	result, err := m.acmeManager.IssueWithLogs(
 		params.Email,
 		params.Domain,
 		params.ChallengeType,
@@ -465,7 +472,15 @@ func (m *Manager) IssueAcmeCertificate(ctx context.Context, params AcmeIssuePara
 		params.CertificatePath,
 		params.KeyPath,
 	)
-	return logs, err
+	if result == nil {
+		return &AcmeIssueResult{}, err
+	}
+	return &AcmeIssueResult{
+		Logs:            result.Logs,
+		CertificatePath: result.CertificatePath,
+		KeyPath:         result.KeyPath,
+		ExpiryTime:      result.ExpiryTime,
+	}, err
 }
 
 func (m *Manager) savePersistedConfig(config *pb.FullConfig) error {

@@ -237,6 +237,40 @@ fn certificate_by_name<'a>(
         .find(|certificate| certificate.name.trim() == name.trim())
 }
 
+fn acme_ca_directory_url(value: &str) -> &'static str {
+    match value.trim().to_lowercase().as_str() {
+        "zerossl" => "https://acme.zerossl.com/v2/DV90",
+        "google" => "https://dv.acme-v02.api.pki.goog/directory",
+        "buypass" => "https://api.buypass.com/acme/directory",
+        "sslcom" => "https://acme.ssl.com/sslcom-dv-rsa",
+        _ => "https://acme-v02.api.letsencrypt.org/directory",
+    }
+}
+
+fn certmagic_storage_component(value: &str) -> String {
+    let mut value = value.trim().to_string();
+    if let Some(stripped) = value.strip_prefix("http://") {
+        value = stripped.to_string();
+    } else if let Some(stripped) = value.strip_prefix("https://") {
+        value = stripped.to_string();
+    }
+    value = value.replace('/', "-").replace('\\', "-");
+    value.trim_matches('-').to_string()
+}
+
+fn certmagic_certificate_paths(ca: &str, domain: &str) -> (String, String) {
+    let issuer = certmagic_storage_component(acme_ca_directory_url(ca));
+    let safe_domain = certmagic_storage_component(domain);
+    let base = format!(
+        "data/acme_storage/certificates/{}/{}",
+        issuer, safe_domain
+    );
+    (
+        format!("{}/{}.crt", base, safe_domain),
+        format!("{}/{}.key", base, safe_domain),
+    )
+}
+
 fn default_routing_rule_entry() -> RoutingRuleDraft {
     RoutingRuleDraft {
         outbound_tag: "direct".to_string(),
@@ -5828,12 +5862,14 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                                         success: false,
                                         error: String::new(),
                                         logs: vec!["Sending ACME request to node...".to_string()],
+                                        expiry_time: 0,
                                     }));
 
                                     let api = ApiService::new(node.address.clone());
                                     let draft_value = (*draft).clone();
                                     let acme_logs = acme_logs.clone();
                                     let acme_loading = acme_loading.clone();
+                                    let draft = draft.clone();
                                     spawn_local(async move {
                                         let challenge_port = if selected_certificate.acme_type.eq_ignore_ascii_case("HTTP") {
                                             selected_certificate.acme_http_port
@@ -5853,7 +5889,23 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
 
                                         acme_loading.set(false);
                                         match response {
-                                            Ok(result) => acme_logs.set(Some(result)),
+                                            Ok(result) => {
+                                                let mut next = (*draft).clone();
+                                                sync_draft(&mut next);
+                                                if let Some(certificate) = next.certificates.iter_mut().find(|item| item.id == selected_certificate.id) {
+                                                    let (certificate_path, key_path) = certmagic_certificate_paths(
+                                                        &certificate.acme_ca,
+                                                        &certificate.acme_domain,
+                                                    );
+                                                    certificate.certificate_path = certificate_path;
+                                                    certificate.key_path = key_path;
+                                                    if result.expiry_time > 0 {
+                                                        certificate.expiry_time = result.expiry_time;
+                                                    }
+                                                }
+                                                draft.set(next);
+                                                acme_logs.set(Some(result));
+                                            }
                                             Err(error) => acme_logs.set(Some(AcmeIssueResponse {
                                                 success: false,
                                                 error: error.clone(),
@@ -5861,6 +5913,7 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                                                     "Sending ACME request to node...".to_string(),
                                                     format!("Request failed: {}", error),
                                                 ],
+                                                expiry_time: 0,
                                             })),
                                         }
                                     });

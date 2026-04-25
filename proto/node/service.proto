@@ -157,6 +157,7 @@ message AcmeIssueResponse {
     bool success = 1;
     string error = 2;
     repeated string logs = 3;
+    int64 expiry_time = 4;
 }
 
 message WarpRegisterRequest {

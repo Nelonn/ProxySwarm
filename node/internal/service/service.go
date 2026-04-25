@@ -63,7 +63,7 @@ func (s *NodeServiceServer) IssueAcmeCertificate(ctx context.Context, req *pb.Ac
 		}, nil
 	}
 
-	logs, err := s.Manager.IssueAcmeCertificate(ctx, engine.AcmeIssueParams{
+	result, err := s.Manager.IssueAcmeCertificate(ctx, engine.AcmeIssueParams{
 		Email:           req.Email,
 		Domain:          req.Domain,
 		ChallengeType:   req.ChallengeType,
@@ -76,13 +76,15 @@ func (s *NodeServiceServer) IssueAcmeCertificate(ctx context.Context, req *pb.Ac
 		return &pb.AcmeIssueResponse{
 			Success: false,
 			Error:   err.Error(),
-			Logs:    logs,
+			Logs:    result.Logs,
+			ExpiryTime: result.ExpiryTime.Unix(),
 		}, nil
 	}
 
 	return &pb.AcmeIssueResponse{
-		Success: true,
-		Logs:    logs,
+		Success:    true,
+		Logs:       result.Logs,
+		ExpiryTime: result.ExpiryTime.Unix(),
 	}, nil
 }
 

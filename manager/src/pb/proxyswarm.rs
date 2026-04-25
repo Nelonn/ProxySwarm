@@ -558,6 +558,8 @@ pub struct AcmeIssueResponse {
     pub error: ::prost::alloc::string::String,
     #[prost(string, repeated, tag = "3")]
     pub logs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(int64, tag = "4")]
+    pub expiry_time: i64,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct WarpRegisterRequest {
