@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/caddyserver/certmagic"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -184,7 +185,43 @@ func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates []*pb.Ce
 	if cert == nil {
 		return nil, fmt.Errorf("tls certificate %q not found", certificateName)
 	}
+	if strings.EqualFold(strings.TrimSpace(cert.CertType), "ACME") &&
+		strings.TrimSpace(cert.AcmeDomain) != "" &&
+		(strings.TrimSpace(cert.CertificatePath) == "" || strings.TrimSpace(cert.KeyPath) == "") {
+		certCopy := proto.Clone(cert).(*pb.CertificateConfig)
+		certCopy.CertificatePath, certCopy.KeyPath = certmagicCertificatePaths(certCopy.AcmeCa, certCopy.AcmeDomain)
+		return certCopy, nil
+	}
 	return cert, nil
+}
+
+func certmagicCertificatePaths(ca string, domain string) (string, string) {
+	storage := &certmagic.FileStorage{Path: filepath.Join(defaultDataRoot(), "acme_storage")}
+	caURL, ok := acmeDirectoryURL(ca)
+	if !ok {
+		caURL = certmagic.LetsEncryptProductionCA
+	}
+	issuer := certmagic.ACMEIssuer{CA: caURL}
+	certKey := certmagic.StorageKeys.SiteCert(issuer.IssuerKey(), domain)
+	keyKey := certmagic.StorageKeys.SitePrivateKey(issuer.IssuerKey(), domain)
+	return filepath.Join(storage.Path, filepath.FromSlash(certKey)), filepath.Join(storage.Path, filepath.FromSlash(keyKey))
+}
+
+func acmeDirectoryURL(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "zerossl":
+		return "https://acme.zerossl.com/v2/DV90", true
+	case "google":
+		return "https://dv.acme-v02.api.pki.goog/directory", true
+	case "buypass":
+		return "https://api.buypass.com/acme/directory", true
+	case "sslcom":
+		return "https://acme.ssl.com/sslcom-dv-rsa", true
+	case "", "letsencrypt":
+		return certmagic.LetsEncryptProductionCA, true
+	default:
+		return "", false
+	}
 }
 
 func coalesceString(value string, fallback string) string {
