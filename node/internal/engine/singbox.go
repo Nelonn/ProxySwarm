@@ -119,7 +119,7 @@ func NewSingBoxEngine(name string) *SingBoxEngine {
 	return &SingBoxEngine{name: name}
 }
 
-func (e *SingBoxEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *SingBoxEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	_ = dns
@@ -169,7 +169,7 @@ func (e *SingBoxEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inbound
 	return nil
 }
 
-func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, certificates []*pb.CertificateConfig) (map[string]any, error) {
+func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, certificates *CertificatesManager) (map[string]any, error) {
 	singCfg := map[string]any{
 		"inbounds":  []map[string]any{},
 		"outbounds": []map[string]any{},

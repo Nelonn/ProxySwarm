@@ -72,7 +72,7 @@ func NewXrayEngine(name string) *XrayEngine {
 	}
 }
 
-func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -106,7 +106,7 @@ func (e *XrayEngine) needsRestart(configs []*pb.InboundConfig, outbounds []*pb.O
 	return false
 }
 
-func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	if len(inbounds) == 0 {
 		return fmt.Errorf("xray engine requires at least one inbound")
 	}
@@ -377,7 +377,7 @@ func normalizedRealityShortIDs(values []string) []string {
 	return shortIDs
 }
 
-func buildXrayInboundConfig(config *pb.InboundConfig, certificates []*pb.CertificateConfig) (conf.InboundDetourConfig, error) {
+func buildXrayInboundConfig(config *pb.InboundConfig, certificates *CertificatesManager) (conf.InboundDetourConfig, error) {
 	inbound := conf.InboundDetourConfig{
 		Tag:      config.Name,
 		ListenOn: &conf.Address{Address: xnet.ParseAddress(config.Listen)},
@@ -830,7 +830,7 @@ func buildXrayDNSConfig(dnsConfig *pb.DnsConfig) (*conf.DNSConfig, error) {
 	return dns, nil
 }
 
-func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dnsConfig *pb.DnsConfig, certificates []*pb.CertificateConfig, apiPort int) (*core.Config, error) {
+func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dnsConfig *pb.DnsConfig, certificates *CertificatesManager, apiPort int) (*core.Config, error) {
 	c := &conf.Config{}
 
 	c.LogConfig = &conf.LogConfig{

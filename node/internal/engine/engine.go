@@ -13,13 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/caddyserver/certmagic"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
 type Engine interface {
-	UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error
+	UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error
 	GetMetrics(ctx context.Context) (*RuntimeMetrics, error)
 	Stop(ctx context.Context) error
 }
@@ -28,6 +27,7 @@ type Manager struct {
 	mu            sync.Mutex
 	engines       map[string]Engine
 	acmeManager   *acme.Manager
+	certificates  *CertificatesManager
 	statePath     string
 	metricsPath   string
 	currentConfig *pb.FullConfig
@@ -61,6 +61,7 @@ func NewManager() *Manager {
 	manager := &Manager{
 		engines:      make(map[string]Engine),
 		acmeManager:  acme.NewManager(dataRoot),
+		certificates: NewCertificatesManager(),
 		statePath:    defaultManagerStatePath(),
 		metricsPath:  defaultManagerMetricsPath(),
 		metricsState: newPersistedMetricsState(),
@@ -104,56 +105,6 @@ func defaultDataRoot() string {
 	return ""
 }
 
-func materializeInlineCertificate(cert *pb.CertificateConfig) error {
-	if cert == nil {
-		return nil
-	}
-	if strings.TrimSpace(cert.CertificatePem) == "" && strings.TrimSpace(cert.KeyPem) == "" {
-		return nil
-	}
-	dir := filepath.Join(defaultManagedCertsDir(), cert.Id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	if strings.TrimSpace(cert.CertificatePem) != "" {
-		path := filepath.Join(dir, "certificate.pem")
-		if err := os.WriteFile(path, []byte(cert.CertificatePem), 0o600); err != nil {
-			return err
-		}
-		cert.CertificatePath = path
-	}
-	if strings.TrimSpace(cert.KeyPem) != "" {
-		path := filepath.Join(dir, "private.key")
-		if err := os.WriteFile(path, []byte(cert.KeyPem), 0o600); err != nil {
-			return err
-		}
-		cert.KeyPath = path
-	}
-	return nil
-}
-
-func resolveCertificatePaths(cert *pb.CertificateConfig) {
-	if cert == nil {
-		return
-	}
-	if !strings.EqualFold(strings.TrimSpace(cert.CertType), "ACME") {
-		return
-	}
-	if strings.TrimSpace(cert.AcmeDomain) == "" {
-		return
-	}
-	if strings.TrimSpace(cert.CertificatePath) != "" && strings.TrimSpace(cert.KeyPath) != "" {
-		return
-	}
-	certificatePath, keyPath := certmagicCertificatePaths(cert.AcmeCa, cert.AcmeDomain)
-	if strings.TrimSpace(cert.CertificatePath) == "" {
-		cert.CertificatePath = certificatePath
-	}
-	if strings.TrimSpace(cert.KeyPath) == "" {
-		cert.KeyPath = keyPath
-	}
-}
-
 func inboundTLSConfig(inbound *pb.InboundConfig) *pb.TLSConfig {
 	if inbound == nil {
 		return nil
@@ -179,23 +130,7 @@ func inboundTLSConfig(inbound *pb.InboundConfig) *pb.TLSConfig {
 	return nil
 }
 
-func findCertificateByName(certificates []*pb.CertificateConfig, name string) *pb.CertificateConfig {
-	needle := strings.TrimSpace(name)
-	if needle == "" {
-		return nil
-	}
-	for _, cert := range certificates {
-		if cert == nil {
-			continue
-		}
-		if strings.TrimSpace(cert.Name) == needle {
-			return cert
-		}
-	}
-	return nil
-}
-
-func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates []*pb.CertificateConfig) (*pb.CertificateConfig, error) {
+func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates *CertificatesManager) (*pb.CertificateConfig, error) {
 	if tlsConfig == nil || !tlsConfig.Enabled {
 		return nil, nil
 	}
@@ -203,47 +138,18 @@ func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates []*pb.Ce
 	if certificateName == "" {
 		return nil, nil
 	}
-	cert := findCertificateByName(certificates, certificateName)
-	if cert == nil {
-		return nil, fmt.Errorf("tls certificate %q not found", certificateName)
+	if certificates == nil {
+		return nil, fmt.Errorf("certificates manager is not initialized")
 	}
-	if strings.EqualFold(strings.TrimSpace(cert.CertType), "ACME") &&
-		strings.TrimSpace(cert.AcmeDomain) != "" &&
-		(strings.TrimSpace(cert.CertificatePath) == "" || strings.TrimSpace(cert.KeyPath) == "") {
-		certCopy := proto.Clone(cert).(*pb.CertificateConfig)
-		certCopy.CertificatePath, certCopy.KeyPath = certmagicCertificatePaths(certCopy.AcmeCa, certCopy.AcmeDomain)
-		return certCopy, nil
+	certificatePath, keyPath, err := certificates.GetCertificatePaths(certificateName)
+	if err != nil {
+		return nil, err
 	}
-	return cert, nil
-}
-
-func certmagicCertificatePaths(ca string, domain string) (string, string) {
-	storage := &certmagic.FileStorage{Path: filepath.Join(defaultDataRoot(), "acme_storage")}
-	caURL, ok := acmeDirectoryURL(ca)
-	if !ok {
-		caURL = certmagic.LetsEncryptProductionCA
-	}
-	issuer := certmagic.ACMEIssuer{CA: caURL}
-	certKey := certmagic.StorageKeys.SiteCert(issuer.IssuerKey(), domain)
-	keyKey := certmagic.StorageKeys.SitePrivateKey(issuer.IssuerKey(), domain)
-	return filepath.Join(storage.Path, filepath.FromSlash(certKey)), filepath.Join(storage.Path, filepath.FromSlash(keyKey))
-}
-
-func acmeDirectoryURL(value string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "zerossl":
-		return "https://acme.zerossl.com/v2/DV90", true
-	case "google":
-		return "https://dv.acme-v02.api.pki.goog/directory", true
-	case "buypass":
-		return "https://api.buypass.com/acme/directory", true
-	case "sslcom":
-		return "https://acme.ssl.com/sslcom-dv-rsa", true
-	case "", "letsencrypt":
-		return certmagic.LetsEncryptProductionCA, true
-	default:
-		return "", false
-	}
+	return &pb.CertificateConfig{
+		Name:            certificateName,
+		CertificatePath: certificatePath,
+		KeyPath:         keyPath,
+	}, nil
 }
 
 func coalesceString(value string, fallback string) string {
@@ -305,26 +211,8 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 		groupedInbounds[engineKey] = append(groupedInbounds[engineKey], preparedInboundConfig(inbound, activeAccounts))
 	}
 
-	for _, cert := range config.Certificates {
-		resolveCertificatePaths(cert)
-		if cert == nil || strings.ToUpper(strings.TrimSpace(cert.CertType)) != "ACME" {
-			if err := materializeInlineCertificate(cert); err != nil {
-				return fmt.Errorf("failed to materialize certificate %s: %w", cert.Name, err)
-			}
-			continue
-		}
-		logs := m.acmeManager.EnsureManagedCertificate(
-			cert.AcmeEmail,
-			cert.AcmeDomain,
-			coalesceString(cert.AcmeType, "HTTP"),
-			coalesceString(cert.AcmeCa, "letsencrypt"),
-			acmeChallengePort(cert.AcmeType, cert.AcmePort, cert.AcmeHttpPort),
-			cert.CertificatePath,
-			cert.KeyPath,
-		)
-		for _, line := range logs {
-			fmt.Printf("[acme][%s] %s\n", cert.AcmeDomain, line)
-		}
+	if err := m.certificates.Sync(config.Certificates, m.acmeManager); err != nil {
+		return err
 	}
 
 	for engineKey, inbounds := range groupedInbounds {
@@ -348,7 +236,7 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 		}
 		logging.Infof("[engine] key=%s inbounds=%s engine=%T", engineKey, strings.Join(inboundNames, ","), e)
 
-		if err := e.UpdateConfig(ctx, inbounds, config.Outbounds, config.RoutingRules, config.Dns, config.Certificates); err != nil {
+		if err := e.UpdateConfig(ctx, inbounds, config.Outbounds, config.RoutingRules, config.Dns, m.certificates); err != nil {
 			return fmt.Errorf("failed to update engine %s: %w", engineKey, err)
 		}
 	}

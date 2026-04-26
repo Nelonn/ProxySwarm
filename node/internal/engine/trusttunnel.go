@@ -36,7 +36,7 @@ func NewTrustTunnelEngine(name string) *TrustTunnelEngine {
 	return &TrustTunnelEngine{name: name}
 }
 
-func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates []*pb.CertificateConfig) error {
+func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	_ = outbounds
