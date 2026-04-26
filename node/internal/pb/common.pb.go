@@ -567,19 +567,18 @@ func (x *NodeStatus) GetSampleWindowSeconds() uint32 {
 
 type CertificateConfig struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	CertType        string                 `protobuf:"bytes,3,opt,name=cert_type,json=certType,proto3" json:"cert_type,omitempty"`
-	AcmeType        string                 `protobuf:"bytes,4,opt,name=acme_type,json=acmeType,proto3" json:"acme_type,omitempty"`
-	AcmeCa          string                 `protobuf:"bytes,5,opt,name=acme_ca,json=acmeCa,proto3" json:"acme_ca,omitempty"`
-	AcmeEmail       string                 `protobuf:"bytes,6,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
-	AcmeDomain      string                 `protobuf:"bytes,7,opt,name=acme_domain,json=acmeDomain,proto3" json:"acme_domain,omitempty"`
-	CertificatePath string                 `protobuf:"bytes,8,opt,name=certificate_path,json=certificatePath,proto3" json:"certificate_path,omitempty"`
-	KeyPath         string                 `protobuf:"bytes,9,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
-	AcmePort        int32                  `protobuf:"varint,10,opt,name=acme_port,json=acmePort,proto3" json:"acme_port,omitempty"`
-	AcmeHttpPort    int32                  `protobuf:"varint,11,opt,name=acme_http_port,json=acmeHttpPort,proto3" json:"acme_http_port,omitempty"`
-	CertificatePem  string                 `protobuf:"bytes,12,opt,name=certificate_pem,json=certificatePem,proto3" json:"certificate_pem,omitempty"`
-	KeyPem          string                 `protobuf:"bytes,13,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
+	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	CertType        string                 `protobuf:"bytes,2,opt,name=cert_type,json=certType,proto3" json:"cert_type,omitempty"`
+	AcmeType        string                 `protobuf:"bytes,3,opt,name=acme_type,json=acmeType,proto3" json:"acme_type,omitempty"`
+	AcmeCa          string                 `protobuf:"bytes,4,opt,name=acme_ca,json=acmeCa,proto3" json:"acme_ca,omitempty"`
+	AcmeEmail       string                 `protobuf:"bytes,5,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
+	AcmeDomain      string                 `protobuf:"bytes,6,opt,name=acme_domain,json=acmeDomain,proto3" json:"acme_domain,omitempty"`
+	CertificatePath string                 `protobuf:"bytes,7,opt,name=certificate_path,json=certificatePath,proto3" json:"certificate_path,omitempty"`
+	KeyPath         string                 `protobuf:"bytes,8,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	AcmePort        int32                  `protobuf:"varint,9,opt,name=acme_port,json=acmePort,proto3" json:"acme_port,omitempty"`
+	AcmeHttpPort    int32                  `protobuf:"varint,10,opt,name=acme_http_port,json=acmeHttpPort,proto3" json:"acme_http_port,omitempty"`
+	CertificatePem  string                 `protobuf:"bytes,11,opt,name=certificate_pem,json=certificatePem,proto3" json:"certificate_pem,omitempty"`
+	KeyPem          string                 `protobuf:"bytes,12,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -612,13 +611,6 @@ func (x *CertificateConfig) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CertificateConfig.ProtoReflect.Descriptor instead.
 func (*CertificateConfig) Descriptor() ([]byte, []int) {
 	return file_node_common_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *CertificateConfig) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
 }
 
 func (x *CertificateConfig) GetName() string {
@@ -812,24 +804,23 @@ const file_node_common_proto_rawDesc = "" +
 	"\x15total_inbound_traffic\x18\x05 \x01(\v2\x18.proxyswarm.TrafficStatsR\x13totalInboundTraffic\x12N\n" +
 	"\x16total_outbound_traffic\x18\x06 \x01(\v2\x18.proxyswarm.TrafficStatsR\x14totalOutboundTraffic\x12=\n" +
 	"\vconnections\x18\a \x01(\v2\x1b.proxyswarm.ConnectionStatsR\vconnections\x122\n" +
-	"\x15sample_window_seconds\x18\b \x01(\rR\x13sampleWindowSeconds\"\x95\x03\n" +
-	"\x11CertificateConfig\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1b\n" +
-	"\tcert_type\x18\x03 \x01(\tR\bcertType\x12\x1b\n" +
-	"\tacme_type\x18\x04 \x01(\tR\bacmeType\x12\x17\n" +
-	"\aacme_ca\x18\x05 \x01(\tR\x06acmeCa\x12\x1d\n" +
+	"\x15sample_window_seconds\x18\b \x01(\rR\x13sampleWindowSeconds\"\x85\x03\n" +
+	"\x11CertificateConfig\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
+	"\tcert_type\x18\x02 \x01(\tR\bcertType\x12\x1b\n" +
+	"\tacme_type\x18\x03 \x01(\tR\bacmeType\x12\x17\n" +
+	"\aacme_ca\x18\x04 \x01(\tR\x06acmeCa\x12\x1d\n" +
 	"\n" +
-	"acme_email\x18\x06 \x01(\tR\tacmeEmail\x12\x1f\n" +
-	"\vacme_domain\x18\a \x01(\tR\n" +
+	"acme_email\x18\x05 \x01(\tR\tacmeEmail\x12\x1f\n" +
+	"\vacme_domain\x18\x06 \x01(\tR\n" +
 	"acmeDomain\x12)\n" +
-	"\x10certificate_path\x18\b \x01(\tR\x0fcertificatePath\x12\x19\n" +
-	"\bkey_path\x18\t \x01(\tR\akeyPath\x12\x1b\n" +
-	"\tacme_port\x18\n" +
-	" \x01(\x05R\bacmePort\x12$\n" +
-	"\x0eacme_http_port\x18\v \x01(\x05R\facmeHttpPort\x12'\n" +
-	"\x0fcertificate_pem\x18\f \x01(\tR\x0ecertificatePem\x12\x17\n" +
-	"\akey_pem\x18\r \x01(\tR\x06keyPem\"q\n" +
+	"\x10certificate_path\x18\a \x01(\tR\x0fcertificatePath\x12\x19\n" +
+	"\bkey_path\x18\b \x01(\tR\akeyPath\x12\x1b\n" +
+	"\tacme_port\x18\t \x01(\x05R\bacmePort\x12$\n" +
+	"\x0eacme_http_port\x18\n" +
+	" \x01(\x05R\facmeHttpPort\x12'\n" +
+	"\x0fcertificate_pem\x18\v \x01(\tR\x0ecertificatePem\x12\x17\n" +
+	"\akey_pem\x18\f \x01(\tR\x06keyPem\"q\n" +
 	"\tTLSConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
 	"\vserver_name\x18\x02 \x01(\tR\n" +
