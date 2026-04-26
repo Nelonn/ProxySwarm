@@ -3,11 +3,12 @@ package engine
 import (
 	"context"
 	"fmt"
-	"proxyswarm/node/internal/pb"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"proxyswarm/node/internal/logging"
+	"proxyswarm/node/internal/pb"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -189,6 +190,13 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inb
 	if err := os.WriteFile(vpnPath, []byte(vpnBuilder.String()), 0644); err != nil {
 		return fmt.Errorf("failed to write trusttunnel vpn.toml: %w", err)
 	}
+
+	logging.Debugf("[trusttunnel] generated hosts.toml=%s", hostsContent)
+	logging.Debugf("[trusttunnel] generated credentials.toml=%s", credsBuilder.String())
+	if rulesBuilder.Len() > 0 {
+		logging.Debugf("[trusttunnel] generated rules.toml=%s", rulesBuilder.String())
+	}
+	logging.Debugf("[trusttunnel] generated vpn.toml=%s", vpnBuilder.String())
 
 	cmd := exec.CommandContext(ctx, TrustTunnelBinary, vpnPath, hostsPath)
 	if err := cmd.Start(); err != nil {
