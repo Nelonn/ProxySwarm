@@ -132,6 +132,28 @@ func materializeInlineCertificate(cert *pb.CertificateConfig) error {
 	return nil
 }
 
+func resolveCertificatePaths(cert *pb.CertificateConfig) {
+	if cert == nil {
+		return
+	}
+	if !strings.EqualFold(strings.TrimSpace(cert.CertType), "ACME") {
+		return
+	}
+	if strings.TrimSpace(cert.AcmeDomain) == "" {
+		return
+	}
+	if strings.TrimSpace(cert.CertificatePath) != "" && strings.TrimSpace(cert.KeyPath) != "" {
+		return
+	}
+	certificatePath, keyPath := certmagicCertificatePaths(cert.AcmeCa, cert.AcmeDomain)
+	if strings.TrimSpace(cert.CertificatePath) == "" {
+		cert.CertificatePath = certificatePath
+	}
+	if strings.TrimSpace(cert.KeyPath) == "" {
+		cert.KeyPath = keyPath
+	}
+}
+
 func inboundTLSConfig(inbound *pb.InboundConfig) *pb.TLSConfig {
 	if inbound == nil {
 		return nil
@@ -284,6 +306,7 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 	}
 
 	for _, cert := range config.Certificates {
+		resolveCertificatePaths(cert)
 		if cert == nil || strings.ToUpper(strings.TrimSpace(cert.CertType)) != "ACME" {
 			if err := materializeInlineCertificate(cert); err != nil {
 				return fmt.Errorf("failed to materialize certificate %s: %w", cert.Name, err)
@@ -422,7 +445,7 @@ func engineKeyForInbound(inbound *pb.InboundConfig) string {
 		return ""
 	}
 	if _, ok := inbound.Protocol.(*pb.InboundConfig_Trusttunnel); ok {
-		return "trusttunnel:" + inbound.Name
+		return fmt.Sprintf("trusttunnel:%s:%s:%d", inbound.Name, inbound.Listen, inbound.Port)
 	}
 	if _, ok := inbound.Protocol.(*pb.InboundConfig_Wireguard); ok {
 		return sharedXrayEngineKey
