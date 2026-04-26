@@ -59,19 +59,18 @@ message NodeStatus {
 }
 
 message CertificateConfig {
-    string id = 1;
-    string name = 2;
-    string cert_type = 3;
-    string acme_type = 4;
-    string acme_ca = 5;
-    string acme_email = 6;
-    string acme_domain = 7;
-    string certificate_path = 8;
-    string key_path = 9;
-    int32 acme_port = 10;
-    int32 acme_http_port = 11;
-    string certificate_pem = 12;
-    string key_pem = 13;
+    string name = 1;
+    string cert_type = 2;
+    string acme_type = 3;
+    string acme_ca = 4;
+    string acme_email = 5;
+    string acme_domain = 6;
+    string certificate_path = 7;
+    string key_path = 8;
+    int32 acme_port = 9;
+    int32 acme_http_port = 10;
+    string certificate_pem = 11;
+    string key_pem = 12;
 }
 
 message TLSConfig {

@@ -14,13 +14,13 @@ import (
 )
 
 type CertificatesManager struct {
-	mu   sync.RWMutex
-	byID map[string]*pb.CertificateConfig
+	mu     sync.RWMutex
+	byName map[string]*pb.CertificateConfig
 }
 
 func NewCertificatesManager() *CertificatesManager {
 	return &CertificatesManager{
-		byID: make(map[string]*pb.CertificateConfig),
+		byName: make(map[string]*pb.CertificateConfig),
 	}
 }
 
@@ -28,7 +28,7 @@ func (m *CertificatesManager) Sync(certificates []*pb.CertificateConfig, acmeMan
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	nextByID := make(map[string]*pb.CertificateConfig, len(certificates))
+	nextByName := make(map[string]*pb.CertificateConfig, len(certificates))
 
 	for _, cert := range certificates {
 		if cert == nil {
@@ -61,19 +61,19 @@ func (m *CertificatesManager) Sync(certificates []*pb.CertificateConfig, acmeMan
 		if key == "" {
 			return fmt.Errorf("certificate name is required")
 		}
-		nextByID[key] = cloned
+		nextByName[key] = cloned
 	}
 
-	m.byID = nextByID
+	m.byName = nextByName
 	return nil
 }
 
-func (m *CertificatesManager) GetCertificatePaths(id string) (string, string, error) {
+func (m *CertificatesManager) GetCertificatePaths(name string) (string, string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	key := strings.TrimSpace(id)
-	cert := m.byID[key]
+	key := strings.TrimSpace(name)
+	cert := m.byName[key]
 	if cert == nil {
 		return "", "", fmt.Errorf("certificate %q not found", key)
 	}
@@ -102,7 +102,7 @@ func materializeInlineCertificate(cert *pb.CertificateConfig) error {
 	if strings.TrimSpace(cert.CertificatePem) == "" && strings.TrimSpace(cert.KeyPem) == "" {
 		return nil
 	}
-	dir := filepath.Join(defaultManagedCertsDir(), cert.Id)
+	dir := filepath.Join(defaultManagedCertsDir(), sanitizeCertificateName(cert.Name))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -121,6 +121,20 @@ func materializeInlineCertificate(cert *pb.CertificateConfig) error {
 		cert.KeyPath = path
 	}
 	return nil
+}
+
+func sanitizeCertificateName(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "unnamed"
+	}
+	replacer := strings.NewReplacer("\\", "-", "/", "-", ":", "-", "*", "-", "?", "-", "\"", "-", "<", "-", ">", "-", "|", "-")
+	value = replacer.Replace(value)
+	value = strings.Trim(value, ". ")
+	if value == "" {
+		return "unnamed"
+	}
+	return value
 }
 
 func certmagicCertificatePaths(ca string, domain string) (string, string) {

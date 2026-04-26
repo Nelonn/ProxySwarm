@@ -228,6 +228,20 @@ fn normalized_certificates(draft: &NodeConfigDraft) -> Vec<CertificateDraft> {
     draft.certificates.clone()
 }
 
+fn certificate_name_from_reference(
+    certificates: &[CertificateDraft],
+    reference: &str,
+) -> Option<String> {
+    let reference = reference.trim();
+    if reference.is_empty() {
+        return None;
+    }
+    certificates
+        .iter()
+        .find(|certificate| certificate.name.trim() == reference || certificate.id.trim() == reference)
+        .map(|certificate| certificate.name.trim().to_string())
+}
+
 fn certificate_by_name<'a>(
     certificates: &'a [CertificateDraft],
     name: &str,
@@ -485,6 +499,8 @@ fn sync_draft(draft: &mut NodeConfigDraft) {
             .push(default_builtin_outbound("block", "BLOCK"));
     }
 
+    let certificates = draft.certificates.clone();
+
     for (index, inbound) in draft.inbounds.iter_mut().enumerate() {
         if inbound.id.trim().is_empty() {
             inbound.id = uuid::Uuid::new_v4().to_string();
@@ -510,6 +526,11 @@ fn sync_draft(draft: &mut NodeConfigDraft) {
         }
         if inbound.wireguard.domain_strategy.trim().is_empty() {
             inbound.wireguard.domain_strategy = "ForceIP".to_string();
+        }
+        if let Some(certificate_name) =
+            certificate_name_from_reference(&certificates, &inbound.tls.certificate_name)
+        {
+            inbound.tls.certificate_name = certificate_name;
         }
     }
 
@@ -1867,7 +1888,6 @@ fn build_full_config(
         certificates: certificates
             .into_iter()
             .map(|certificate| CertificateConfig {
-                id: certificate.id,
                 name: certificate.name,
                 cert_type: certificate.cert_type,
                 acme_type: certificate.acme_type,

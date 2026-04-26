@@ -107,30 +107,28 @@ pub struct NodeStatus {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CertificateConfig {
     #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
     pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
+    #[prost(string, tag = "2")]
     pub cert_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
+    #[prost(string, tag = "3")]
     pub acme_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
+    #[prost(string, tag = "4")]
     pub acme_ca: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
+    #[prost(string, tag = "5")]
     pub acme_email: ::prost::alloc::string::String,
-    #[prost(string, tag = "7")]
+    #[prost(string, tag = "6")]
     pub acme_domain: ::prost::alloc::string::String,
-    #[prost(string, tag = "8")]
+    #[prost(string, tag = "7")]
     pub certificate_path: ::prost::alloc::string::String,
-    #[prost(string, tag = "9")]
+    #[prost(string, tag = "8")]
     pub key_path: ::prost::alloc::string::String,
-    #[prost(int32, tag = "10")]
+    #[prost(int32, tag = "9")]
     pub acme_port: i32,
-    #[prost(int32, tag = "11")]
+    #[prost(int32, tag = "10")]
     pub acme_http_port: i32,
-    #[prost(string, tag = "12")]
+    #[prost(string, tag = "11")]
     pub certificate_pem: ::prost::alloc::string::String,
-    #[prost(string, tag = "13")]
+    #[prost(string, tag = "12")]
     pub key_pem: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
