@@ -16,11 +16,18 @@ import (
 type CertificatesManager struct {
 	mu     sync.RWMutex
 	byName map[string]*pb.CertificateConfig
+	paths  map[string]resolvedCustomCertificatePaths
+}
+
+type resolvedCustomCertificatePaths struct {
+	certificatePath string
+	keyPath         string
 }
 
 func NewCertificatesManager() *CertificatesManager {
 	return &CertificatesManager{
 		byName: make(map[string]*pb.CertificateConfig),
+		paths:  make(map[string]resolvedCustomCertificatePaths),
 	}
 }
 
@@ -29,6 +36,7 @@ func (m *CertificatesManager) Sync(certificates []*pb.CertificateConfig, acmeMan
 	defer m.mu.Unlock()
 
 	nextByName := make(map[string]*pb.CertificateConfig, len(certificates))
+	nextPaths := make(map[string]resolvedCustomCertificatePaths, len(certificates))
 
 	for _, cert := range certificates {
 		if cert == nil {
@@ -39,22 +47,23 @@ func (m *CertificatesManager) Sync(certificates []*pb.CertificateConfig, acmeMan
 			continue
 		}
 
-		switch strings.ToUpper(strings.TrimSpace(cloned.CertType)) {
-		case "ACME":
+		switch kind := cloned.Kind.(type) {
+		case *pb.CertificateConfig_Acme:
 			if acmeManager != nil {
 				acmeManager.EnsureManagedCertificate(
-					cloned.AcmeEmail,
-					cloned.AcmeDomain,
-					coalesceString(cloned.AcmeType, "HTTP"),
-					coalesceString(cloned.AcmeCa, "letsencrypt"),
-					acmeChallengePort(cloned.AcmeType, cloned.AcmePort, cloned.AcmeHttpPort),
-					cloned.CertificatePath,
-					cloned.KeyPath,
+					kind.Acme.AcmeEmail,
+					kind.Acme.AcmeDomain,
+					coalesceString(kind.Acme.AcmeType, "HTTP"),
+					coalesceString(kind.Acme.AcmeCa, "letsencrypt"),
+					acmeChallengePort(kind.Acme.AcmeType, kind.Acme.AcmePort, kind.Acme.AcmeHttpPort),
+					"",
+					"",
 				)
 			}
-		case "", "CUSTOM":
+		case *pb.CertificateConfig_Custom:
+		case nil:
 		default:
-			return fmt.Errorf("unsupported certificate type %q for %s", cloned.CertType, cloned.Name)
+			return fmt.Errorf("unsupported certificate kind for %s", cloned.Name)
 		}
 
 		key := strings.TrimSpace(cloned.Name)
@@ -62,9 +71,13 @@ func (m *CertificatesManager) Sync(certificates []*pb.CertificateConfig, acmeMan
 			return fmt.Errorf("certificate name is required")
 		}
 		nextByName[key] = cloned
+		if cached, ok := m.paths[key]; ok {
+			nextPaths[key] = cached
+		}
 	}
 
 	m.byName = nextByName
+	m.paths = nextPaths
 	return nil
 }
 
@@ -77,50 +90,84 @@ func (m *CertificatesManager) GetCertificatePaths(name string) (string, string, 
 	if cert == nil {
 		return "", "", fmt.Errorf("certificate %q not found", key)
 	}
-	switch strings.ToUpper(strings.TrimSpace(cert.CertType)) {
-	case "ACME":
-		certificatePath, keyPath := certmagicCertificatePaths(cert.AcmeCa, cert.AcmeDomain)
-		cert.CertificatePath = certificatePath
-		cert.KeyPath = keyPath
-	case "", "CUSTOM":
-		if err := materializeInlineCertificate(cert); err != nil {
+	switch kind := cert.Kind.(type) {
+	case *pb.CertificateConfig_Acme:
+		certificatePath, keyPath := certmagicCertificatePaths(kind.Acme.AcmeCa, kind.Acme.AcmeDomain)
+		return certificatePath, keyPath, nil
+	case *pb.CertificateConfig_Custom:
+		certificatePath, keyPath, err := m.materializeInlineCertificate(cert)
+		if err != nil {
 			return "", "", fmt.Errorf("failed to materialize certificate %s: %w", cert.Name, err)
 		}
+		return certificatePath, keyPath, nil
+	case nil:
+		return "", "", fmt.Errorf("certificate %q has no kind", key)
 	default:
-		return "", "", fmt.Errorf("unsupported certificate type %q for %s", cert.CertType, cert.Name)
+		return "", "", fmt.Errorf("unsupported certificate kind for %s", cert.Name)
 	}
-	if strings.TrimSpace(cert.CertificatePath) == "" || strings.TrimSpace(cert.KeyPath) == "" {
-		return "", "", fmt.Errorf("certificate %q has empty certificate/key path", key)
-	}
-	return cert.CertificatePath, cert.KeyPath, nil
 }
 
-func materializeInlineCertificate(cert *pb.CertificateConfig) error {
+func (m *CertificatesManager) materializeInlineCertificate(cert *pb.CertificateConfig) (string, string, error) {
 	if cert == nil {
-		return nil
+		return "", "", nil
 	}
-	if strings.TrimSpace(cert.CertificatePem) == "" && strings.TrimSpace(cert.KeyPem) == "" {
-		return nil
+	custom, ok := cert.Kind.(*pb.CertificateConfig_Custom)
+	if !ok || custom.Custom == nil {
+		return "", "", nil
+	}
+	if strings.TrimSpace(custom.Custom.CertificatePem) == "" || strings.TrimSpace(custom.Custom.KeyPem) == "" {
+		return "", "", fmt.Errorf("custom certificate %q requires certificate_pem and key_pem", cert.Name)
+	}
+	key := strings.TrimSpace(cert.Name)
+	if cached, ok := m.paths[key]; ok &&
+		strings.TrimSpace(cached.certificatePath) != "" &&
+		strings.TrimSpace(cached.keyPath) != "" {
+		return cached.certificatePath, cached.keyPath, nil
 	}
 	dir := filepath.Join(defaultManagedCertsDir(), sanitizeCertificateName(cert.Name))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+		return "", "", err
 	}
-	if strings.TrimSpace(cert.CertificatePem) != "" {
-		path := filepath.Join(dir, "certificate.pem")
-		if err := os.WriteFile(path, []byte(cert.CertificatePem), 0o600); err != nil {
-			return err
+	var certificatePath string
+	if strings.TrimSpace(custom.Custom.CertificatePem) != "" {
+		file, err := os.CreateTemp(dir, "certificate-*.pem")
+		if err != nil {
+			return "", "", err
 		}
-		cert.CertificatePath = path
-	}
-	if strings.TrimSpace(cert.KeyPem) != "" {
-		path := filepath.Join(dir, "private.key")
-		if err := os.WriteFile(path, []byte(cert.KeyPem), 0o600); err != nil {
-			return err
+		path := file.Name()
+		if _, err := file.WriteString(custom.Custom.CertificatePem); err != nil {
+			_ = file.Close()
+			return "", "", err
 		}
-		cert.KeyPath = path
+		if err := file.Close(); err != nil {
+			return "", "", err
+		}
+		certificatePath = path
 	}
-	return nil
+	var keyPath string
+	if strings.TrimSpace(custom.Custom.KeyPem) != "" {
+		file, err := os.CreateTemp(dir, "private-*.key")
+		if err != nil {
+			return "", "", err
+		}
+		path := file.Name()
+		if _, err := file.WriteString(custom.Custom.KeyPem); err != nil {
+			_ = file.Close()
+			return "", "", err
+		}
+		if err := file.Close(); err != nil {
+			return "", "", err
+		}
+		keyPath = path
+	}
+	if strings.TrimSpace(certificatePath) == "" || strings.TrimSpace(keyPath) == "" {
+		return "", "", fmt.Errorf("custom certificate %q has empty materialized certificate/key path", cert.Name)
+	}
+	m.paths[key] = resolvedCustomCertificatePaths{
+		certificatePath: certificatePath,
+		keyPath:         keyPath,
+	}
+	return certificatePath, keyPath, nil
 }
 
 func sanitizeCertificateName(value string) string {

@@ -58,19 +58,26 @@ message NodeStatus {
     uint32 sample_window_seconds = 8;
 }
 
+message AcmeCertificateConfig {
+    string acme_type = 1;
+    string acme_ca = 2;
+    string acme_email = 3;
+    string acme_domain = 4;
+    int32 acme_port = 5;
+    int32 acme_http_port = 6;
+}
+
+message CustomCertificateConfig {
+    string certificate_pem = 1;
+    string key_pem = 2;
+}
+
 message CertificateConfig {
     string name = 1;
-    string cert_type = 2;
-    string acme_type = 3;
-    string acme_ca = 4;
-    string acme_email = 5;
-    string acme_domain = 6;
-    string certificate_path = 7;
-    string key_path = 8;
-    int32 acme_port = 9;
-    int32 acme_http_port = 10;
-    string certificate_pem = 11;
-    string key_pem = 12;
+    oneof kind {
+        AcmeCertificateConfig acme = 2;
+        CustomCertificateConfig custom = 3;
+    }
 }
 
 message TLSConfig {

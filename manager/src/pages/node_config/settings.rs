@@ -118,7 +118,7 @@ pub(super) fn render_settings_tab(
                                                                     if certificate.cert_type == "ACME" {
                                                                         format!("{} via {}", certificate.acme_domain, certificate.acme_ca)
                                                                     } else {
-                                                                        format!("{} | {}", certificate.certificate_path, certificate.key_path)
+                                                                        "Inline PEM certificate".to_string()
                                                                     }
                                                                 }
                                                             </div>

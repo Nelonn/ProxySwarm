@@ -2,6 +2,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configure prost-build to generate only message types (no tonic service code)
     let mut config = prost_build::Config::new();
     config.out_dir("src/pb");
+    config.type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]");
 
     let proto_files = vec![
         "../proto/account.proto",

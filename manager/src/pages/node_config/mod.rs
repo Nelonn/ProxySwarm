@@ -17,11 +17,11 @@ use crate::components::{
     WideNavigationBarItem,
 };
 use crate::pb::proxyswarm::{
-    outbound_config, Account, AccountStatus, CertificateConfig, CoreType, DnsConfig,
-    DnsHostMapping, DnsServerConfig, FullConfig, Hysteria2Config, InboundConfig, InboundStatus,
-    NaiveProxyConfig, NodeStatus, OutboundConfig, OutboundStatus, OutboundType, RoutingRule,
-    SecurityMode, ShadowsocksInboundConfig, ShadowsocksOutboundConfig, Socks5InboundConfig,
-    Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, VlessConfig,
+    outbound_config, Account, AccountStatus, AcmeCertificateConfig, CertificateConfig, CoreType,
+    CustomCertificateConfig, DnsConfig, DnsHostMapping, DnsServerConfig, FullConfig,
+    Hysteria2Config, InboundConfig, InboundStatus, NaiveProxyConfig, NodeStatus, OutboundConfig,
+    OutboundStatus, OutboundType, RoutingRule, SecurityMode, ShadowsocksInboundConfig,
+    ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, VlessConfig,
     VlessOutboundConfig, VlessRealityConfig, WireGuardConfig, WireGuardPeer,
 };
 use crate::services::node_api::{AcmeIssueRequest, AcmeIssueResponse};
@@ -270,6 +270,15 @@ fn certmagic_storage_component(value: &str) -> String {
     }
     value = value.replace('/', "-").replace('\\', "-");
     value.trim_matches('-').to_string()
+}
+
+fn full_config_to_pretty_json(config: &FullConfig) -> String {
+    serde_json::to_string_pretty(config).unwrap_or_else(|error| {
+        format!(
+            "{{\"error\":\"failed to serialize config\",\"details\":{}}}",
+            serde_json::to_string(&error.to_string()).unwrap_or_else(|_| "\"unknown\"".to_string())
+        )
+    })
 }
 
 fn certmagic_certificate_paths(ca: &str, domain: &str) -> (String, String) {
@@ -1889,17 +1898,25 @@ fn build_full_config(
             .into_iter()
             .map(|certificate| CertificateConfig {
                 name: certificate.name,
-                cert_type: certificate.cert_type,
-                acme_type: certificate.acme_type,
-                acme_ca: certificate.acme_ca,
-                acme_email: certificate.acme_email,
-                acme_domain: certificate.acme_domain,
-                certificate_path: certificate.certificate_path,
-                key_path: certificate.key_path,
-                acme_port: certificate.acme_port,
-                acme_http_port: certificate.acme_http_port,
-                certificate_pem: certificate.certificate_pem,
-                key_pem: certificate.key_pem,
+                kind: if certificate.cert_type.eq_ignore_ascii_case("ACME") {
+                    Some(crate::pb::proxyswarm::certificate_config::Kind::Acme(
+                        AcmeCertificateConfig {
+                            acme_type: certificate.acme_type,
+                            acme_ca: certificate.acme_ca,
+                            acme_email: certificate.acme_email,
+                            acme_domain: certificate.acme_domain,
+                            acme_port: certificate.acme_port,
+                            acme_http_port: certificate.acme_http_port,
+                        },
+                    ))
+                } else {
+                    Some(crate::pb::proxyswarm::certificate_config::Kind::Custom(
+                        CustomCertificateConfig {
+                            certificate_pem: certificate.certificate_pem,
+                            key_pem: certificate.key_pem,
+                        },
+                    ))
+                },
             })
             .collect(),
         accounts: node_accounts,
@@ -2303,8 +2320,12 @@ struct ConfirmPopupProps {
     title: AttrValue,
     body: AttrValue,
     confirm_label: AttrValue,
+    #[prop_or_default]
+    extra_label: Option<AttrValue>,
     #[prop_or(false)]
     align_actions_end: bool,
+    #[prop_or_default]
+    on_extra: Option<Callback<()>>,
     on_confirm: Callback<()>,
     on_close: Callback<()>,
 }
@@ -2319,6 +2340,9 @@ fn confirm_popup(props: &ConfirmPopupProps) -> Html {
         let on_close = props.on_close.clone();
         Callback::from(move |_| on_close.emit(()))
     };
+    let on_extra = props.on_extra.clone().map(|on_extra| {
+        Callback::from(move |_| on_extra.emit(()))
+    });
 
     html! {
         <Popup title={props.title.clone()} size={PopupSize::Md} on_close={props.on_close.clone()}>
@@ -2328,6 +2352,13 @@ fn confirm_popup(props: &ConfirmPopupProps) -> Html {
                 </div>
                 <div class="md3-popup-actions" style={if props.align_actions_end { "justify-content: flex-end;" } else { "" }}>
                     <Button label="Cancel" button_type={ButtonType::Text} onclick={on_close_btn} />
+                    {
+                        if let (Some(label), Some(on_extra)) = (props.extra_label.clone(), on_extra) {
+                            html! { <Button label={label.to_string()} button_type={ButtonType::Outlined} onclick={on_extra} /> }
+                        } else {
+                            html! {}
+                        }
+                    }
                     <Button label={props.confirm_label.to_string()} button_type={ButtonType::Filled} onclick={on_confirm} />
                 </div>
             </div>
@@ -2815,50 +2846,26 @@ fn certificate_editor_popup(props: &CertificateEditorPopupProps) -> Html {
                     } else {
                         html! {
                             <>
-                                <Dropdown
-                                    label="Certificate Source"
-                                    value={data.source.clone()}
-                                    options={vec![
-                                        DropdownOption { value: "PATH".to_string(), label: "On-node paths".to_string() },
-                                        DropdownOption { value: "INLINE".to_string(), label: "Paste / import PEM".to_string() },
-                                    ]}
-                                    onchange={update_text(|certificate, value| certificate.source = value)}
-                                />
-                                {
-                                    if data.source == "INLINE" {
-                                        html! {
-                                            <>
-                                                <div class="space-y-2">
-                                                    <TextBox label="Certificate PEM" value={data.certificate_pem.clone()} onchange={update_text(|certificate, value| certificate.certificate_pem = value)} is_textarea={true} />
-                                                    <div class="flex" style="gap: 0.75rem;">
-                                                        <Button label="Paste Certificate" button_type={ButtonType::Outlined} onclick={read_clipboard_into(|certificate, value| certificate.certificate_pem = value)} />
-                                                        <label class="md3-btn md3-btn--outlined" style="cursor: pointer;">
-                                                            { "Import Certificate File" }
-                                                            <input type="file" accept=".pem,.crt,.cer,.txt" style="display: none;" onchange={import_file_into(|certificate, value| certificate.certificate_pem = value)} />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <div class="space-y-2">
-                                                    <TextBox label="Key PEM" value={data.key_pem.clone()} onchange={update_text(|certificate, value| certificate.key_pem = value)} is_textarea={true} />
-                                                    <div class="flex" style="gap: 0.75rem;">
-                                                        <Button label="Paste Key" button_type={ButtonType::Outlined} onclick={read_clipboard_into(|certificate, value| certificate.key_pem = value)} />
-                                                        <label class="md3-btn md3-btn--outlined" style="cursor: pointer;">
-                                                            { "Import Key File" }
-                                                            <input type="file" accept=".pem,.key,.txt" style="display: none;" onchange={import_file_into(|certificate, value| certificate.key_pem = value)} />
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        }
-                                    } else {
-                                        html! {
-                                            <>
-                                                <TextBox label="Certificate Path" value={data.certificate_path.clone()} onchange={update_text(|certificate, value| certificate.certificate_path = value)} placeholder="/etc/ssl/certs/node.crt" />
-                                                <TextBox label="Key Path" value={data.key_path.clone()} onchange={update_text(|certificate, value| certificate.key_path = value)} placeholder="/etc/ssl/private/node.key" />
-                                            </>
-                                        }
-                                    }
-                                }
+                                <div class="space-y-2">
+                                    <TextBox label="Certificate PEM" value={data.certificate_pem.clone()} onchange={update_text(|certificate, value| certificate.certificate_pem = value)} is_textarea={true} />
+                                    <div class="flex" style="gap: 0.75rem;">
+                                        <Button label="Paste Certificate" button_type={ButtonType::Outlined} onclick={read_clipboard_into(|certificate, value| certificate.certificate_pem = value)} />
+                                        <label class="md3-btn md3-btn--outlined" style="cursor: pointer;">
+                                            { "Import Certificate File" }
+                                            <input type="file" accept=".pem,.crt,.cer,.txt" style="display: none;" onchange={import_file_into(|certificate, value| certificate.certificate_pem = value)} />
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <TextBox label="Key PEM" value={data.key_pem.clone()} onchange={update_text(|certificate, value| certificate.key_pem = value)} is_textarea={true} />
+                                    <div class="flex" style="gap: 0.75rem;">
+                                        <Button label="Paste Key" button_type={ButtonType::Outlined} onclick={read_clipboard_into(|certificate, value| certificate.key_pem = value)} />
+                                        <label class="md3-btn md3-btn--outlined" style="cursor: pointer;">
+                                            { "Import Key File" }
+                                            <input type="file" accept=".pem,.key,.txt" style="display: none;" onchange={import_file_into(|certificate, value| certificate.key_pem = value)} />
+                                        </label>
+                                    </div>
+                                </div>
                             </>
                         }
                     }
@@ -5412,6 +5419,7 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
     let warp_popup_open = use_state(|| false);
     let access_link_inbound_id = use_state(|| Option::<String>::None);
     let deploy_confirm_open = use_state(|| false);
+    let deploy_preview_json = use_state(|| None::<String>);
     let acme_confirm_open = use_state(|| false);
     let pending_acme_certificate = use_state(|| Option::<CertificateDraft>::None);
     let acme_logs = use_state(|| Option::<AcmeIssueResponse>::None);
@@ -5564,6 +5572,22 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
     let on_deploy_click = {
         let deploy_confirm_open = deploy_confirm_open.clone();
         Callback::from(move |_| deploy_confirm_open.set(true))
+    };
+    let on_deploy_preview_click = {
+        let deploy_preview_json = deploy_preview_json.clone();
+        let draft = draft.clone();
+        let state = state.clone();
+        let node_id = node.id.clone();
+        let node_for_deploy = node.clone();
+        Callback::from(move |_| {
+            let mut draft_value = (*draft).clone();
+            sync_draft(&mut draft_value);
+            if let Some(current_node) = state.nodes.iter().find(|node| node.id == node_id) {
+                draft_value.master_key = current_node.master_key.clone();
+            }
+            let config = build_full_config(&draft_value, &node_for_deploy, &(*state).accounts);
+            deploy_preview_json.set(Some(full_config_to_pretty_json(&config)));
+        })
     };
 
     let on_back = {
@@ -5812,11 +5836,16 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                             title="Deploy Revision"
                             body="Deploy current draft to this node now? This overwrites active runtime configuration."
                             confirm_label="Deploy"
+                            extra_label={Some(AttrValue::from("Preview"))}
                             align_actions_end={true}
                             on_close={Callback::from({
                                 let deploy_confirm_open = deploy_confirm_open.clone();
                                 move |_| deploy_confirm_open.set(false)
                             })}
+                            on_extra={Some(Callback::from({
+                                let on_deploy_preview_click = on_deploy_preview_click.clone();
+                                move |_| on_deploy_preview_click.emit(())
+                            }))}
                             on_confirm={Callback::from({
                                 let deploy_confirm_open = deploy_confirm_open.clone();
                                 let deploy_revision = deploy_revision.clone();
@@ -5826,6 +5855,42 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                                 }
                             })}
                         />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
+                if let Some(preview_json) = (*deploy_preview_json).clone() {
+                    html! {
+                        <Popup
+                            title="Deploy Preview"
+                            size={PopupSize::Lg}
+                            on_close={Callback::from({
+                                let deploy_preview_json = deploy_preview_json.clone();
+                                move |_| deploy_preview_json.set(None)
+                            })}
+                        >
+                            <div class="space-y-4">
+                                <TextBox
+                                    label="Proto Config JSON"
+                                    value={preview_json}
+                                    onchange={Callback::from(|_: String| {})}
+                                    is_textarea={true}
+                                />
+                                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                                    <Button
+                                        label="Close"
+                                        button_type={ButtonType::Filled}
+                                        onclick={Callback::from({
+                                            let deploy_preview_json = deploy_preview_json.clone();
+                                            move |_| deploy_preview_json.set(None)
+                                        })}
+                                    />
+                                </div>
+                            </div>
+                        </Popup>
                     }
                 } else {
                     html! {}

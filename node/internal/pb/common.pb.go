@@ -565,27 +565,157 @@ func (x *NodeStatus) GetSampleWindowSeconds() uint32 {
 	return 0
 }
 
+type AcmeCertificateConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AcmeType      string                 `protobuf:"bytes,1,opt,name=acme_type,json=acmeType,proto3" json:"acme_type,omitempty"`
+	AcmeCa        string                 `protobuf:"bytes,2,opt,name=acme_ca,json=acmeCa,proto3" json:"acme_ca,omitempty"`
+	AcmeEmail     string                 `protobuf:"bytes,3,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
+	AcmeDomain    string                 `protobuf:"bytes,4,opt,name=acme_domain,json=acmeDomain,proto3" json:"acme_domain,omitempty"`
+	AcmePort      int32                  `protobuf:"varint,5,opt,name=acme_port,json=acmePort,proto3" json:"acme_port,omitempty"`
+	AcmeHttpPort  int32                  `protobuf:"varint,6,opt,name=acme_http_port,json=acmeHttpPort,proto3" json:"acme_http_port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcmeCertificateConfig) Reset() {
+	*x = AcmeCertificateConfig{}
+	mi := &file_node_common_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcmeCertificateConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcmeCertificateConfig) ProtoMessage() {}
+
+func (x *AcmeCertificateConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_node_common_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcmeCertificateConfig.ProtoReflect.Descriptor instead.
+func (*AcmeCertificateConfig) Descriptor() ([]byte, []int) {
+	return file_node_common_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *AcmeCertificateConfig) GetAcmeType() string {
+	if x != nil {
+		return x.AcmeType
+	}
+	return ""
+}
+
+func (x *AcmeCertificateConfig) GetAcmeCa() string {
+	if x != nil {
+		return x.AcmeCa
+	}
+	return ""
+}
+
+func (x *AcmeCertificateConfig) GetAcmeEmail() string {
+	if x != nil {
+		return x.AcmeEmail
+	}
+	return ""
+}
+
+func (x *AcmeCertificateConfig) GetAcmeDomain() string {
+	if x != nil {
+		return x.AcmeDomain
+	}
+	return ""
+}
+
+func (x *AcmeCertificateConfig) GetAcmePort() int32 {
+	if x != nil {
+		return x.AcmePort
+	}
+	return 0
+}
+
+func (x *AcmeCertificateConfig) GetAcmeHttpPort() int32 {
+	if x != nil {
+		return x.AcmeHttpPort
+	}
+	return 0
+}
+
+type CustomCertificateConfig struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CertificatePem string                 `protobuf:"bytes,1,opt,name=certificate_pem,json=certificatePem,proto3" json:"certificate_pem,omitempty"`
+	KeyPem         string                 `protobuf:"bytes,2,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CustomCertificateConfig) Reset() {
+	*x = CustomCertificateConfig{}
+	mi := &file_node_common_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomCertificateConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomCertificateConfig) ProtoMessage() {}
+
+func (x *CustomCertificateConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_node_common_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomCertificateConfig.ProtoReflect.Descriptor instead.
+func (*CustomCertificateConfig) Descriptor() ([]byte, []int) {
+	return file_node_common_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CustomCertificateConfig) GetCertificatePem() string {
+	if x != nil {
+		return x.CertificatePem
+	}
+	return ""
+}
+
+func (x *CustomCertificateConfig) GetKeyPem() string {
+	if x != nil {
+		return x.KeyPem
+	}
+	return ""
+}
+
 type CertificateConfig struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	CertType        string                 `protobuf:"bytes,2,opt,name=cert_type,json=certType,proto3" json:"cert_type,omitempty"`
-	AcmeType        string                 `protobuf:"bytes,3,opt,name=acme_type,json=acmeType,proto3" json:"acme_type,omitempty"`
-	AcmeCa          string                 `protobuf:"bytes,4,opt,name=acme_ca,json=acmeCa,proto3" json:"acme_ca,omitempty"`
-	AcmeEmail       string                 `protobuf:"bytes,5,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
-	AcmeDomain      string                 `protobuf:"bytes,6,opt,name=acme_domain,json=acmeDomain,proto3" json:"acme_domain,omitempty"`
-	CertificatePath string                 `protobuf:"bytes,7,opt,name=certificate_path,json=certificatePath,proto3" json:"certificate_path,omitempty"`
-	KeyPath         string                 `protobuf:"bytes,8,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
-	AcmePort        int32                  `protobuf:"varint,9,opt,name=acme_port,json=acmePort,proto3" json:"acme_port,omitempty"`
-	AcmeHttpPort    int32                  `protobuf:"varint,10,opt,name=acme_http_port,json=acmeHttpPort,proto3" json:"acme_http_port,omitempty"`
-	CertificatePem  string                 `protobuf:"bytes,11,opt,name=certificate_pem,json=certificatePem,proto3" json:"certificate_pem,omitempty"`
-	KeyPem          string                 `protobuf:"bytes,12,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*CertificateConfig_Acme
+	//	*CertificateConfig_Custom
+	Kind          isCertificateConfig_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CertificateConfig) Reset() {
 	*x = CertificateConfig{}
-	mi := &file_node_common_proto_msgTypes[8]
+	mi := &file_node_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -597,7 +727,7 @@ func (x *CertificateConfig) String() string {
 func (*CertificateConfig) ProtoMessage() {}
 
 func (x *CertificateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[8]
+	mi := &file_node_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -610,7 +740,7 @@ func (x *CertificateConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificateConfig.ProtoReflect.Descriptor instead.
 func (*CertificateConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{8}
+	return file_node_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CertificateConfig) GetName() string {
@@ -620,82 +750,46 @@ func (x *CertificateConfig) GetName() string {
 	return ""
 }
 
-func (x *CertificateConfig) GetCertType() string {
+func (x *CertificateConfig) GetKind() isCertificateConfig_Kind {
 	if x != nil {
-		return x.CertType
+		return x.Kind
 	}
-	return ""
+	return nil
 }
 
-func (x *CertificateConfig) GetAcmeType() string {
+func (x *CertificateConfig) GetAcme() *AcmeCertificateConfig {
 	if x != nil {
-		return x.AcmeType
+		if x, ok := x.Kind.(*CertificateConfig_Acme); ok {
+			return x.Acme
+		}
 	}
-	return ""
+	return nil
 }
 
-func (x *CertificateConfig) GetAcmeCa() string {
+func (x *CertificateConfig) GetCustom() *CustomCertificateConfig {
 	if x != nil {
-		return x.AcmeCa
+		if x, ok := x.Kind.(*CertificateConfig_Custom); ok {
+			return x.Custom
+		}
 	}
-	return ""
+	return nil
 }
 
-func (x *CertificateConfig) GetAcmeEmail() string {
-	if x != nil {
-		return x.AcmeEmail
-	}
-	return ""
+type isCertificateConfig_Kind interface {
+	isCertificateConfig_Kind()
 }
 
-func (x *CertificateConfig) GetAcmeDomain() string {
-	if x != nil {
-		return x.AcmeDomain
-	}
-	return ""
+type CertificateConfig_Acme struct {
+	Acme *AcmeCertificateConfig `protobuf:"bytes,2,opt,name=acme,proto3,oneof"`
 }
 
-func (x *CertificateConfig) GetCertificatePath() string {
-	if x != nil {
-		return x.CertificatePath
-	}
-	return ""
+type CertificateConfig_Custom struct {
+	Custom *CustomCertificateConfig `protobuf:"bytes,3,opt,name=custom,proto3,oneof"`
 }
 
-func (x *CertificateConfig) GetKeyPath() string {
-	if x != nil {
-		return x.KeyPath
-	}
-	return ""
-}
+func (*CertificateConfig_Acme) isCertificateConfig_Kind() {}
 
-func (x *CertificateConfig) GetAcmePort() int32 {
-	if x != nil {
-		return x.AcmePort
-	}
-	return 0
-}
-
-func (x *CertificateConfig) GetAcmeHttpPort() int32 {
-	if x != nil {
-		return x.AcmeHttpPort
-	}
-	return 0
-}
-
-func (x *CertificateConfig) GetCertificatePem() string {
-	if x != nil {
-		return x.CertificatePem
-	}
-	return ""
-}
-
-func (x *CertificateConfig) GetKeyPem() string {
-	if x != nil {
-		return x.KeyPem
-	}
-	return ""
-}
+func (*CertificateConfig_Custom) isCertificateConfig_Kind() {}
 
 type TLSConfig struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -708,7 +802,7 @@ type TLSConfig struct {
 
 func (x *TLSConfig) Reset() {
 	*x = TLSConfig{}
-	mi := &file_node_common_proto_msgTypes[9]
+	mi := &file_node_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +814,7 @@ func (x *TLSConfig) String() string {
 func (*TLSConfig) ProtoMessage() {}
 
 func (x *TLSConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[9]
+	mi := &file_node_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -733,7 +827,7 @@ func (x *TLSConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLSConfig.ProtoReflect.Descriptor instead.
 func (*TLSConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{9}
+	return file_node_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *TLSConfig) GetEnabled() bool {
@@ -804,23 +898,24 @@ const file_node_common_proto_rawDesc = "" +
 	"\x15total_inbound_traffic\x18\x05 \x01(\v2\x18.proxyswarm.TrafficStatsR\x13totalInboundTraffic\x12N\n" +
 	"\x16total_outbound_traffic\x18\x06 \x01(\v2\x18.proxyswarm.TrafficStatsR\x14totalOutboundTraffic\x12=\n" +
 	"\vconnections\x18\a \x01(\v2\x1b.proxyswarm.ConnectionStatsR\vconnections\x122\n" +
-	"\x15sample_window_seconds\x18\b \x01(\rR\x13sampleWindowSeconds\"\x85\x03\n" +
-	"\x11CertificateConfig\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
-	"\tcert_type\x18\x02 \x01(\tR\bcertType\x12\x1b\n" +
-	"\tacme_type\x18\x03 \x01(\tR\bacmeType\x12\x17\n" +
-	"\aacme_ca\x18\x04 \x01(\tR\x06acmeCa\x12\x1d\n" +
+	"\x15sample_window_seconds\x18\b \x01(\rR\x13sampleWindowSeconds\"\xd0\x01\n" +
+	"\x15AcmeCertificateConfig\x12\x1b\n" +
+	"\tacme_type\x18\x01 \x01(\tR\bacmeType\x12\x17\n" +
+	"\aacme_ca\x18\x02 \x01(\tR\x06acmeCa\x12\x1d\n" +
 	"\n" +
-	"acme_email\x18\x05 \x01(\tR\tacmeEmail\x12\x1f\n" +
-	"\vacme_domain\x18\x06 \x01(\tR\n" +
-	"acmeDomain\x12)\n" +
-	"\x10certificate_path\x18\a \x01(\tR\x0fcertificatePath\x12\x19\n" +
-	"\bkey_path\x18\b \x01(\tR\akeyPath\x12\x1b\n" +
-	"\tacme_port\x18\t \x01(\x05R\bacmePort\x12$\n" +
-	"\x0eacme_http_port\x18\n" +
-	" \x01(\x05R\facmeHttpPort\x12'\n" +
-	"\x0fcertificate_pem\x18\v \x01(\tR\x0ecertificatePem\x12\x17\n" +
-	"\akey_pem\x18\f \x01(\tR\x06keyPem\"q\n" +
+	"acme_email\x18\x03 \x01(\tR\tacmeEmail\x12\x1f\n" +
+	"\vacme_domain\x18\x04 \x01(\tR\n" +
+	"acmeDomain\x12\x1b\n" +
+	"\tacme_port\x18\x05 \x01(\x05R\bacmePort\x12$\n" +
+	"\x0eacme_http_port\x18\x06 \x01(\x05R\facmeHttpPort\"[\n" +
+	"\x17CustomCertificateConfig\x12'\n" +
+	"\x0fcertificate_pem\x18\x01 \x01(\tR\x0ecertificatePem\x12\x17\n" +
+	"\akey_pem\x18\x02 \x01(\tR\x06keyPem\"\xa7\x01\n" +
+	"\x11CertificateConfig\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
+	"\x04acme\x18\x02 \x01(\v2!.proxyswarm.AcmeCertificateConfigH\x00R\x04acme\x12=\n" +
+	"\x06custom\x18\x03 \x01(\v2#.proxyswarm.CustomCertificateConfigH\x00R\x06customB\x06\n" +
+	"\x04kind\"q\n" +
 	"\tTLSConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
 	"\vserver_name\x18\x02 \x01(\tR\n" +
@@ -839,18 +934,20 @@ func file_node_common_proto_rawDescGZIP() []byte {
 	return file_node_common_proto_rawDescData
 }
 
-var file_node_common_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_node_common_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_node_common_proto_goTypes = []any{
-	(*HardwareStats)(nil),     // 0: proxyswarm.HardwareStats
-	(*TrafficStats)(nil),      // 1: proxyswarm.TrafficStats
-	(*ConnectionStats)(nil),   // 2: proxyswarm.ConnectionStats
-	(*UserSessionStatus)(nil), // 3: proxyswarm.UserSessionStatus
-	(*InboundStatus)(nil),     // 4: proxyswarm.InboundStatus
-	(*AccountStatus)(nil),     // 5: proxyswarm.AccountStatus
-	(*OutboundStatus)(nil),    // 6: proxyswarm.OutboundStatus
-	(*NodeStatus)(nil),        // 7: proxyswarm.NodeStatus
-	(*CertificateConfig)(nil), // 8: proxyswarm.CertificateConfig
-	(*TLSConfig)(nil),         // 9: proxyswarm.TLSConfig
+	(*HardwareStats)(nil),           // 0: proxyswarm.HardwareStats
+	(*TrafficStats)(nil),            // 1: proxyswarm.TrafficStats
+	(*ConnectionStats)(nil),         // 2: proxyswarm.ConnectionStats
+	(*UserSessionStatus)(nil),       // 3: proxyswarm.UserSessionStatus
+	(*InboundStatus)(nil),           // 4: proxyswarm.InboundStatus
+	(*AccountStatus)(nil),           // 5: proxyswarm.AccountStatus
+	(*OutboundStatus)(nil),          // 6: proxyswarm.OutboundStatus
+	(*NodeStatus)(nil),              // 7: proxyswarm.NodeStatus
+	(*AcmeCertificateConfig)(nil),   // 8: proxyswarm.AcmeCertificateConfig
+	(*CustomCertificateConfig)(nil), // 9: proxyswarm.CustomCertificateConfig
+	(*CertificateConfig)(nil),       // 10: proxyswarm.CertificateConfig
+	(*TLSConfig)(nil),               // 11: proxyswarm.TLSConfig
 }
 var file_node_common_proto_depIdxs = []int32{
 	1,  // 0: proxyswarm.InboundStatus.traffic:type_name -> proxyswarm.TrafficStats
@@ -865,11 +962,13 @@ var file_node_common_proto_depIdxs = []int32{
 	1,  // 9: proxyswarm.NodeStatus.total_inbound_traffic:type_name -> proxyswarm.TrafficStats
 	1,  // 10: proxyswarm.NodeStatus.total_outbound_traffic:type_name -> proxyswarm.TrafficStats
 	2,  // 11: proxyswarm.NodeStatus.connections:type_name -> proxyswarm.ConnectionStats
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	8,  // 12: proxyswarm.CertificateConfig.acme:type_name -> proxyswarm.AcmeCertificateConfig
+	9,  // 13: proxyswarm.CertificateConfig.custom:type_name -> proxyswarm.CustomCertificateConfig
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_node_common_proto_init() }
@@ -877,13 +976,17 @@ func file_node_common_proto_init() {
 	if File_node_common_proto != nil {
 		return
 	}
+	file_node_common_proto_msgTypes[10].OneofWrappers = []any{
+		(*CertificateConfig_Acme)(nil),
+		(*CertificateConfig_Custom)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_node_common_proto_rawDesc), len(file_node_common_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

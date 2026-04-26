@@ -52,6 +52,12 @@ type AcmeIssueResult struct {
 	ExpiryTime      time.Time
 }
 
+type ResolvedCertificate struct {
+	Name            string
+	CertificatePath string
+	KeyPath         string
+}
+
 const sharedXrayEngineKey = "xray"
 
 var defaultDataDir = "./data"
@@ -130,13 +136,13 @@ func inboundTLSConfig(inbound *pb.InboundConfig) *pb.TLSConfig {
 	return nil
 }
 
-func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates *CertificatesManager) (*pb.CertificateConfig, error) {
+func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates *CertificatesManager) (*ResolvedCertificate, error) {
 	if tlsConfig == nil || !tlsConfig.Enabled {
 		return nil, nil
 	}
 	certificateName := strings.TrimSpace(tlsConfig.CertificateName)
 	if certificateName == "" {
-		return nil, nil
+		return nil, fmt.Errorf("certificate name is empty")
 	}
 	if certificates == nil {
 		return nil, fmt.Errorf("certificates manager is not initialized")
@@ -145,7 +151,7 @@ func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates *Certifi
 	if err != nil {
 		return nil, err
 	}
-	return &pb.CertificateConfig{
+	return &ResolvedCertificate{
 		Name:            certificateName,
 		CertificatePath: certificatePath,
 		KeyPath:         keyPath,
