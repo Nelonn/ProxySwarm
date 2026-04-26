@@ -251,6 +251,14 @@ fn certificate_by_name<'a>(
         .find(|certificate| certificate.name.trim() == name.trim())
 }
 
+fn inbound_tls_enabled(protocol: &str, inbound: &InboundEntryDraft) -> bool {
+    match protocol.trim().to_uppercase().as_str() {
+        "HYSTERIA2" | "TRUSTTUNNEL" | "NAIVEPROXY" => true,
+        "VLESS" => inbound.vless.security.eq_ignore_ascii_case("TLS"),
+        _ => inbound.tls.enabled,
+    }
+}
+
 fn acme_ca_directory_url(value: &str) -> &'static str {
     match value.trim().to_lowercase().as_str() {
         "zerossl" => "https://acme.zerossl.com/v2/DV90",
@@ -1653,7 +1661,7 @@ fn build_full_config(
                 inbound.tls.server_name.clone()
             };
             let tls = Some(TlsConfig {
-                enabled: inbound.tls.enabled,
+                enabled: inbound_tls_enabled(&normalized_protocol, &inbound),
                 server_name,
                 certificate_name: inbound.tls.certificate_name.clone(),
             });

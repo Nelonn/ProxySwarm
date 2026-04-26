@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"proxyswarm/node/internal/acme"
+	"proxyswarm/node/internal/logging"
 	"proxyswarm/node/internal/pb"
 	"strings"
 	"sync"
@@ -49,6 +50,7 @@ func (m *CertificatesManager) Sync(certificates []*pb.CertificateConfig, acmeMan
 
 		switch kind := cloned.Kind.(type) {
 		case *pb.CertificateConfig_Acme:
+			logging.Debugf("[cert] sync name=%q kind=acme domain=%q ca=%q", cloned.Name, kind.Acme.AcmeDomain, kind.Acme.AcmeCa)
 			if acmeManager != nil {
 				acmeManager.EnsureManagedCertificate(
 					kind.Acme.AcmeEmail,
@@ -61,7 +63,9 @@ func (m *CertificatesManager) Sync(certificates []*pb.CertificateConfig, acmeMan
 				)
 			}
 		case *pb.CertificateConfig_Custom:
+			logging.Debugf("[cert] sync name=%q kind=custom cert_pem=%d key_pem=%d", cloned.Name, len(kind.Custom.CertificatePem), len(kind.Custom.KeyPem))
 		case nil:
+			logging.Warnf("[cert] sync name=%q has nil kind", cloned.Name)
 		default:
 			return fmt.Errorf("unsupported certificate kind for %s", cloned.Name)
 		}
@@ -88,19 +92,24 @@ func (m *CertificatesManager) GetCertificatePaths(name string) (string, string, 
 	key := strings.TrimSpace(name)
 	cert := m.byName[key]
 	if cert == nil {
+		logging.Debugf("[cert] resolve name=%q result=not_found", key)
 		return "", "", fmt.Errorf("certificate %q not found", key)
 	}
 	switch kind := cert.Kind.(type) {
 	case *pb.CertificateConfig_Acme:
 		certificatePath, keyPath := certmagicCertificatePaths(kind.Acme.AcmeCa, kind.Acme.AcmeDomain)
+		logging.Debugf("[cert] resolve name=%q kind=acme domain=%q cert=%q key=%q", key, kind.Acme.AcmeDomain, certificatePath, keyPath)
 		return certificatePath, keyPath, nil
 	case *pb.CertificateConfig_Custom:
 		certificatePath, keyPath, err := m.materializeInlineCertificate(cert)
 		if err != nil {
+			logging.Debugf("[cert] resolve name=%q kind=custom error=%v", key, err)
 			return "", "", fmt.Errorf("failed to materialize certificate %s: %w", cert.Name, err)
 		}
+		logging.Debugf("[cert] resolve name=%q kind=custom cert=%q key=%q", key, certificatePath, keyPath)
 		return certificatePath, keyPath, nil
 	case nil:
+		logging.Debugf("[cert] resolve name=%q result=nil_kind", key)
 		return "", "", fmt.Errorf("certificate %q has no kind", key)
 	default:
 		return "", "", fmt.Errorf("unsupported certificate kind for %s", cert.Name)
@@ -122,6 +131,7 @@ func (m *CertificatesManager) materializeInlineCertificate(cert *pb.CertificateC
 	if cached, ok := m.paths[key]; ok &&
 		strings.TrimSpace(cached.certificatePath) != "" &&
 		strings.TrimSpace(cached.keyPath) != "" {
+		logging.Debugf("[cert] cache-hit name=%q cert=%q key=%q", key, cached.certificatePath, cached.keyPath)
 		return cached.certificatePath, cached.keyPath, nil
 	}
 	dir := filepath.Join(defaultManagedCertsDir(), sanitizeCertificateName(cert.Name))
@@ -167,6 +177,7 @@ func (m *CertificatesManager) materializeInlineCertificate(cert *pb.CertificateC
 		certificatePath: certificatePath,
 		keyPath:         keyPath,
 	}
+	logging.Debugf("[cert] cache-store name=%q cert=%q key=%q", key, certificatePath, keyPath)
 	return certificatePath, keyPath, nil
 }
 

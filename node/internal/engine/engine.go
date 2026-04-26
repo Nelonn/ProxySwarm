@@ -142,15 +142,19 @@ func resolveInboundTLSCertificate(tlsConfig *pb.TLSConfig, certificates *Certifi
 	}
 	certificateName := strings.TrimSpace(tlsConfig.CertificateName)
 	if certificateName == "" {
+		logging.Debugf("[tls] resolve skipped: empty certificate_name server_name=%q", tlsConfig.ServerName)
 		return nil, fmt.Errorf("certificate name is empty")
 	}
 	if certificates == nil {
 		return nil, fmt.Errorf("certificates manager is not initialized")
 	}
+	logging.Debugf("[tls] resolving certificate_name=%q server_name=%q", certificateName, tlsConfig.ServerName)
 	certificatePath, keyPath, err := certificates.GetCertificatePaths(certificateName)
 	if err != nil {
+		logging.Debugf("[tls] resolving certificate_name=%q failed: %v", certificateName, err)
 		return nil, err
 	}
+	logging.Debugf("[tls] resolved certificate_name=%q cert=%q key=%q", certificateName, certificatePath, keyPath)
 	return &ResolvedCertificate{
 		Name:            certificateName,
 		CertificatePath: certificatePath,

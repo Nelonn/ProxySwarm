@@ -66,13 +66,24 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inb
 	if tlsConfig == nil {
 		return fmt.Errorf("tls config is required for trusttunnel")
 	}
+	logging.Debugf("[trusttunnel] inbound=%q tls_enabled=%v certificate_name=%q server_name=%q", config.GetName(), tlsConfig.Enabled, tlsConfig.CertificateName, tlsConfig.ServerName)
+	if !tlsConfig.Enabled {
+		return fmt.Errorf("trusttunnel requires tls to be enabled")
+	}
 	cert, err := resolveInboundTLSCertificate(tlsConfig, certificates)
 	if err != nil {
+		logging.Debugf("[trusttunnel] inbound=%q certificate resolve failed: %v", config.GetName(), err)
 		return err
 	}
 	if cert == nil || strings.TrimSpace(cert.CertificatePath) == "" || strings.TrimSpace(cert.KeyPath) == "" {
+		if cert == nil {
+			logging.Debugf("[trusttunnel] inbound=%q resolved certificate=nil", config.GetName())
+		} else {
+			logging.Debugf("[trusttunnel] inbound=%q resolved certificate=%q cert=%q key=%q", config.GetName(), cert.Name, cert.CertificatePath, cert.KeyPath)
+		}
 		return fmt.Errorf("trusttunnel requires tls certificate_name with valid certificate_path and key_path")
 	}
+	logging.Debugf("[trusttunnel] inbound=%q using cert=%q key=%q", config.GetName(), cert.CertificatePath, cert.KeyPath)
 
 	hostName := strings.TrimSpace(tlsConfig.ServerName)
 	if hostName == "" {
