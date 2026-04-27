@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"proxyswarm/node/internal/pb"
 	"strconv"
@@ -107,16 +106,19 @@ func appendShadowsocksPrefix(pluginOpts string, prefix string) string {
 }
 
 type SingBoxEngine struct {
-	mu     sync.Mutex
-	cmd    *exec.Cmd
-	name   string
-	tmpDir string
-	rx     uint64
-	tx     uint64
+	mu         sync.Mutex
+	name       string
+	tmpDir     string
+	rx         uint64
+	tx         uint64
+	supervisor *supervisedProcess
 }
 
 func NewSingBoxEngine(name string) *SingBoxEngine {
-	return &SingBoxEngine{name: name}
+	return &SingBoxEngine{
+		name:       name,
+		supervisor: newSupervisedProcess("sing-box"),
+	}
 }
 
 func (e *SingBoxEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
@@ -138,10 +140,6 @@ func (e *SingBoxEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inbound
 		return fmt.Errorf("failed to marshal sing-box config: %w", err)
 	}
 
-	if e.cmd != nil && e.cmd.Process != nil {
-		_ = e.cmd.Process.Kill()
-		e.cmd = nil
-	}
 	if e.tmpDir != "" {
 		_ = os.RemoveAll(e.tmpDir)
 		e.tmpDir = ""
@@ -158,15 +156,7 @@ func (e *SingBoxEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inbound
 		return fmt.Errorf("failed to write sing-box config: %w", err)
 	}
 
-	cmd := exec.Command(SingBoxBinary, "run", "-c", configPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start sing-box subprocess: %w", err)
-	}
-
-	e.cmd = cmd
-	return nil
+	return e.supervisor.restart(ctx, []string{SingBoxBinary, "run", "-c", configPath})
 }
 
 func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb.Account, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, certificates *CertificatesManager) (map[string]any, error) {
@@ -542,6 +532,9 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 }
 
 func (e *SingBoxEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
+	if !e.supervisor.isAlive() {
+		return nil, fmt.Errorf("sing-box process is not running")
+	}
 	return &RuntimeMetrics{
 		Inbounds: []*pb.InboundStatus{
 			{
@@ -559,11 +552,7 @@ func (e *SingBoxEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error)
 func (e *SingBoxEngine) Stop(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-
-	if e.cmd != nil && e.cmd.Process != nil {
-		_ = e.cmd.Process.Kill()
-		e.cmd = nil
-	}
+	e.supervisor.stop()
 	if e.tmpDir != "" {
 		_ = os.RemoveAll(e.tmpDir)
 		e.tmpDir = ""

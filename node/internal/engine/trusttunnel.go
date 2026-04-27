@@ -3,9 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"proxyswarm/node/internal/logging"
 	"proxyswarm/node/internal/pb"
@@ -17,12 +15,12 @@ import (
 var TrustTunnelBinary = "trusttunnel_endpoint"
 
 type TrustTunnelEngine struct {
-	mu     sync.Mutex
-	cmd    *exec.Cmd
-	name   string
-	tmpDir string
-	rx     uint64
-	tx     uint64
+	mu         sync.Mutex
+	name       string
+	tmpDir     string
+	rx         uint64
+	tx         uint64
+	supervisor *supervisedProcess
 }
 
 func withDefaultUint32(value uint32, fallback uint32) uint32 {
@@ -33,7 +31,10 @@ func withDefaultUint32(value uint32, fallback uint32) uint32 {
 }
 
 func NewTrustTunnelEngine(name string) *TrustTunnelEngine {
-	return &TrustTunnelEngine{name: name}
+	return &TrustTunnelEngine{
+		name:       name,
+		supervisor: newSupervisedProcess("trusttunnel"),
+	}
 }
 
 func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
@@ -47,10 +48,6 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inb
 	}
 	config := inbounds[0]
 	accounts := config.GetAccounts()
-
-	if e.cmd != nil && e.cmd.Process != nil {
-		e.cmd.Process.Kill()
-	}
 
 	tmpDir, err := os.MkdirTemp("", "trusttunnel-"+e.name)
 	if err != nil {
@@ -209,16 +206,13 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inb
 	}
 	logging.Debugf("[trusttunnel] generated vpn.toml=%s", vpnBuilder.String())
 
-	cmd := exec.CommandContext(ctx, TrustTunnelBinary, vpnPath, hostsPath)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start trusttunnel_endpoint: %w", err)
-	}
-
-	e.cmd = cmd
-	return nil
+	return e.supervisor.restart(ctx, []string{TrustTunnelBinary, vpnPath, hostsPath})
 }
 
 func (e *TrustTunnelEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
+	if !e.supervisor.isAlive() {
+		return nil, fmt.Errorf("trusttunnel process is not running")
+	}
 	return &RuntimeMetrics{
 		Inbounds: []*pb.InboundStatus{
 			{
@@ -236,22 +230,9 @@ func (e *TrustTunnelEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, er
 func (e *TrustTunnelEngine) Stop(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.cmd != nil && e.cmd.Process != nil {
-		e.cmd.Process.Kill()
-	}
+	e.supervisor.stop()
 	if e.tmpDir != "" {
 		os.RemoveAll(e.tmpDir)
 	}
 	return nil
-}
-
-type CounterWriter struct {
-	io.Writer
-	count *uint64
-}
-
-func (cw *CounterWriter) Write(p []byte) (int, error) {
-	n, err := cw.Writer.Write(p)
-	atomic.AddUint64(cw.count, uint64(n))
-	return n, err
 }
