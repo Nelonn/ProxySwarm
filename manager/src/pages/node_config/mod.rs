@@ -144,7 +144,7 @@ fn default_inbound_entry() -> InboundEntryDraft {
             ..TrustTunnelDraft::default()
         },
         naive_proxy: NaiveProxyDraft {
-            protocol: "h2".to_string(),
+            network: String::new(),
             ..NaiveProxyDraft::default()
         },
         wireguard: WireGuardDraft {
@@ -713,51 +713,30 @@ fn core_from(value: &str) -> i32 {
     }
 }
 
-fn supports_hysteria2(core_type: &str) -> bool {
-    // Hysteria2 is supported on both Xray and Sing-Box. TrustTunnel remains exclusive.
-    !matches!(core_type.trim().to_uppercase().as_str(), "TRUSTTUNNEL")
+fn supported_protocol_values_for_core(core_type: &str) -> Vec<&'static str> {
+    match core_type.trim().to_uppercase().as_str() {
+        "XRAY" => vec!["VLESS", "HYSTERIA2", "WIREGUARD", "SOCKS5", "SHADOWSOCKS"],
+        "SING_BOX" => vec!["VLESS", "HYSTERIA2", "NAIVEPROXY", "SOCKS5", "SHADOWSOCKS"],
+        "TRUSTTUNNEL" => vec!["TRUSTTUNNEL"],
+        _ => vec![],
+    }
 }
 
 fn protocol_options_for_core(core_type: &str) -> Vec<DropdownOption> {
-    if core_type.trim().is_empty() {
-        return vec![];
-    }
-    let mut options = vec![
-        DropdownOption {
-            value: "VLESS".to_string(),
-            label: "VLESS".to_string(),
-        },
-        DropdownOption {
-            value: "TRUSTTUNNEL".to_string(),
-            label: "TrustTunnel".to_string(),
-        },
-        DropdownOption {
-            value: "NAIVEPROXY".to_string(),
-            label: "NaiveProxy".to_string(),
-        },
-        DropdownOption {
-            value: "WIREGUARD".to_string(),
-            label: "WireGuard".to_string(),
-        },
-        DropdownOption {
-            value: "SOCKS5".to_string(),
-            label: "SOCKS5".to_string(),
-        },
-        DropdownOption {
-            value: "SHADOWSOCKS".to_string(),
-            label: "Shadowsocks".to_string(),
-        },
-    ];
-    if supports_hysteria2(core_type) {
-        options.insert(
-            1,
-            DropdownOption {
-                value: "HYSTERIA2".to_string(),
-                label: "Hysteria2".to_string(),
+    supported_protocol_values_for_core(core_type)
+        .into_iter()
+        .map(|value| DropdownOption {
+            value: value.to_string(),
+            label: match value {
+                "HYSTERIA2" => "Hysteria2".to_string(),
+                "NAIVEPROXY" => "NaiveProxy".to_string(),
+                "WIREGUARD" => "WireGuard".to_string(),
+                "SHADOWSOCKS" => "Shadowsocks".to_string(),
+                "TRUSTTUNNEL" => "TrustTunnel".to_string(),
+                _ => value.to_string(),
             },
-        );
-    }
-    options
+        })
+        .collect()
 }
 
 fn normalize_protocol_for_core(core_type: &str, protocol: &str) -> String {
@@ -770,13 +749,14 @@ fn normalize_protocol_for_core(core_type: &str, protocol: &str) -> String {
     if core_type == "TRUSTTUNNEL" {
         return "TRUSTTUNNEL".to_string();
     }
-    if protocol == "TRUSTTUNNEL" {
-        return "VLESS".to_string();
+    let supported = supported_protocol_values_for_core(&core_type);
+    if supported.iter().any(|candidate| *candidate == protocol) {
+        return protocol;
     }
-    if protocol == "HYSTERIA2" && !supports_hysteria2(&core_type) {
-        return "VLESS".to_string();
-    }
-    protocol
+    supported
+        .first()
+        .map(|value| (*value).to_string())
+        .unwrap_or_default()
 }
 
 fn inbound_traffic_label(inbound: &InboundEntryDraft) -> String {
@@ -793,7 +773,12 @@ fn inbound_traffic_label(inbound: &InboundEntryDraft) -> String {
         }
         "HYSTERIA2" => "QUIC".to_string(),
         "TRUSTTUNNEL" => "http2".to_string(),
-        "NAIVEPROXY" => inbound.naive_proxy.protocol.clone(),
+        "NAIVEPROXY" => match inbound.naive_proxy.network.trim() {
+            "" => "TCP+UDP".to_string(),
+            "tcp" => "TCP".to_string(),
+            "udp" => "UDP".to_string(),
+            other => other.to_string(),
+        },
         "WIREGUARD" => "UDP".to_string(),
         "SOCKS5" => {
             if inbound.socks5.udp_enabled {
@@ -1710,10 +1695,11 @@ fn build_full_config(
                 ),
                 "NAIVEPROXY" => Some(crate::pb::proxyswarm::inbound_config::Protocol::Naiveproxy(
                     NaiveProxyConfig {
-                        username: inbound.naive_proxy.username.clone(),
-                        password: inbound.naive_proxy.password.clone(),
-                        protocol: inbound.naive_proxy.protocol.clone(),
-                        target: inbound.naive_proxy.target.clone(),
+                        network: inbound.naive_proxy.network.clone(),
+                        quic_congestion_control: inbound
+                            .naive_proxy
+                            .quic_congestion_control
+                            .clone(),
                         tls: tls.clone(),
                     },
                 )),
@@ -2916,6 +2902,7 @@ fn inbound_creation_steps(inbound: &InboundEntryDraft) -> usize {
         }
         "HYSTERIA2" => 4,
         "TRUSTTUNNEL" => 4,
+        "NAIVEPROXY" => 4,
         "WIREGUARD" => 3,
         _ => 3,
     }
@@ -3118,10 +3105,22 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                             },
                                             "NAIVEPROXY" => html! {
                                                 <ConfigSection title="NaiveProxy">
-                                                    <TextBox label="Username" value={data.naive_proxy.username.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.username = value)} />
-                                                    <TextBox label="Password" value={data.naive_proxy.password.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.password = value)} />
-                                                    <TextBox label="Protocol" value={data.naive_proxy.protocol.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.protocol = value)} placeholder="h2 / h3" />
-                                                    <TextBox label="Target" value={data.naive_proxy.target.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.target = value)} />
+                                                    <Dropdown
+                                                        label="Network"
+                                                        value={data.naive_proxy.network.clone()}
+                                                        options={vec![
+                                                            DropdownOption { value: "".to_string(), label: "Both (TCP + UDP)".to_string() },
+                                                            DropdownOption { value: "tcp".to_string(), label: "TCP".to_string() },
+                                                            DropdownOption { value: "udp".to_string(), label: "UDP".to_string() },
+                                                        ]}
+                                                        onchange={update_text(|inbound, value| inbound.naive_proxy.network = value)}
+                                                    />
+                                                    <TextBox
+                                                        label="QUIC congestion control"
+                                                        value={data.naive_proxy.quic_congestion_control.clone()}
+                                                        onchange={update_text(|inbound, value| inbound.naive_proxy.quic_congestion_control = value)}
+                                                        placeholder="bbr / bbr2 / cubic / reno"
+                                                    />
                                                 </ConfigSection>
                                             },
                                             "WIREGUARD" => html! {
@@ -3226,6 +3225,17 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                 </ConfigSection>
                             },
                             2 if data.protocol == "TRUSTTUNNEL" => html! {
+                                <ConfigSection title="TLS">
+                                    <TextBox label="Server Name" value={data.tls.server_name.clone()} onchange={update_text(|inbound, value| inbound.tls.server_name = value)} />
+                                    <Dropdown
+                                        label="Certificate"
+                                        value={data.tls.certificate_name.clone()}
+                                        options={certificate_options.clone()}
+                                        onchange={update_text(|inbound, value| inbound.tls.certificate_name = value)}
+                                    />
+                                </ConfigSection>
+                            },
+                            2 if data.protocol == "NAIVEPROXY" => html! {
                                 <ConfigSection title="TLS">
                                     <TextBox label="Server Name" value={data.tls.server_name.clone()} onchange={update_text(|inbound, value| inbound.tls.server_name = value)} />
                                     <Dropdown
@@ -3529,10 +3539,22 @@ fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                         },
                         "NAIVEPROXY" => html! {
                             <ConfigSection title="NaiveProxy">
-                                <TextBox label="Username" value={data.naive_proxy.username.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.username = value)} />
-                                <TextBox label="Password" value={data.naive_proxy.password.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.password = value)} />
-                                <TextBox label="Protocol" value={data.naive_proxy.protocol.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.protocol = value)} placeholder="h2 / h3" />
-                                <TextBox label="Target" value={data.naive_proxy.target.clone()} onchange={update_text(|inbound, value| inbound.naive_proxy.target = value)} />
+                                <Dropdown
+                                    label="Network"
+                                    value={data.naive_proxy.network.clone()}
+                                    options={vec![
+                                        DropdownOption { value: "".to_string(), label: "Both (TCP + UDP)".to_string() },
+                                        DropdownOption { value: "tcp".to_string(), label: "TCP".to_string() },
+                                        DropdownOption { value: "udp".to_string(), label: "UDP".to_string() },
+                                    ]}
+                                    onchange={update_text(|inbound, value| inbound.naive_proxy.network = value)}
+                                />
+                                <TextBox
+                                    label="QUIC congestion control"
+                                    value={data.naive_proxy.quic_congestion_control.clone()}
+                                    onchange={update_text(|inbound, value| inbound.naive_proxy.quic_congestion_control = value)}
+                                    placeholder="bbr / bbr2 / cubic / reno"
+                                />
                             </ConfigSection>
                         },
                         "WIREGUARD" => html! {

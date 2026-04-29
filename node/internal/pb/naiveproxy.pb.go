@@ -22,14 +22,12 @@ const (
 )
 
 type NaiveProxyConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
-	Protocol      string                 `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"` // "h2" or "h3"
-	Target        string                 `protobuf:"bytes,4,opt,name=target,proto3" json:"target,omitempty"`
-	Tls           *TLSConfig             `protobuf:"bytes,5,opt,name=tls,proto3" json:"tls,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Network               string                 `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"` // "tcp", "udp", or empty for both
+	QuicCongestionControl string                 `protobuf:"bytes,2,opt,name=quic_congestion_control,json=quicCongestionControl,proto3" json:"quic_congestion_control,omitempty"`
+	Tls                   *TLSConfig             `protobuf:"bytes,3,opt,name=tls,proto3" json:"tls,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *NaiveProxyConfig) Reset() {
@@ -62,30 +60,16 @@ func (*NaiveProxyConfig) Descriptor() ([]byte, []int) {
 	return file_node_naiveproxy_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *NaiveProxyConfig) GetUsername() string {
+func (x *NaiveProxyConfig) GetNetwork() string {
 	if x != nil {
-		return x.Username
+		return x.Network
 	}
 	return ""
 }
 
-func (x *NaiveProxyConfig) GetPassword() string {
+func (x *NaiveProxyConfig) GetQuicCongestionControl() string {
 	if x != nil {
-		return x.Password
-	}
-	return ""
-}
-
-func (x *NaiveProxyConfig) GetProtocol() string {
-	if x != nil {
-		return x.Protocol
-	}
-	return ""
-}
-
-func (x *NaiveProxyConfig) GetTarget() string {
-	if x != nil {
-		return x.Target
+		return x.QuicCongestionControl
 	}
 	return ""
 }
@@ -102,13 +86,11 @@ var File_node_naiveproxy_proto protoreflect.FileDescriptor
 const file_node_naiveproxy_proto_rawDesc = "" +
 	"\n" +
 	"\x15node/naiveproxy.proto\x12\n" +
-	"proxyswarm\x1a\x11node/common.proto\"\xa7\x01\n" +
-	"\x10NaiveProxyConfig\x12\x1a\n" +
-	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1a\n" +
-	"\bprotocol\x18\x03 \x01(\tR\bprotocol\x12\x16\n" +
-	"\x06target\x18\x04 \x01(\tR\x06target\x12'\n" +
-	"\x03tls\x18\x05 \x01(\v2\x15.proxyswarm.TLSConfigR\x03tlsB\x06Z\x04./pbb\x06proto3"
+	"proxyswarm\x1a\x11node/common.proto\"\x8d\x01\n" +
+	"\x10NaiveProxyConfig\x12\x18\n" +
+	"\anetwork\x18\x01 \x01(\tR\anetwork\x126\n" +
+	"\x17quic_congestion_control\x18\x02 \x01(\tR\x15quicCongestionControl\x12'\n" +
+	"\x03tls\x18\x03 \x01(\v2\x15.proxyswarm.TLSConfigR\x03tlsB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_node_naiveproxy_proto_rawDescOnce sync.Once

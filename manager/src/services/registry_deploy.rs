@@ -445,11 +445,8 @@ fn build_naiveproxy_template(
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
     let host = normalized_node_host(node)?;
-    let username = inbound.naive_proxy.username.trim();
-    let password = inbound.naive_proxy.password.trim();
-    if username.is_empty() || password.is_empty() {
-        return Err("NaiveProxy username/password is empty".to_string());
-    }
+    let username = "{{name}}";
+    let password = "{{token}}";
 
     Ok(format!(
         "naive+https://{}:{}@{}:{}#{}",

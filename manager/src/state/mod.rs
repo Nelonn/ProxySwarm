@@ -376,10 +376,8 @@ fn default_http2_header_table_size() -> u32 {
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NaiveProxyDraft {
-    pub username: String,
-    pub password: String,
-    pub protocol: String,
-    pub target: String,
+    pub network: String,
+    pub quic_congestion_control: String,
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]

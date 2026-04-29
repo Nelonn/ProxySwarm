@@ -275,16 +275,12 @@ pub struct TrustTunnelConfig {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct NaiveProxyConfig {
+    /// "tcp", "udp", or empty for both
     #[prost(string, tag = "1")]
-    pub username: ::prost::alloc::string::String,
+    pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    /// "h2" or "h3"
-    #[prost(string, tag = "3")]
-    pub protocol: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub target: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "5")]
+    pub quic_congestion_control: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "3")]
     pub tls: ::core::option::Option<TlsConfig>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]

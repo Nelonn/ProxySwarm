@@ -310,6 +310,14 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		if tlsOptions != nil {
 			inbound["tls"] = tlsOptions
 		}
+		network := strings.TrimSpace(p.Naiveproxy.Network)
+		if network != "" {
+			inbound["network"] = network
+		}
+		quicCongestionControl := strings.TrimSpace(p.Naiveproxy.QuicCongestionControl)
+		if quicCongestionControl != "" {
+			inbound["quic_congestion_control"] = quicCongestionControl
+		}
 
 	case *pb.InboundConfig_Socks5:
 		inbound["type"] = "socks"
