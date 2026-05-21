@@ -7,6 +7,7 @@ pub(super) struct PopupHostContext<'a> {
     pub(super) draft_value: &'a NodeConfigDraft,
     pub(super) snackbar: &'a Option<SnackbarBus>,
     pub(super) editing_routing_rule: &'a UseStateHandle<Option<(usize, RoutingRuleDraft, bool)>>,
+    pub(super) editing_reverse_proxy: &'a UseStateHandle<Option<(usize, ReverseProxyDraft, bool)>>,
     pub(super) pending_routing_delete: &'a UseStateHandle<Option<usize>>,
     pub(super) pending_inbound_delete: &'a UseStateHandle<Option<(String, String)>>,
     pub(super) pending_duplicate_inbound: &'a UseStateHandle<Option<InboundEntryDraft>>,
@@ -36,6 +37,7 @@ trait NodeConfigPopup {
 }
 
 struct RoutingRuleEditorPopupSlot;
+struct ReverseProxyEditorPopupSlot;
 struct DeployConfirmPopupSlot;
 struct DeployPreviewPopupSlot;
 struct DeleteInboundPopupSlot;
@@ -57,6 +59,10 @@ struct AccessLinkPopupSlot;
 
 impl NodeConfigPopup for RoutingRuleEditorPopupSlot {
     fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_routing_rule_editor_popup(ctx) }
+}
+
+impl NodeConfigPopup for ReverseProxyEditorPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_reverse_proxy_editor_popup(ctx) }
 }
 
 impl NodeConfigPopup for DeployConfirmPopupSlot {
@@ -134,6 +140,7 @@ impl NodeConfigPopup for AccessLinkPopupSlot {
 fn popup_slots() -> Vec<Box<dyn NodeConfigPopup>> {
     vec![
         Box::new(RoutingRuleEditorPopupSlot),
+        Box::new(ReverseProxyEditorPopupSlot),
         Box::new(DeployConfirmPopupSlot),
         Box::new(DeployPreviewPopupSlot),
         Box::new(InboundActionMenuPopupSlot),
@@ -227,6 +234,41 @@ fn render_routing_rule_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
                         sync_draft(&mut next);
                         draft.set(next);
                         editing_routing_rule.set(None);
+                    }
+                })}
+            />
+        }
+    } else {
+        html! {}
+    }
+}
+
+fn render_reverse_proxy_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
+    if let Some((reverse_proxy_index, reverse_proxy, is_new)) = &**ctx.editing_reverse_proxy {
+        html! {
+            <ReverseProxyEditorPopup
+                reverse_proxy={reverse_proxy.clone()}
+                is_new={*is_new}
+                inbound_options={routing_inbound_options(ctx.draft_value)}
+                on_close={Callback::from({
+                    let editing_reverse_proxy = ctx.editing_reverse_proxy.clone();
+                    move |_| editing_reverse_proxy.set(None)
+                })}
+                on_save={Callback::from({
+                    let draft = ctx.draft.clone();
+                    let editing_reverse_proxy = ctx.editing_reverse_proxy.clone();
+                    let reverse_proxy_index = *reverse_proxy_index;
+                    move |reverse_proxy: ReverseProxyDraft| {
+                        let mut next = (*draft).clone();
+                        sync_draft(&mut next);
+                        if let Some(existing) = next.reverse_proxies.get_mut(reverse_proxy_index) {
+                            *existing = reverse_proxy;
+                        } else {
+                            next.reverse_proxies.push(reverse_proxy);
+                        }
+                        sync_draft(&mut next);
+                        draft.set(next);
+                        editing_reverse_proxy.set(None);
                     }
                 })}
             />

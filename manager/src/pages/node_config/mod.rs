@@ -85,6 +85,7 @@ use outbound_editor::*;
 use popup_host::*;
 use popups::*;
 use review::*;
+use routing::*;
 use routing_rule_editor::*;
 use status_widgets::*;
 
@@ -212,6 +213,7 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
     let editing_dns_server = use_state(|| Option::<(usize, DnsServerDraft, bool)>::None);
     let editing_dns_host = use_state(|| Option::<(usize, DnsHostDraft, bool)>::None);
     let editing_routing_rule = use_state(|| Option::<(usize, RoutingRuleDraft, bool)>::None);
+    let editing_reverse_proxy = use_state(|| Option::<(usize, ReverseProxyDraft, bool)>::None);
     let pending_routing_delete = use_state(|| Option::<usize>::None);
     let action_inbound = use_state(|| Option::<(String, (f64, f64, f64))>::None);
     let pending_inbound_delete = use_state(|| Option::<(String, String)>::None);
@@ -507,6 +509,7 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                         &draft,
                         &routing_rules,
                         &editing_routing_rule,
+                        &editing_reverse_proxy,
                         &pending_routing_delete,
                         &routing_move_anim,
                     ),
@@ -548,6 +551,7 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                 draft_value: &d,
                 snackbar: &snackbar,
                 editing_routing_rule: &editing_routing_rule,
+                editing_reverse_proxy: &editing_reverse_proxy,
                 pending_routing_delete: &pending_routing_delete,
                 pending_inbound_delete: &pending_inbound_delete,
                 pending_duplicate_inbound: &pending_duplicate_inbound,

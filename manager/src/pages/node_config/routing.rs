@@ -4,16 +4,10 @@ pub(super) fn render_routing_tab(
     draft: &UseStateHandle<NodeConfigDraft>,
     routing_rules: &[RoutingRuleDraft],
     editing_routing_rule: &UseStateHandle<Option<(usize, RoutingRuleDraft, bool)>>,
+    editing_reverse_proxy: &UseStateHandle<Option<(usize, ReverseProxyDraft, bool)>>,
     pending_routing_delete: &UseStateHandle<Option<usize>>,
     routing_move_anim: &UseStateHandle<Option<(usize, bool)>>,
 ) -> Html {
-    let inbound_options = draft
-        .inbounds
-        .iter()
-        .map(|inbound| inbound.name.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .collect::<Vec<_>>();
-
     html! {
         <div class="space-y-6">
             <div class="md3-card bg-surface-container space-y-4">
@@ -27,14 +21,8 @@ pub(super) fn render_routing_tab(
                         icon={Some("icon-add".to_string())}
                         button_type={ButtonType::Filled}
                         onclick={Callback::from({
-                            let draft = draft.clone();
-                            move |_| {
-                                let mut next = (*draft).clone();
-                                sync_draft(&mut next);
-                                next.reverse_proxies.push(default_reverse_proxy_entry());
-                                sync_draft(&mut next);
-                                draft.set(next);
-                            }
+                            let editing_reverse_proxy = editing_reverse_proxy.clone();
+                            move |_| editing_reverse_proxy.set(Some((usize::MAX, default_reverse_proxy_entry(), true)))
                         })}
                     />
                 </div>
@@ -47,179 +35,81 @@ pub(super) fn render_routing_tab(
                             <div class="space-y-4">
                                 {
                                     for draft.reverse_proxies.iter().enumerate().map(|(idx, reverse_proxy)| {
-                                        let portal_options = std::iter::once(DropdownOption {
-                                            value: String::new(),
-                                            label: "Select inbound".to_string(),
-                                        })
-                                        .chain(inbound_options.iter().map(|name| DropdownOption {
-                                            value: name.clone(),
-                                            label: name.clone(),
-                                        }))
-                                        .collect::<Vec<_>>();
-
                                         html! {
                                             <div class="md3-card space-y-4">
                                                 <div class="flex justify-between" style="align-items: center; gap: 16px;">
-                                                    <div class="font-semibold">{ reverse_proxy_display_name(reverse_proxy, idx) }</div>
-                                                    <Button
-                                                        label="Delete"
-                                                        button_type={ButtonType::Text}
-                                                        color={Some("#F2B8B5".to_string())}
-                                                        onclick={Callback::from({
-                                                            let draft = draft.clone();
-                                                            move |_| {
-                                                                let mut next = (*draft).clone();
-                                                                sync_draft(&mut next);
-                                                                if idx < next.reverse_proxies.len() {
-                                                                    next.reverse_proxies.remove(idx);
+                                                    <div>
+                                                        <div class="font-semibold">{ reverse_proxy_display_name(reverse_proxy, idx) }</div>
+                                                        <div class="text-sm opacity-70">{ if reverse_proxy.enabled { "Enabled" } else { "Disabled" } }</div>
+                                                    </div>
+                                                    <div class="md3-list-actions">
+                                                        <Button
+                                                            label="Edit"
+                                                            icon={Some("icon-edit".to_string())}
+                                                            button_type={ButtonType::Outlined}
+                                                            onclick={Callback::from({
+                                                                let editing_reverse_proxy = editing_reverse_proxy.clone();
+                                                                let reverse_proxy = reverse_proxy.clone();
+                                                                move |_| editing_reverse_proxy.set(Some((idx, reverse_proxy.clone(), false)))
+                                                            })}
+                                                        />
+                                                        <Button
+                                                            label="Delete"
+                                                            button_type={ButtonType::Text}
+                                                            color={Some("#F2B8B5".to_string())}
+                                                            onclick={Callback::from({
+                                                                let draft = draft.clone();
+                                                                move |_| {
+                                                                    let mut next = (*draft).clone();
+                                                                    sync_draft(&mut next);
+                                                                    if idx < next.reverse_proxies.len() {
+                                                                        next.reverse_proxies.remove(idx);
+                                                                    }
+                                                                    sync_draft(&mut next);
+                                                                    draft.set(next);
                                                                 }
-                                                                sync_draft(&mut next);
-                                                                draft.set(next);
-                                                            }
-                                                        })}
-                                                    />
+                                                            })}
+                                                        />
+                                                    </div>
                                                 </div>
 
-                                                <SwitchField
-                                                    label="Enabled"
-                                                    checked={reverse_proxy.enabled}
-                                                    onchange={Callback::from({
-                                                        let draft = draft.clone();
-                                                        move |e: Event| {
-                                                            let input = e.target_unchecked_into::<web_sys::HtmlInputElement>();
-                                                            let mut next = (*draft).clone();
-                                                            sync_draft(&mut next);
-                                                            if let Some(item) = next.reverse_proxies.get_mut(idx) {
-                                                                item.enabled = input.checked();
+                                                <div class="grid grid-cols-1 md-grid-cols-3 gap-6">
+                                                    <div>
+                                                        <div class="text-sm opacity-70">{ "Mode" }</div>
+                                                        <div>{ optional_label(&reverse_proxy.mode) }</div>
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-sm opacity-70">{ "Reverse Domain" }</div>
+                                                        <div>{ optional_label(&reverse_proxy.domain) }</div>
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-sm opacity-70">{ "Reverse Tag" }</div>
+                                                        <div>{ optional_label(&reverse_proxy.tag) }</div>
+                                                    </div>
+                                                    {
+                                                        if reverse_proxy.mode == "bridge" {
+                                                            html! {
+                                                                <>
+                                                                    <div>
+                                                                        <div class="text-sm opacity-70">{ "Bridge Outbound Tag" }</div>
+                                                                        <div>{ optional_label(&reverse_proxy.bridge_outbound_tag) }</div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div class="text-sm opacity-70">{ "Target Outbound Tag" }</div>
+                                                                        <div>{ optional_label(&reverse_proxy.target_outbound_tag) }</div>
+                                                                    </div>
+                                                                </>
                                                             }
-                                                            sync_draft(&mut next);
-                                                            draft.set(next);
-                                                        }
-                                                    })}
-                                                />
-
-                                                <Dropdown
-                                                    label="Mode"
-                                                    value={reverse_proxy.mode.clone()}
-                                                    options={vec![
-                                                        DropdownOption { value: "portal".to_string(), label: "Portal".to_string() },
-                                                        DropdownOption { value: "bridge".to_string(), label: "Bridge".to_string() },
-                                                    ]}
-                                                    onchange={Callback::from({
-                                                        let draft = draft.clone();
-                                                        move |value: String| {
-                                                            let mut next = (*draft).clone();
-                                                            sync_draft(&mut next);
-                                                            if let Some(item) = next.reverse_proxies.get_mut(idx) {
-                                                                item.mode = value;
+                                                        } else {
+                                                            html! {
+                                                                <div>
+                                                                    <div class="text-sm opacity-70">{ "Portal Inbound Tag" }</div>
+                                                                    <div>{ optional_label(&reverse_proxy.portal_inbound_tag) }</div>
+                                                                </div>
                                                             }
-                                                            sync_draft(&mut next);
-                                                            draft.set(next);
-                                                        }
-                                                    })}
-                                                />
-
-                                                <TextBox
-                                                    label="Reverse Tag"
-                                                    value={reverse_proxy.tag.clone()}
-                                                    onchange={Callback::from({
-                                                        let draft = draft.clone();
-                                                        move |value: String| {
-                                                            let mut next = (*draft).clone();
-                                                            sync_draft(&mut next);
-                                                            if let Some(item) = next.reverse_proxies.get_mut(idx) {
-                                                                item.tag = value;
-                                                            }
-                                                            sync_draft(&mut next);
-                                                            draft.set(next);
-                                                        }
-                                                    })}
-                                                    placeholder="portal"
-                                                />
-
-                                                <TextBox
-                                                    label="Reverse Domain"
-                                                    value={reverse_proxy.domain.clone()}
-                                                    onchange={Callback::from({
-                                                        let draft = draft.clone();
-                                                        move |value: String| {
-                                                            let mut next = (*draft).clone();
-                                                            sync_draft(&mut next);
-                                                            if let Some(item) = next.reverse_proxies.get_mut(idx) {
-                                                                item.domain = value;
-                                                            }
-                                                            sync_draft(&mut next);
-                                                            draft.set(next);
-                                                        }
-                                                    })}
-                                                    placeholder="reverse.local"
-                                                />
-
-                                                {
-                                                    if reverse_proxy.mode == "bridge" {
-                                                        html! {
-                                                            <>
-                                                                <TextBox
-                                                                    label="Bridge Outbound Tag"
-                                                                    value={reverse_proxy.bridge_outbound_tag.clone()}
-                                                                    onchange={Callback::from({
-                                                                        let draft = draft.clone();
-                                                                        move |value: String| {
-                                                                            let mut next = (*draft).clone();
-                                                                            sync_draft(&mut next);
-                                                                            if let Some(item) = next.reverse_proxies.get_mut(idx) {
-                                                                                item.bridge_outbound_tag = value;
-                                                                            }
-                                                                            sync_draft(&mut next);
-                                                                            draft.set(next);
-                                                                        }
-                                                                    })}
-                                                                    placeholder="interconn"
-                                                                />
-                                                                <TextBox
-                                                                    label="Target Outbound Tag"
-                                                                    value={reverse_proxy.target_outbound_tag.clone()}
-                                                                    onchange={Callback::from({
-                                                                        let draft = draft.clone();
-                                                                        move |value: String| {
-                                                                            let mut next = (*draft).clone();
-                                                                            sync_draft(&mut next);
-                                                                            if let Some(item) = next.reverse_proxies.get_mut(idx) {
-                                                                                item.target_outbound_tag = value;
-                                                                            }
-                                                                            sync_draft(&mut next);
-                                                                            draft.set(next);
-                                                                        }
-                                                                    })}
-                                                                    placeholder="direct"
-                                                                />
-                                                            </>
-                                                        }
-                                                    } else {
-                                                        html! {
-                                                            <>
-                                                                <Dropdown
-                                                                    label="Portal Inbound Tag"
-                                                                    value={reverse_proxy.portal_inbound_tag.clone()}
-                                                                    options={portal_options}
-                                                                    onchange={Callback::from({
-                                                                        let draft = draft.clone();
-                                                                        move |value: String| {
-                                                                            let mut next = (*draft).clone();
-                                                                            sync_draft(&mut next);
-                                                                            if let Some(item) = next.reverse_proxies.get_mut(idx) {
-                                                                                item.portal_inbound_tag = value;
-                                                                            }
-                                                                            sync_draft(&mut next);
-                                                                            draft.set(next);
-                                                                        }
-                                                                    })}
-                                                                />
-                                                                <div class="text-sm opacity-70">{ "Portal inbound tag must match the name of a real inbound on this node." }</div>
-                                                            </>
                                                         }
                                                     }
-                                                }
+                                                </div>
                                             </div>
                                         }
                                     })
@@ -444,5 +334,142 @@ pub(super) fn render_routing_tab(
                 </div>
             </ConfigSection>
         </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub(super) struct ReverseProxyEditorPopupProps {
+    pub(super) reverse_proxy: ReverseProxyDraft,
+    pub(super) is_new: bool,
+    pub(super) inbound_options: Vec<String>,
+    pub(super) on_close: Callback<()>,
+    pub(super) on_save: Callback<ReverseProxyDraft>,
+}
+
+#[function_component(ReverseProxyEditorPopup)]
+pub(super) fn reverse_proxy_editor_popup(props: &ReverseProxyEditorPopupProps) -> Html {
+    let reverse_proxy = use_state(|| props.reverse_proxy.clone());
+    {
+        let reverse_proxy = reverse_proxy.clone();
+        let incoming = props.reverse_proxy.clone();
+        use_effect_with(incoming, move |next_reverse_proxy| {
+            reverse_proxy.set(next_reverse_proxy.clone());
+            || ()
+        });
+    }
+
+    let on_text_change = |mutator: fn(&mut ReverseProxyDraft, String)| {
+        let reverse_proxy = reverse_proxy.clone();
+        Callback::from(move |value: String| {
+            let mut next = (*reverse_proxy).clone();
+            mutator(&mut next, value);
+            reverse_proxy.set(next);
+        })
+    };
+
+    let on_bool_change = |mutator: fn(&mut ReverseProxyDraft, bool)| {
+        let reverse_proxy = reverse_proxy.clone();
+        Callback::from(move |e: Event| {
+            let input = e.target_unchecked_into::<web_sys::HtmlInputElement>();
+            let mut next = (*reverse_proxy).clone();
+            mutator(&mut next, input.checked());
+            reverse_proxy.set(next);
+        })
+    };
+
+    let data = (*reverse_proxy).clone();
+    let portal_options = std::iter::once(DropdownOption {
+        value: String::new(),
+        label: "Select inbound".to_string(),
+    })
+    .chain(props.inbound_options.iter().map(|name| DropdownOption {
+        value: name.clone(),
+        label: name.clone(),
+    }))
+    .collect::<Vec<_>>();
+    let save_disabled = data.mode.trim().is_empty()
+        || data.tag.trim().is_empty()
+        || data.domain.trim().is_empty()
+        || (data.mode == "bridge" && data.bridge_outbound_tag.trim().is_empty())
+        || (data.mode == "portal" && data.portal_inbound_tag.trim().is_empty());
+
+    html! {
+        <Popup
+            title={if props.is_new { "Add Xray Reverse Proxy" } else { "Edit Xray Reverse Proxy" }}
+            size={PopupSize::Md}
+            on_close={props.on_close.clone()}
+        >
+            <div class="space-y-4">
+                <SwitchField
+                    label="Enabled"
+                    checked={data.enabled}
+                    onchange={on_bool_change(|draft, value| draft.enabled = value)}
+                />
+                <Dropdown
+                    label="Mode"
+                    value={data.mode.clone()}
+                    options={vec![
+                        DropdownOption { value: "portal".to_string(), label: "Portal".to_string() },
+                        DropdownOption { value: "bridge".to_string(), label: "Bridge".to_string() },
+                    ]}
+                    onchange={on_text_change(|draft, value| draft.mode = value)}
+                />
+                <TextBox
+                    label="Reverse Tag"
+                    value={data.tag.clone()}
+                    onchange={on_text_change(|draft, value| draft.tag = value)}
+                    placeholder="portal"
+                />
+                <TextBox
+                    label="Reverse Domain"
+                    value={data.domain.clone()}
+                    onchange={on_text_change(|draft, value| draft.domain = value)}
+                    placeholder="reverse.local"
+                />
+                {
+                    if data.mode == "bridge" {
+                        html! {
+                            <>
+                                <TextBox
+                                    label="Bridge Outbound Tag"
+                                    value={data.bridge_outbound_tag.clone()}
+                                    onchange={on_text_change(|draft, value| draft.bridge_outbound_tag = value)}
+                                    placeholder="interconn"
+                                />
+                                <TextBox
+                                    label="Target Outbound Tag"
+                                    value={data.target_outbound_tag.clone()}
+                                    onchange={on_text_change(|draft, value| draft.target_outbound_tag = value)}
+                                    placeholder="direct"
+                                />
+                            </>
+                        }
+                    } else {
+                        html! {
+                            <>
+                                <Dropdown
+                                    label="Portal Inbound Tag"
+                                    value={data.portal_inbound_tag.clone()}
+                                    options={portal_options}
+                                    onchange={on_text_change(|draft, value| draft.portal_inbound_tag = value)}
+                                />
+                                <div class="text-sm opacity-70">{ "Portal inbound tag must match the name of a real inbound on this node." }</div>
+                            </>
+                        }
+                    }
+                }
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button label="Cancel" button_type={ButtonType::Text} onclick={Callback::from({
+                        let on_close = props.on_close.clone();
+                        move |_| on_close.emit(())
+                    })} />
+                    <Button label={if props.is_new { "Add Reverse" } else { "Apply Changes" }} button_type={ButtonType::Filled} disabled={save_disabled} onclick={Callback::from({
+                        let on_save = props.on_save.clone();
+                        let reverse_proxy = reverse_proxy.clone();
+                        move |_| on_save.emit((*reverse_proxy).clone())
+                    })} />
+                </div>
+            </div>
+        </Popup>
     }
 }
