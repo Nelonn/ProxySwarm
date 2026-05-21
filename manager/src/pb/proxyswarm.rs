@@ -387,7 +387,10 @@ pub struct ReverseProxyConfig {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct TunnelConfig {}
+pub struct TunnelConfig {
+    #[prost(bool, tag = "1")]
+    pub active: bool,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TProxyConfig {

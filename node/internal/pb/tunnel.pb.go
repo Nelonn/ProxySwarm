@@ -23,6 +23,7 @@ const (
 
 type TunnelConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Active        bool                   `protobuf:"varint,1,opt,name=active,proto3" json:"active,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -57,13 +58,21 @@ func (*TunnelConfig) Descriptor() ([]byte, []int) {
 	return file_node_tunnel_proto_rawDescGZIP(), []int{0}
 }
 
+func (x *TunnelConfig) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
 var File_node_tunnel_proto protoreflect.FileDescriptor
 
 const file_node_tunnel_proto_rawDesc = "" +
 	"\n" +
 	"\x11node/tunnel.proto\x12\n" +
-	"proxyswarm\"\x0e\n" +
-	"\fTunnelConfigB\x06Z\x04./pbb\x06proto3"
+	"proxyswarm\"&\n" +
+	"\fTunnelConfig\x12\x16\n" +
+	"\x06active\x18\x01 \x01(\bR\x06activeB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_node_tunnel_proto_rawDescOnce sync.Once

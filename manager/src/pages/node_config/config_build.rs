@@ -238,7 +238,7 @@ pub(super) fn build_full_config(
                     },
                 )),
                 "TUNNEL" => Some(crate::pb::proxyswarm::inbound_config::Protocol::Tunnel(
-                    TunnelConfig {},
+                    TunnelConfig { active: true },
                 )),
                 _ => Some(crate::pb::proxyswarm::inbound_config::Protocol::Vless(
                     VlessConfig {
