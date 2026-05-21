@@ -109,7 +109,7 @@ pub(super) fn build_full_config(
             token: account.token.clone(),
         })
         .collect();
-    let inbounds = normalized_inbounds(draft)
+    let mut inbounds: Vec<InboundConfig> = normalized_inbounds(draft)
         .into_iter()
         .map(|inbound| {
             let normalized_protocol =
@@ -260,6 +260,35 @@ pub(super) fn build_full_config(
             }
         })
         .collect();
+
+    let normalized_reverse_proxies = {
+        let mut copy = draft.clone();
+        sync_draft(&mut copy);
+        copy.reverse_proxies
+    };
+    for reverse_proxy in normalized_reverse_proxies {
+        if !reverse_proxy.enabled {
+            continue;
+        }
+        inbounds.push(InboundConfig {
+            name: reverse_proxy.tag.clone(),
+            listen: String::new(),
+            port: 0,
+            accounts: Vec::new(),
+            enabled: true,
+            core: CoreType::Xray as i32,
+            protocol: Some(crate::pb::proxyswarm::inbound_config::Protocol::Reverseproxy(
+                ReverseProxyConfig {
+                    mode: reverse_proxy.mode,
+                    tag: reverse_proxy.tag,
+                    domain: reverse_proxy.domain,
+                    bridge_outbound_tag: reverse_proxy.bridge_outbound_tag,
+                    target_outbound_tag: reverse_proxy.target_outbound_tag,
+                    portal_inbound_tag: reverse_proxy.portal_inbound_tag,
+                },
+            )),
+        });
+    }
 
     let mut outbounds = vec![];
 

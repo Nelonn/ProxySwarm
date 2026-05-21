@@ -41,6 +41,7 @@ pub(super) fn render_inbounds_tab(
                                                 <div class="md3-list-row">
                                                     <div class="md3-list-col-main">
                                                         <div class="font-semibold">{ inbound.name.clone() }</div>
+                                                        <div class="text-sm opacity-70">{ inbound_groups_label(inbound) }</div>
                                                     </div>
                                                     <div class="md3-list-col">{ inbound.port }</div>
                                                     <div class="md3-list-col">{ inbound.protocol.clone() }</div>

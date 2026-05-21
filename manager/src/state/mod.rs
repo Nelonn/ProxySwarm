@@ -137,6 +137,18 @@ pub fn normalize_groups(values: &[String]) -> Vec<String> {
     groups
 }
 
+pub fn effective_inbound_groups(node_groups: &[String], inbound_groups: &[String]) -> Vec<String> {
+    let node_groups = normalize_groups(node_groups);
+    let inbound_groups = normalize_groups(inbound_groups);
+    if inbound_groups.is_empty() {
+        return node_groups;
+    }
+    inbound_groups
+        .into_iter()
+        .filter(|group| node_groups.iter().any(|candidate| candidate == group))
+        .collect()
+}
+
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProxyNode {
     pub id: String,
@@ -172,6 +184,8 @@ pub struct NodeConfigRevision {
 pub struct NodeConfigDraft {
     #[serde(default)]
     pub inbounds: Vec<InboundEntryDraft>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reverse_proxies: Vec<ReverseProxyDraft>,
     #[serde(default)]
     pub outbounds: Vec<OutboundEntryDraft>,
     #[serde(default)]
@@ -192,6 +206,9 @@ impl NodeConfigDraft {
         let mut cloned = self.clone();
         for inbound in &mut cloned.inbounds {
             sanitize_inbound_for_storage(inbound);
+        }
+        for reverse_proxy in &mut cloned.reverse_proxies {
+            sanitize_reverse_proxy_for_storage(reverse_proxy);
         }
         for outbound in &mut cloned.outbounds {
             sanitize_outbound_for_storage(outbound);
@@ -256,6 +273,8 @@ pub struct OutboundEntryDraft {
 pub struct InboundEntryDraft {
     pub id: String,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub groups: Vec<String>,
     pub listen: String,
     pub port: i32,
     #[serde(default = "default_inbound_enabled")]
@@ -621,12 +640,26 @@ pub struct TrojanDraft {
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReverseProxyDraft {
+    #[serde(default = "default_inbound_enabled")]
+    pub enabled: bool,
     pub mode: String,
     pub tag: String,
     pub domain: String,
     pub bridge_outbound_tag: String,
     pub target_outbound_tag: String,
     pub portal_inbound_tag: String,
+}
+
+fn sanitize_reverse_proxy_for_storage(reverse_proxy: &mut ReverseProxyDraft) {
+    reverse_proxy.mode = reverse_proxy.mode.trim().to_lowercase();
+    if reverse_proxy.mode != "bridge" && reverse_proxy.mode != "portal" {
+        reverse_proxy.mode = "portal".to_string();
+    }
+    reverse_proxy.tag = reverse_proxy.tag.trim().to_string();
+    reverse_proxy.domain = reverse_proxy.domain.trim().to_string();
+    reverse_proxy.bridge_outbound_tag = reverse_proxy.bridge_outbound_tag.trim().to_string();
+    reverse_proxy.target_outbound_tag = reverse_proxy.target_outbound_tag.trim().to_string();
+    reverse_proxy.portal_inbound_tag = reverse_proxy.portal_inbound_tag.trim().to_string();
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -751,6 +784,7 @@ pub struct RegistryInfo {
 }
 
 fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
+    inbound.groups = normalize_groups(&inbound.groups);
     match inbound.protocol.trim().to_uppercase().as_str() {
         "VLESS" => {
             inbound.hysteria2 = Hysteria2Draft::default();

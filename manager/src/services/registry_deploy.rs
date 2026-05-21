@@ -4,8 +4,8 @@ use crate::pb::proxyswarm::{Account, RegistryServiceConfig, RegistryTemplateLink
 use crate::services::registry_api::RegistryApiService;
 use crate::storage;
 use crate::state::{
-    format_link_remark, normalize_groups, AccountInfo, InboundEntryDraft, NodeConfigDraft,
-    ProxyNode, RegistryInfo, State,
+    effective_inbound_groups, format_link_remark, normalize_groups, AccountInfo,
+    InboundEntryDraft, NodeConfigDraft, ProxyNode, RegistryInfo, State,
 };
 
 #[derive(Default, Clone)]
@@ -104,7 +104,11 @@ pub fn collect_account_proxy_links(state: &State, account: &AccountInfo) -> Acco
             if !inbound.enabled {
                 continue;
             }
-            if !groups_intersect(&account.groups, &node.groups) {
+            let template_groups = effective_inbound_groups(&node.groups, &inbound.groups);
+            if template_groups.is_empty() && !normalize_groups(&inbound.groups).is_empty() {
+                continue;
+            }
+            if !groups_intersect(&account.groups, &template_groups) {
                 continue;
             }
 
@@ -161,6 +165,16 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
             if !inbound.enabled {
                 continue;
             }
+            let template_groups = effective_inbound_groups(&node.groups, &inbound.groups);
+            if template_groups.is_empty() && !normalize_groups(&inbound.groups).is_empty() {
+                result.skipped_inbounds += 1;
+                result.failures.push(format!(
+                    "Skipped {} / {}: inbound groups do not overlap node groups",
+                    node.name.trim(),
+                    inbound_display_name(inbound),
+                ));
+                continue;
+            }
 
             match build_template_link(node, &node_config, inbound) {
                 Ok(template) => {
@@ -171,7 +185,7 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
                         inbound_name: inbound.name.clone(),
                         protocol: inbound.protocol.trim().to_uppercase(),
                         template,
-                        groups: normalize_groups(&node.groups),
+                        groups: template_groups,
                     });
                 }
                 Err(error) => {

@@ -31,7 +31,7 @@ use crate::services::warp::{
 };
 use crate::services::ApiService;
 use crate::state::{
-    default_link_remark_template, format_link_remark, normalize_groups, AccountInfo,
+    default_link_remark_template, effective_inbound_groups, format_link_remark, normalize_groups, AccountInfo,
     CertificateDraft, DnsDraft, DnsHostDraft, DnsServerDraft, Hysteria2Draft, InboundEntryDraft,
     NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision, OutboundEntryDraft, ProxyNode,
     RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State, TlsDraft, TrustTunnelDraft,

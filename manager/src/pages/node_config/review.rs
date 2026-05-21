@@ -34,6 +34,7 @@ pub(super) fn render_inbound_review(data: &InboundEntryDraft) -> Html {
             <div class="space-y-3">
                 { review_section("General", vec![
                     review_row("Name", data.name.clone()),
+                    review_row("Groups", inbound_groups_label(data)),
                     review_row("Enabled", bool_label(data.enabled)),
                     review_row("Core", optional_label(&data.core_type)),
                     review_row("Protocol", optional_label(&data.protocol)),

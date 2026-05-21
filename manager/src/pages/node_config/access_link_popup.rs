@@ -11,8 +11,21 @@ pub(super) struct AccessLinkPopupProps {
 #[function_component(AccessLinkPopup)]
 pub(super) fn access_link_popup(props: &AccessLinkPopupProps) -> Html {
     let snackbar = use_context::<SnackbarBus>();
-    let initial_account = props
+    let allowed_groups = effective_inbound_groups(&props.node.groups, &props.inbound.groups);
+    let filtered_accounts = props
         .accounts
+        .iter()
+        .filter(|account| {
+            if allowed_groups.is_empty() {
+                return normalize_groups(&props.inbound.groups).is_empty();
+            }
+            normalize_groups(&account.groups)
+                .iter()
+                .any(|group| allowed_groups.iter().any(|candidate| candidate == group))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let initial_account = filtered_accounts
         .first()
         .map(|account| account.id.clone())
         .unwrap_or_default();
@@ -20,8 +33,7 @@ pub(super) fn access_link_popup(props: &AccessLinkPopupProps) -> Html {
     let copy_status = use_state(|| Option::<String>::None);
     let generated_link = use_state(|| Option::<String>::None);
 
-    let selected_account = props
-        .accounts
+    let selected_account = filtered_accounts
         .iter()
         .find(|account| account.id == *selected_account_id)
         .cloned();
@@ -83,7 +95,7 @@ pub(super) fn access_link_popup(props: &AccessLinkPopupProps) -> Html {
                                 <Dropdown
                                     label="User"
                                     value={(*selected_account_id).clone()}
-                                    options={props.accounts.iter().map(|account| DropdownOption {
+                                    options={filtered_accounts.iter().map(|account| DropdownOption {
                                         value: account.id.clone(),
                                         label: account.name.clone(),
                                     }).collect::<Vec<_>>()}
@@ -98,7 +110,16 @@ pub(super) fn access_link_popup(props: &AccessLinkPopupProps) -> Html {
                                         }
                                     })}
                                 />
-                                <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">{ "Select user, then click Generate. Access links are available for VLESS and TrustTunnel inbounds with user credentials and node address." }</div>
+                                <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">{ "Select user, then click Generate. Empty inbound groups inherit node groups." }</div>
+                                {
+                                    if filtered_accounts.is_empty() {
+                                        html! {
+                                            <div class="text-sm" style="color: var(--md-sys-color-error-soft);">{ "No accounts match this inbound's effective groups." }</div>
+                                        }
+                                    } else {
+                                        html! {}
+                                    }
+                                }
                             </>
                         }
                     }
@@ -154,7 +175,7 @@ pub(super) fn access_link_popup(props: &AccessLinkPopupProps) -> Html {
                                             }
                                         }
                                     }
-                                })} />
+                                })} disabled={filtered_accounts.is_empty()} />
                             }
                         } else {
                             html! {}

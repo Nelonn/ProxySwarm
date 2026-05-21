@@ -63,6 +63,7 @@ pub(super) fn default_inbound_entry() -> InboundEntryDraft {
     InboundEntryDraft {
         id: uuid::Uuid::new_v4().to_string(),
         name: "main".to_string(),
+        groups: Vec::new(),
         listen: "0.0.0.0".to_string(),
         port: 443,
         enabled: true,
@@ -103,6 +104,7 @@ pub(super) fn default_inbound_entry() -> InboundEntryDraft {
             ..ShadowsocksDraft::default()
         },
         reverse_proxy: ReverseProxyDraft {
+            enabled: true,
             mode: "portal".to_string(),
             tag: "portal".to_string(),
             domain: "reverse.local".to_string(),
@@ -121,6 +123,7 @@ pub(super) fn default_inbound_entry() -> InboundEntryDraft {
 
 pub(super) fn default_node_draft(node: &ProxyNode) -> NodeConfigDraft {
     NodeConfigDraft {
+        reverse_proxies: vec![],
         outbounds: vec![
             default_builtin_outbound("direct", "DIRECT"),
             default_builtin_outbound("block", "BLOCK"),
@@ -135,6 +138,26 @@ pub(super) fn default_node_draft(node: &ProxyNode) -> NodeConfigDraft {
         dns: DnsDraft::default(),
         link_remark_template: default_link_remark_template(),
         warp_registration: WarpRegistrationDraft::default(),
+    }
+}
+
+pub(super) fn default_reverse_proxy_entry() -> ReverseProxyDraft {
+    ReverseProxyDraft {
+        enabled: true,
+        mode: "portal".to_string(),
+        tag: "portal".to_string(),
+        domain: "reverse.local".to_string(),
+        target_outbound_tag: "direct".to_string(),
+        ..ReverseProxyDraft::default()
+    }
+}
+
+pub(super) fn reverse_proxy_display_name(reverse_proxy: &ReverseProxyDraft, index: usize) -> String {
+    let tag = reverse_proxy.tag.trim();
+    if tag.is_empty() {
+        format!("Reverse Proxy #{}", index + 1)
+    } else {
+        tag.to_string()
     }
 }
 
@@ -294,6 +317,15 @@ pub(super) fn default_builtin_outbound(tag: &str, outbound_type: &str) -> Outbou
             tag: tag.to_string(),
             ..TrojanDraft::default()
         },
+    }
+}
+
+pub(super) fn inbound_groups_label(inbound: &InboundEntryDraft) -> String {
+    let groups = normalize_groups(&inbound.groups);
+    if groups.is_empty() {
+        "Inherits node groups".to_string()
+    } else {
+        groups.join(", ")
     }
 }
 
@@ -468,6 +500,27 @@ pub(super) fn revision_label(index: usize, revision: &NodeConfigRevision) -> Str
 }
 
 pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
+    let mut migrated_reverse_proxies = Vec::new();
+    draft.inbounds.retain(|inbound| {
+        if !inbound.protocol.trim().eq_ignore_ascii_case("REVERSEPROXY") {
+            return true;
+        }
+        let mut reverse_proxy = inbound.reverse_proxy.clone();
+        reverse_proxy.enabled = inbound.enabled;
+        if reverse_proxy.tag.trim().is_empty() {
+            reverse_proxy.tag = inbound.name.trim().to_string();
+        }
+        if reverse_proxy.mode.trim().is_empty() {
+            reverse_proxy.mode = "portal".to_string();
+        }
+        if reverse_proxy.target_outbound_tag.trim().is_empty() {
+            reverse_proxy.target_outbound_tag = "direct".to_string();
+        }
+        migrated_reverse_proxies.push(reverse_proxy);
+        false
+    });
+    draft.reverse_proxies.extend(migrated_reverse_proxies);
+
     if draft.outbounds.is_empty() {
         draft
             .outbounds
@@ -502,6 +555,7 @@ pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
         if inbound.protocol.trim().is_empty() {
             inbound.protocol = "VLESS".to_string();
         }
+        inbound.groups = normalize_groups(&inbound.groups);
         if inbound.wireguard.domain_strategy.trim().is_empty() {
             inbound.wireguard.domain_strategy = "ForceIP".to_string();
         }
@@ -510,6 +564,22 @@ pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
         {
             inbound.tls.certificate_name = certificate_name;
         }
+    }
+
+    for reverse_proxy in draft.reverse_proxies.iter_mut() {
+        reverse_proxy.mode = reverse_proxy.mode.trim().to_lowercase();
+        if reverse_proxy.mode != "bridge" && reverse_proxy.mode != "portal" {
+            reverse_proxy.mode = "portal".to_string();
+        }
+        reverse_proxy.tag = reverse_proxy.tag.trim().to_string();
+        reverse_proxy.domain = reverse_proxy.domain.trim().to_string();
+        reverse_proxy.bridge_outbound_tag = reverse_proxy.bridge_outbound_tag.trim().to_string();
+        reverse_proxy.target_outbound_tag = if reverse_proxy.target_outbound_tag.trim().is_empty() {
+            "direct".to_string()
+        } else {
+            reverse_proxy.target_outbound_tag.trim().to_string()
+        };
+        reverse_proxy.portal_inbound_tag = reverse_proxy.portal_inbound_tag.trim().to_string();
     }
 
     for outbound in draft.outbounds.iter_mut() {
@@ -676,7 +746,7 @@ pub(super) fn core_from(value: &str) -> i32 {
 
 pub(super) fn supported_protocol_values_for_core(core_type: &str) -> Vec<&'static str> {
     match core_type.trim().to_uppercase().as_str() {
-        "XRAY" => vec!["VLESS", "HYSTERIA2", "WIREGUARD", "SOCKS5", "SHADOWSOCKS", "REVERSEPROXY", "TPROXY", "TROJAN"],
+        "XRAY" => vec!["VLESS", "HYSTERIA2", "WIREGUARD", "SOCKS5", "SHADOWSOCKS", "TPROXY", "TROJAN"],
         "SING_BOX" => vec!["VLESS", "HYSTERIA2", "NAIVEPROXY", "SOCKS5", "SHADOWSOCKS", "TROJAN"],
         "TRUSTTUNNEL" => vec!["TRUSTTUNNEL"],
         _ => vec![],
@@ -694,7 +764,6 @@ pub(super) fn protocol_options_for_core(core_type: &str) -> Vec<DropdownOption> 
                 "WIREGUARD" => "WireGuard".to_string(),
                 "SHADOWSOCKS" => "Shadowsocks".to_string(),
                 "TRUSTTUNNEL" => "TrustTunnel".to_string(),
-                "REVERSEPROXY" => "Reverse Proxy".to_string(),
                 "TPROXY" => "TProxy".to_string(),
                 "TROJAN" => "Trojan".to_string(),
                 _ => value.to_string(),
@@ -758,7 +827,6 @@ pub(super) fn inbound_traffic_label(inbound: &InboundEntryDraft) -> String {
                 "TCP".to_string()
             }
         }
-        "REVERSEPROXY" => "HTTP".to_string(),
         "TPROXY" => "TCP+UDP".to_string(),
         _ => "TCP".to_string(),
     }
