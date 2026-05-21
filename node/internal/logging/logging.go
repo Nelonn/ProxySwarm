@@ -87,6 +87,6 @@ func parseLevel(value string) Level {
 	case "ERROR", "ERR":
 		return ErrorLevel
 	default:
-		return InfoLevel
+		return WarnLevel
 	}
 }
