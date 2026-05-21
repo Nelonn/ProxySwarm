@@ -107,7 +107,6 @@ pub(super) fn default_inbound_entry() -> InboundEntryDraft {
             enabled: true,
             mode: "portal".to_string(),
             tag: "portal".to_string(),
-            domain: "reverse.local".to_string(),
             target_outbound_tag: "direct".to_string(),
             ..ReverseProxyDraft::default()
         },

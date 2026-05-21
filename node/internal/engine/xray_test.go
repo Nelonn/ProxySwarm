@@ -227,7 +227,7 @@ func TestBuildXrayInboundConfigTunnel(t *testing.T) {
 		},
 	}
 	certs := NewCertificatesManager()
-	inbound, err := buildXrayInboundConfig(config, certs)
+	inbound, err := buildXrayInboundConfig(config, certs, map[string]string{}, map[string]struct{}{})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -236,5 +236,32 @@ func TestBuildXrayInboundConfigTunnel(t *testing.T) {
 	}
 	if inbound.Settings == nil {
 		t.Fatal("expected tunnel settings to be present")
+	}
+}
+
+func TestBuildXrayReverseConfigPortalUsesUserReverse(t *testing.T) {
+	reverseConfig, rules, reverseTags, portalUserTags, err := buildXrayReverseConfig([]*pb.InboundConfig{{
+		Name: "reverse-portal",
+		Protocol: &pb.InboundConfig_Reverseproxy{Reverseproxy: &pb.ReverseProxyConfig{
+			Mode:             "portal",
+			Tag:              "r-outbound",
+			PortalInboundTag: "portal",
+			PortalUserId:     "ac40ca0f",
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if reverseConfig != nil {
+		t.Fatalf("expected no top-level reverse config for portal mode, got %#v", reverseConfig)
+	}
+	if len(rules) != 1 {
+		t.Fatalf("expected 1 portal routing rule, got %d", len(rules))
+	}
+	if _, ok := reverseTags["r-outbound"]; !ok {
+		t.Fatal("expected reverse tag to be allowed")
+	}
+	if got := portalUserTags["ac40ca0f"]; got != "r-outbound" {
+		t.Fatalf("expected portal user tag mapping, got %q", got)
 	}
 }

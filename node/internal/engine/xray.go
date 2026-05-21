@@ -474,7 +474,7 @@ func normalizedRealityShortIDs(values []string) []string {
 	return shortIDs
 }
 
-func buildXrayInboundConfig(config *pb.InboundConfig, certificates *CertificatesManager) (conf.InboundDetourConfig, error) {
+func buildXrayInboundConfig(config *pb.InboundConfig, certificates *CertificatesManager, portalUserTags map[string]string, matchedPortalUsers map[string]struct{}) (conf.InboundDetourConfig, error) {
 	inbound := conf.InboundDetourConfig{
 		Tag:      config.Name,
 		ListenOn: &conf.Address{Address: xnet.ParseAddress(config.Listen)},
@@ -613,11 +613,16 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 			if id == "" {
 				continue
 			}
-			clients = append(clients, map[string]any{
+			client := map[string]any{
 				"id":    acc.Token,
 				"email": id,
 				"flow":  p.Vless.Flow,
-			})
+			}
+			if reverseTag, ok := portalUserTags[strings.TrimSpace(acc.Id)]; ok {
+				client["reverse"] = map[string]any{"tag": reverseTag}
+				matchedPortalUsers[strings.TrimSpace(acc.Id)] = struct{}{}
+			}
+			clients = append(clients, client)
 		}
 		inbound.Settings = toRawPtr(map[string]any{
 			"clients":    clients,
@@ -814,10 +819,11 @@ func xrayReverseDomain(domain string) []string {
 	return []string{"full:" + domain}
 }
 
-func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, []json.RawMessage, map[string]struct{}, error) {
+func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, []json.RawMessage, map[string]struct{}, map[string]string, error) {
 	reverseConfig := &conf.ReverseConfig{}
 	rules := []json.RawMessage{}
 	reverseTags := map[string]struct{}{}
+	portalUserTags := map[string]string{}
 
 	for _, inbound := range configs {
 		if inbound == nil {
@@ -832,16 +838,19 @@ func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, [
 			tag = strings.TrimSpace(inbound.Name)
 		}
 		domain := strings.TrimSpace(r.Domain)
-		if tag == "" || domain == "" {
-			return nil, nil, nil, fmt.Errorf("reverse proxy requires tag and domain")
+		if tag == "" {
+			return nil, nil, nil, nil, fmt.Errorf("reverse proxy requires tag")
 		}
 		reverseTags[tag] = struct{}{}
 		switch strings.ToLower(strings.TrimSpace(r.Mode)) {
 		case "bridge":
+			if domain == "" {
+				return nil, nil, nil, nil, fmt.Errorf("reverse bridge %q requires domain", tag)
+			}
 			reverseConfig.Bridges = append(reverseConfig.Bridges, conf.BridgeConfig{Tag: tag, Domain: domain})
 			bridgeOutboundTag := strings.TrimSpace(r.BridgeOutboundTag)
 			if bridgeOutboundTag == "" {
-				return nil, nil, nil, fmt.Errorf("reverse bridge %q requires bridge_outbound_tag", tag)
+				return nil, nil, nil, nil, fmt.Errorf("reverse bridge %q requires bridge_outbound_tag", tag)
 			}
 			targetOutboundTag := strings.TrimSpace(r.TargetOutboundTag)
 			if targetOutboundTag == "" {
@@ -860,17 +869,19 @@ func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, [
 				}),
 			)
 		case "portal":
-			reverseConfig.Portals = append(reverseConfig.Portals, conf.PortalConfig{Tag: tag, Domain: domain})
 			portalInboundTag := strings.TrimSpace(r.PortalInboundTag)
 			if portalInboundTag == "" {
-				return nil, nil, nil, fmt.Errorf("reverse portal %q requires portal_inbound_tag", tag)
+				return nil, nil, nil, nil, fmt.Errorf("reverse portal %q requires portal_inbound_tag", tag)
 			}
+			portalUserID := strings.TrimSpace(r.PortalUserId)
+			if portalUserID == "" {
+				return nil, nil, nil, nil, fmt.Errorf("reverse portal %q requires portal_user_id", tag)
+			}
+			if existingTag, ok := portalUserTags[portalUserID]; ok && existingTag != tag {
+				return nil, nil, nil, nil, fmt.Errorf("reverse portal user %q already assigned to tag %q", portalUserID, existingTag)
+			}
+			portalUserTags[portalUserID] = tag
 			rules = append(rules,
-				toRaw(map[string]any{
-					"type":        "field",
-					"domain":      xrayReverseDomain(domain),
-					"outboundTag": tag,
-				}),
 				toRaw(map[string]any{
 					"type":        "field",
 					"inboundTag":  []string{portalInboundTag},
@@ -878,14 +889,14 @@ func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, [
 				}),
 			)
 		default:
-			return nil, nil, nil, fmt.Errorf("reverse proxy %q mode must be bridge or portal", tag)
+			return nil, nil, nil, nil, fmt.Errorf("reverse proxy %q mode must be bridge or portal", tag)
 		}
 	}
 
-	if len(reverseConfig.Bridges) == 0 && len(reverseConfig.Portals) == 0 {
-		return nil, nil, reverseTags, nil
+	if len(reverseConfig.Bridges) == 0 {
+		reverseConfig = nil
 	}
-	return reverseConfig, rules, reverseTags, nil
+	return reverseConfig, rules, reverseTags, portalUserTags, nil
 }
 
 func xrayVlessNetwork(transmission string) *conf.TransportProtocol {
@@ -1125,6 +1136,14 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 		}),
 	}
 	c.InboundConfigs = append(c.InboundConfigs, apiInbound)
+	portalUserTags := map[string]string{}
+	matchedPortalUsers := map[string]struct{}{}
+	reverseConfig, reverseRules, reverseTags, portalAssignments, err := buildXrayReverseConfig(configs)
+	if err != nil {
+		return nil, err
+	}
+	portalUserTags = portalAssignments
+
 	for _, config := range configs {
 		if config == nil {
 			continue
@@ -1132,18 +1151,19 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 		if config.GetReverseproxy() != nil {
 			continue
 		}
-		inbound, err := buildXrayInboundConfig(config, certificates)
+		inbound, err := buildXrayInboundConfig(config, certificates, portalUserTags, matchedPortalUsers)
 		if err != nil {
 			return nil, err
 		}
 		c.InboundConfigs = append(c.InboundConfigs, inbound)
 	}
+	for portalUserID := range portalUserTags {
+		if _, ok := matchedPortalUsers[portalUserID]; !ok {
+			return nil, fmt.Errorf("reverse portal user %q requires at least one VLESS inbound with that account", portalUserID)
+		}
+	}
 
 	allowedOutboundTags := map[string]struct{}{}
-	reverseConfig, reverseRules, reverseTags, err := buildXrayReverseConfig(configs)
-	if err != nil {
-		return nil, err
-	}
 	c.Reverse = reverseConfig
 	for tag := range reverseTags {
 		allowedOutboundTags[tag] = struct{}{}

@@ -218,6 +218,7 @@ pub(super) fn build_full_config(
                             bridge_outbound_tag: inbound.reverse_proxy.bridge_outbound_tag.clone(),
                             target_outbound_tag: inbound.reverse_proxy.target_outbound_tag.clone(),
                             portal_inbound_tag: inbound.reverse_proxy.portal_inbound_tag.clone(),
+                            portal_user_id: inbound.reverse_proxy.portal_user_id.clone(),
                         },
                     ),
                 ),
@@ -288,6 +289,7 @@ pub(super) fn build_full_config(
                     bridge_outbound_tag: reverse_proxy.bridge_outbound_tag,
                     target_outbound_tag: reverse_proxy.target_outbound_tag,
                     portal_inbound_tag: reverse_proxy.portal_inbound_tag,
+                    portal_user_id: reverse_proxy.portal_user_id,
                 },
             )),
         });

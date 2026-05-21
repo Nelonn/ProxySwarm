@@ -9,4 +9,5 @@ message ReverseProxyConfig {
     string bridge_outbound_tag = 4;
     string target_outbound_tag = 5;
     string portal_inbound_tag = 6;
+    string portal_user_id = 7;
 }

@@ -74,6 +74,10 @@ pub(super) fn render_routing_tab(
                                                             html! {
                                                                 <>
                                                                     <div>
+                                                                        <div class="text-sm opacity-70">{ "Reverse Domain" }</div>
+                                                                        <div>{ optional_label(&reverse_proxy.domain) }</div>
+                                                                    </div>
+                                                                    <div>
                                                                         <div class="text-sm opacity-70">{ "Bridge Outbound Tag" }</div>
                                                                         <div>{ optional_label(&reverse_proxy.bridge_outbound_tag) }</div>
                                                                     </div>
@@ -85,10 +89,16 @@ pub(super) fn render_routing_tab(
                                                             }
                                                         } else {
                                                             html! {
-                                                                <div>
-                                                                    <div class="text-sm opacity-70">{ "Portal Inbound Tag" }</div>
-                                                                    <div>{ optional_label(&reverse_proxy.portal_inbound_tag) }</div>
-                                                                </div>
+                                                                <>
+                                                                    <div>
+                                                                        <div class="text-sm opacity-70">{ "Portal Inbound Tag" }</div>
+                                                                        <div>{ optional_label(&reverse_proxy.portal_inbound_tag) }</div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div class="text-sm opacity-70">{ "Portal User" }</div>
+                                                                        <div>{ optional_label(&reverse_proxy.portal_user_id) }</div>
+                                                                    </div>
+                                                                </>
                                                             }
                                                         }
                                                     }
@@ -318,6 +328,7 @@ pub(super) struct ReverseProxyEditorPopupProps {
     pub(super) reverse_proxy: ReverseProxyDraft,
     pub(super) is_new: bool,
     pub(super) inbound_options: Vec<String>,
+    pub(super) user_options: Vec<DropdownOption>,
     pub(super) on_close: Callback<()>,
     pub(super) on_save: Callback<ReverseProxyDraft>,
 }
@@ -363,11 +374,18 @@ pub(super) fn reverse_proxy_editor_popup(props: &ReverseProxyEditorPopupProps) -
         label: name.clone(),
     }))
     .collect::<Vec<_>>();
+    let portal_user_options = std::iter::once(DropdownOption {
+        value: String::new(),
+        label: "Select user".to_string(),
+    })
+    .chain(props.user_options.iter().cloned())
+    .collect::<Vec<_>>();
     let save_disabled = data.mode.trim().is_empty()
         || data.tag.trim().is_empty()
-        || data.domain.trim().is_empty()
-        || (data.mode == "bridge" && data.bridge_outbound_tag.trim().is_empty())
-        || (data.mode == "portal" && data.portal_inbound_tag.trim().is_empty());
+        || (data.mode == "bridge"
+            && (data.domain.trim().is_empty() || data.bridge_outbound_tag.trim().is_empty()))
+        || (data.mode == "portal"
+            && (data.portal_inbound_tag.trim().is_empty() || data.portal_user_id.trim().is_empty()));
 
     html! {
         <Popup
@@ -396,16 +414,16 @@ pub(super) fn reverse_proxy_editor_popup(props: &ReverseProxyEditorPopupProps) -
                     onchange={on_text_change(|draft, value| draft.tag = value)}
                     placeholder="portal"
                 />
-                <TextBox
-                    label="Reverse Domain"
-                    value={data.domain.clone()}
-                    onchange={on_text_change(|draft, value| draft.domain = value)}
-                    placeholder="reverse.local"
-                />
                 {
                     if data.mode == "bridge" {
                         html! {
                             <>
+                                <TextBox
+                                    label="Reverse Domain"
+                                    value={data.domain.clone()}
+                                    onchange={on_text_change(|draft, value| draft.domain = value)}
+                                    placeholder="reverse.local"
+                                />
                                 <TextBox
                                     label="Bridge Outbound Tag"
                                     value={data.bridge_outbound_tag.clone()}
@@ -428,6 +446,12 @@ pub(super) fn reverse_proxy_editor_popup(props: &ReverseProxyEditorPopupProps) -
                                     value={data.portal_inbound_tag.clone()}
                                     options={portal_options}
                                     onchange={on_text_change(|draft, value| draft.portal_inbound_tag = value)}
+                                />
+                                <Dropdown
+                                    label="Portal User"
+                                    value={data.portal_user_id.clone()}
+                                    options={portal_user_options}
+                                    onchange={on_text_change(|draft, value| draft.portal_user_id = value)}
                                 />
                                 <div class="text-sm opacity-70">{ "Portal inbound tag must match the name of a real inbound on this node." }</div>
                             </>

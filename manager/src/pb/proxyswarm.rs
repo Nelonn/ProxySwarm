@@ -384,6 +384,8 @@ pub struct ReverseProxyConfig {
     pub target_outbound_tag: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
     pub portal_inbound_tag: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub portal_user_id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

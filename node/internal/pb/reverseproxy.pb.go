@@ -29,6 +29,7 @@ type ReverseProxyConfig struct {
 	BridgeOutboundTag string                 `protobuf:"bytes,4,opt,name=bridge_outbound_tag,json=bridgeOutboundTag,proto3" json:"bridge_outbound_tag,omitempty"`
 	TargetOutboundTag string                 `protobuf:"bytes,5,opt,name=target_outbound_tag,json=targetOutboundTag,proto3" json:"target_outbound_tag,omitempty"`
 	PortalInboundTag  string                 `protobuf:"bytes,6,opt,name=portal_inbound_tag,json=portalInboundTag,proto3" json:"portal_inbound_tag,omitempty"`
+	PortalUserId      string                 `protobuf:"bytes,7,opt,name=portal_user_id,json=portalUserId,proto3" json:"portal_user_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -105,19 +106,27 @@ func (x *ReverseProxyConfig) GetPortalInboundTag() string {
 	return ""
 }
 
+func (x *ReverseProxyConfig) GetPortalUserId() string {
+	if x != nil {
+		return x.PortalUserId
+	}
+	return ""
+}
+
 var File_node_reverseproxy_proto protoreflect.FileDescriptor
 
 const file_node_reverseproxy_proto_rawDesc = "" +
 	"\n" +
 	"\x17node/reverseproxy.proto\x12\n" +
-	"proxyswarm\"\xe0\x01\n" +
+	"proxyswarm\"\x86\x02\n" +
 	"\x12ReverseProxyConfig\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x16\n" +
 	"\x06domain\x18\x03 \x01(\tR\x06domain\x12.\n" +
 	"\x13bridge_outbound_tag\x18\x04 \x01(\tR\x11bridgeOutboundTag\x12.\n" +
 	"\x13target_outbound_tag\x18\x05 \x01(\tR\x11targetOutboundTag\x12,\n" +
-	"\x12portal_inbound_tag\x18\x06 \x01(\tR\x10portalInboundTagB\x06Z\x04./pbb\x06proto3"
+	"\x12portal_inbound_tag\x18\x06 \x01(\tR\x10portalInboundTag\x12$\n" +
+	"\x0eportal_user_id\x18\a \x01(\tR\fportalUserIdB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_node_reverseproxy_proto_rawDescOnce sync.Once

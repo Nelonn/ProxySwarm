@@ -339,6 +339,7 @@ fn render_reverse_proxy_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
                 reverse_proxy={reverse_proxy.clone()}
                 is_new={*is_new}
                 inbound_options={routing_inbound_options(ctx.draft_value)}
+                user_options={routing_user_options(ctx.state)}
                 on_close={Callback::from({
                     let editing_reverse_proxy = ctx.editing_reverse_proxy.clone();
                     move |_| editing_reverse_proxy.set(None)

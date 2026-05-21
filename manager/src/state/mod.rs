@@ -650,6 +650,7 @@ pub struct ReverseProxyDraft {
     pub bridge_outbound_tag: String,
     pub target_outbound_tag: String,
     pub portal_inbound_tag: String,
+    pub portal_user_id: String,
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -667,6 +668,7 @@ fn sanitize_reverse_proxy_for_storage(reverse_proxy: &mut ReverseProxyDraft) {
     reverse_proxy.bridge_outbound_tag = reverse_proxy.bridge_outbound_tag.trim().to_string();
     reverse_proxy.target_outbound_tag = reverse_proxy.target_outbound_tag.trim().to_string();
     reverse_proxy.portal_inbound_tag = reverse_proxy.portal_inbound_tag.trim().to_string();
+    reverse_proxy.portal_user_id = reverse_proxy.portal_user_id.trim().to_string();
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
