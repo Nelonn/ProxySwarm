@@ -521,6 +521,7 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                     ),
                     ConfigTab::Status => status::render_status_tab(
                         &node,
+                        &state.accounts,
                         &live_status,
                         &live_status_loading,
                         &live_status_error,

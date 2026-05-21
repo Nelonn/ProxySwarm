@@ -1,5 +1,23 @@
 use super::*;
 
+fn format_account_status_name(account: &AccountStatus, known_accounts: &[AccountInfo]) -> String {
+    let runtime_id = account.name.trim();
+    if runtime_id.is_empty() {
+        return String::new();
+    }
+    let Some(known_account) = known_accounts
+        .iter()
+        .find(|known_account| known_account.id.trim() == runtime_id)
+    else {
+        return runtime_id.to_string();
+    };
+    let display_name = known_account.name.trim();
+    if display_name.is_empty() || display_name == runtime_id {
+        return runtime_id.to_string();
+    }
+    format!("{} ({})", runtime_id, display_name)
+}
+
 pub(super) fn format_status_bytes(bytes: u64) -> String {
     if bytes < 1024 {
         format!("{} B", bytes)
@@ -260,6 +278,7 @@ pub(super) fn user_status_dot(props: &UserStatusDotProps) -> Html {
 #[derive(Properties, PartialEq)]
 pub(super) struct NodeStatusPanelProps {
     pub(super) status: NodeStatus,
+    pub(super) accounts: Vec<AccountInfo>,
     pub(super) bandwidth_mbps: Option<u32>,
     pub(super) max_traffic_bytes: Option<u64>,
 }
@@ -498,13 +517,14 @@ pub(super) fn node_status_panel(props: &NodeStatusPanelProps) -> Html {
                 <div class="font-semibold uppercase opacity-70" style="font-size: 13px; line-height: 18px;">{ "Users" }</div>
                 { for props.status.accounts.iter().map(|account: &AccountStatus| {
                     let is_online = account.online > 0;
+                    let account_label = format_account_status_name(account, &props.accounts);
                     html! {
                         <div class="bg-surface-container p-3 rounded-lg space-y-2">
                             <div class="flex justify-between" style="align-items: center; gap: 16px;">
                                 <div class="space-y-1" style="min-width: 0px;">
                                     <div class="flex items-center" style="gap: 10px; min-height: 20px; align-items: center;">
                                         <UserStatusDot online={is_online} />
-                                        <div class="font-semibold" style="font-size: 15px; line-height: 20px; display: flex; align-items: center; min-height: 20px;">{ account.name.clone() }</div>
+                                        <div class="font-semibold" style="font-size: 15px; line-height: 20px; display: flex; align-items: center; min-height: 20px;">{ account_label }</div>
                                     </div>
                                 </div>
                                 <UnifiedTraffic traffic={account.traffic.clone()} invert_icon={true} />

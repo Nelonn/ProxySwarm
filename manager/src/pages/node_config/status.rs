@@ -2,6 +2,7 @@ use super::*;
 
 pub(super) fn render_status_tab(
     node: &ProxyNode,
+    accounts: &[AccountInfo],
     live_status: &UseStateHandle<Option<NodeStatus>>,
     live_status_loading: &UseStateHandle<bool>,
     live_status_error: &UseStateHandle<Option<String>>,
@@ -113,6 +114,7 @@ pub(super) fn render_status_tab(
                                     html! {
                                         <NodeStatusPanel
                                             status={status.clone()}
+                                            accounts={accounts.to_vec()}
                                             bandwidth_mbps={node.bandwidth_mbps}
                                             max_traffic_bytes={node.max_traffic_bytes}
                                         />
