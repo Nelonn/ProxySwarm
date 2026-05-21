@@ -61,7 +61,7 @@ pub(super) fn render_routing_tab(
                                                         <div class="md3-list-actions">
                                                             <button
                                                                 type="button"
-                                                                class="md3-btn md3-btn-outlined"
+                                                                class="md3-btn md3-btn-outlined md3-btn-xsmall"
                                                                 disabled={idx_up == 0}
                                                                 onclick={Callback::from({
                                                                     let draft = draft.clone();
@@ -88,7 +88,7 @@ pub(super) fn render_routing_tab(
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                class="md3-btn md3-btn-outlined"
+                                                                class="md3-btn md3-btn-outlined md3-btn-xsmall"
                                                                 disabled={idx_down + 1 >= routing_rules.len()}
                                                                 onclick={Callback::from({
                                                                     let draft = draft.clone();
@@ -116,6 +116,7 @@ pub(super) fn render_routing_tab(
                                                             <Button
                                                                 label="Action"
                                                                 button_type={ButtonType::Outlined}
+                                                                size={ButtonSize::XSmall}
                                                                 onclick={Callback::from({
                                                                     let action_routing_rule = action_routing_rule.clone();
                                                                     move |e: MouseEvent| {

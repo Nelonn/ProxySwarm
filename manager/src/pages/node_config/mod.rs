@@ -12,7 +12,7 @@ use yew::prelude::*;
 use yew_router::prelude::use_navigator;
 
 use crate::components::{
-    ActionMenuPopup, Button, ButtonType, Chip, ChipMode, Dropdown, DropdownOption, IconButton,
+    ActionMenuPopup, Button, ButtonSize, ButtonType, Chip, ChipMode, Dropdown, DropdownOption, IconButton,
     Popup, PopupSize, RichTable, SnackbarBus, SvgIcon, Switch, SwitchField, TextBox,
     WideNavigationBar, WideNavigationBarItem,
 };
