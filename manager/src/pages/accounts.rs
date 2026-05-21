@@ -62,6 +62,7 @@ pub fn accounts() -> Html {
             } else {
                 html! {
                     <RichTable columns={vec![
+                        "ID".to_string(),
                         "Account".to_string(),
                         "Token".to_string(),
                         "Groups".to_string(),
@@ -215,6 +216,9 @@ fn account_row(props: &AccountCardProps) -> Html {
 
     html! {
         <div class="md3-list-row">
+            <div class="md3-list-col">
+                <code>{ &props.account.id }</code>
+            </div>
             <div class="md3-list-col md3-list-col-main">
                 <div class="text-lg font-bold">{ &props.account.name }</div>
             </div>
