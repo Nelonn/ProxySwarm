@@ -1,0 +1,12 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message ReverseProxyConfig {
+    string mode = 1; // "bridge" or "portal"
+    string tag = 2;
+    string domain = 3;
+    string bridge_outbound_tag = 4;
+    string target_outbound_tag = 5;
+    string portal_inbound_tag = 6;
+}

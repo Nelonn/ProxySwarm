@@ -1,0 +1,19 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+import "node/common.proto";
+
+message TrojanInboundConfig {
+    string password = 1;
+    TLSConfig tls = 2;
+    string fallback = 3;
+}
+
+message TrojanOutboundConfig {
+    string server = 1;
+    int32 port = 2;
+    string password = 3;
+    bool tls_enabled = 4;
+    string sni = 5;
+}

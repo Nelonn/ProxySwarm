@@ -1,0 +1,11 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message TProxyConfig {
+    string network = 1; // tcp, udp, or tcp,udp
+    bool sniffing_enabled = 2;
+    repeated string sniffing_dest_override = 3;
+    bool sniffing_route_only = 4;
+    int32 socket_mark = 5;
+}
