@@ -40,7 +40,7 @@ type XrayEngine struct {
 	lastConfigs           []*pb.InboundConfig
 	lastDnsConfig         *pb.DnsConfig
 	lastRules             []*pb.RoutingRule
-	lastAccounts          map[string]string // email -> token
+	lastAccounts          map[string]map[string]string // inbound tag -> email -> token
 	lastOutboundsSnapshot []*pb.OutboundConfig
 	lastOutbounds         map[string]*pb.OutboundStatus
 }
@@ -67,7 +67,7 @@ type WireGuardDeviceConfig struct {
 func NewXrayEngine(name string) *XrayEngine {
 	return &XrayEngine{
 		name:          name,
-		lastAccounts:  make(map[string]string),
+		lastAccounts:  make(map[string]map[string]string),
 		lastOutbounds: make(map[string]*pb.OutboundStatus),
 	}
 }
@@ -75,6 +75,14 @@ func NewXrayEngine(name string) *XrayEngine {
 func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.instance != nil && !e.needsRestart(inbounds, outbounds, rules, dns) {
+		if err := e.syncInboundAccounts(ctx, inbounds); err != nil {
+			return err
+		}
+		e.lastConfigs = normalizeInboundsForRestart(inbounds)
+		return nil
+	}
 
 	return e.restart(inbounds, outbounds, rules, dns, certificates)
 }
@@ -91,7 +99,7 @@ func (e *XrayEngine) needsRestart(configs []*pb.InboundConfig, outbounds []*pb.O
 	if len(e.lastConfigs) == 0 {
 		return true
 	}
-	if !equalProtoSlices(e.lastConfigs, configs) {
+	if !equalProtoSlices(e.lastConfigs, normalizeInboundsForRestart(configs)) {
 		return true
 	}
 	if !proto.Equal(e.lastDnsConfig, dns) {
@@ -135,18 +143,25 @@ func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.Outbo
 	}
 
 	e.instance = instance
-	e.lastConfigs = cloneProtoSlice(inbounds)
+	e.lastConfigs = normalizeInboundsForRestart(inbounds)
 	e.lastDnsConfig = cloneProtoMessage(dns)
 	e.lastOutboundsSnapshot = cloneProtoSlice(outbounds)
 	e.lastRules = cloneProtoSlice(rules)
-	e.lastAccounts = make(map[string]string)
+	e.lastAccounts = make(map[string]map[string]string)
 	e.lastOutbounds = make(map[string]*pb.OutboundStatus)
 	for _, inbound := range inbounds {
+		if inbound == nil || strings.TrimSpace(inbound.Name) == "" {
+			continue
+		}
+		accounts := make(map[string]string)
 		for _, acc := range inbound.GetAccounts() {
 			if acc == nil || strings.TrimSpace(acc.Name) == "" {
 				continue
 			}
-			e.lastAccounts[acc.Name] = acc.Token
+			accounts[acc.Name] = acc.Token
+		}
+		if len(accounts) > 0 {
+			e.lastAccounts[inbound.Name] = accounts
 		}
 	}
 	for _, outbound := range outbounds {
@@ -198,7 +213,47 @@ func equalProtoSlices[T proto.Message](left []T, right []T) bool {
 	return true
 }
 
+func normalizeInboundsForRestart(inbounds []*pb.InboundConfig) []*pb.InboundConfig {
+	if len(inbounds) == 0 {
+		return nil
+	}
+	cloned := cloneProtoSlice(inbounds)
+	for _, inbound := range cloned {
+		if inbound == nil {
+			continue
+		}
+		inbound.Accounts = nil
+	}
+	return cloned
+}
+
+func (e *XrayEngine) syncInboundAccounts(ctx context.Context, inbounds []*pb.InboundConfig) error {
+	seenTags := make(map[string]struct{})
+	for _, inbound := range inbounds {
+		if inbound == nil || strings.TrimSpace(inbound.Name) == "" {
+			continue
+		}
+		tag := strings.TrimSpace(inbound.Name)
+		seenTags[tag] = struct{}{}
+		if inbound.GetVless() == nil && inbound.GetHysteria2() == nil {
+			continue
+		}
+		if err := e.syncAccounts(ctx, inbound, inbound.GetAccounts()); err != nil {
+			return err
+		}
+	}
+	for tag := range e.lastAccounts {
+		if _, ok := seenTags[tag]; !ok {
+			delete(e.lastAccounts, tag)
+		}
+	}
+	return nil
+}
+
 func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig, accounts []*pb.Account) error {
+	if config == nil || strings.TrimSpace(config.Name) == "" {
+		return nil
+	}
 	addr := fmt.Sprintf("127.0.0.1:%d", e.apiPort)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -207,14 +262,22 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 	defer conn.Close()
 
 	client := command.NewHandlerServiceClient(conn)
+	tag := strings.TrimSpace(config.Name)
 
 	newAccounts := make(map[string]string)
 	for _, acc := range accounts {
+		if acc == nil || strings.TrimSpace(acc.Name) == "" {
+			continue
+		}
 		credential := strings.TrimSpace(acc.Token)
 		if hy2Cfg := config.GetHysteria2(); hy2Cfg != nil && credential == "" {
 			credential = strings.TrimSpace(hy2Cfg.Password)
 		}
 		newAccounts[acc.Name] = credential
+	}
+	oldAccounts := e.lastAccounts[tag]
+	if oldAccounts == nil {
+		oldAccounts = make(map[string]string)
 	}
 
 	flow := ""
@@ -224,11 +287,11 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 
 	// Add new or updated accounts
 	for email, token := range newAccounts {
-		if oldId, ok := e.lastAccounts[email]; !ok || oldId != token {
+		if oldId, ok := oldAccounts[email]; !ok || oldId != token {
 			if ok {
 				// Remove old one first if ID changed
 				client.AlterInbound(ctx, &command.AlterInboundRequest{
-					Tag: e.name,
+					Tag: tag,
 					Operation: serial.ToTypedMessage(&command.RemoveUserOperation{
 						Email: email,
 					}),
@@ -249,7 +312,7 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 			}
 
 			client.AlterInbound(ctx, &command.AlterInboundRequest{
-				Tag: e.name,
+				Tag: tag,
 				Operation: serial.ToTypedMessage(&command.AddUserOperation{
 					User: &protocol.User{
 						Email:   email,
@@ -261,10 +324,10 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 	}
 
 	// Remove deleted accounts
-	for email := range e.lastAccounts {
+	for email := range oldAccounts {
 		if _, ok := newAccounts[email]; !ok {
 			client.AlterInbound(ctx, &command.AlterInboundRequest{
-				Tag: e.name,
+				Tag: tag,
 				Operation: serial.ToTypedMessage(&command.RemoveUserOperation{
 					Email: email,
 				}),
@@ -272,7 +335,11 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 		}
 	}
 
-	e.lastAccounts = newAccounts
+	if len(newAccounts) == 0 {
+		delete(e.lastAccounts, tag)
+	} else {
+		e.lastAccounts[tag] = newAccounts
+	}
 	return nil
 }
 
@@ -1284,56 +1351,58 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 		}
 	}
 
-	for accountName := range e.lastAccounts {
-		account := &pb.AccountStatus{
-			Name: accountName,
-			Traffic: querySingleStatPair(
-				ctx,
-				client,
-				fmt.Sprintf("user>>>%s>>>traffic>>>downlink", accountName),
-				fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountName),
-			),
+	for _, accounts := range e.lastAccounts {
+		for accountName := range accounts {
+            account := &pb.AccountStatus{
+                Name: accountName,
+                Traffic: querySingleStatPair(
+                    ctx,
+                    client,
+                    fmt.Sprintf("user>>>%s>>>traffic>>>downlink", accountName),
+                    fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountName),
+                ),
+            }
+            if _, ok := onlineUsers[accountName]; ok {
+                account.Online = 1
+                if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
+                    Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+                    Reset_: false,
+                }); err == nil {
+                    for ip := range onlineIps.GetIps() {
+                        account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
+                            Ip:        ip,
+                            UserAgent: "Unknown",
+                        })
+                    }
+                    slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
+                        return strings.Compare(a.GetIp(), b.GetIp())
+                    })
+                    if len(account.Sessions) > 0 {
+                        account.Online = uint32(len(account.Sessions))
+                    }
+                }
+            } else if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
+                Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+                Reset_: false,
+            }); err == nil {
+                for ip := range onlineIps.GetIps() {
+                    account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
+                        Ip:        ip,
+                        UserAgent: "Unknown",
+                    })
+                }
+                slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
+                    return strings.Compare(a.GetIp(), b.GetIp())
+                })
+                account.Online = uint32(len(account.Sessions))
+            } else if online, err := client.GetStatsOnline(ctx, &statsService.GetStatsRequest{
+                Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+                Reset_: false,
+            }); err == nil && online.GetStat() != nil && online.Stat.Value > 0 {
+                account.Online = uint32(online.Stat.Value)
+            }
+            metrics.Accounts = append(metrics.Accounts, account)
 		}
-		if _, ok := onlineUsers[accountName]; ok {
-			account.Online = 1
-			if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-				Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-				Reset_: false,
-			}); err == nil {
-				for ip := range onlineIps.GetIps() {
-					account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
-						Ip:        ip,
-						UserAgent: "Unknown",
-					})
-				}
-				slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
-					return strings.Compare(a.GetIp(), b.GetIp())
-				})
-				if len(account.Sessions) > 0 {
-					account.Online = uint32(len(account.Sessions))
-				}
-			}
-		} else if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-			Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-			Reset_: false,
-		}); err == nil {
-			for ip := range onlineIps.GetIps() {
-				account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
-					Ip:        ip,
-					UserAgent: "Unknown",
-				})
-			}
-			slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
-				return strings.Compare(a.GetIp(), b.GetIp())
-			})
-			account.Online = uint32(len(account.Sessions))
-		} else if online, err := client.GetStatsOnline(ctx, &statsService.GetStatsRequest{
-			Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-			Reset_: false,
-		}); err == nil && online.GetStat() != nil && online.Stat.Value > 0 {
-			account.Online = uint32(online.Stat.Value)
-		}
-		metrics.Accounts = append(metrics.Accounts, account)
 	}
 
 	for tag, outbound := range e.lastOutbounds {

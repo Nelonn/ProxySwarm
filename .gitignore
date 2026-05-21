@@ -1,5 +1,5 @@
 .idea
-/reference
+#/reference
 /data
 .gocache
 
