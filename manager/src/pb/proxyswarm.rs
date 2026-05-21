@@ -371,6 +371,62 @@ pub struct ShadowsocksOutboundConfig {
     pub udp_enabled: bool,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ReverseProxyConfig {
+    /// "bridge" or "portal"
+    #[prost(string, tag = "1")]
+    pub mode: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub tag: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub domain: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub bridge_outbound_tag: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub target_outbound_tag: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub portal_inbound_tag: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct TProxyConfig {
+    /// tcp, udp, or tcp,udp
+    #[prost(string, tag = "1")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub sniffing_enabled: bool,
+    #[prost(string, repeated, tag = "3")]
+    pub sniffing_dest_override: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(bool, tag = "4")]
+    pub sniffing_route_only: bool,
+    #[prost(int32, tag = "5")]
+    pub socket_mark: i32,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct TrojanInboundConfig {
+    #[prost(string, tag = "1")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub tls: ::core::option::Option<TlsConfig>,
+    #[prost(string, tag = "3")]
+    pub fallback: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct TrojanOutboundConfig {
+    #[prost(string, tag = "1")]
+    pub server: ::prost::alloc::string::String,
+    #[prost(int32, tag = "2")]
+    pub port: i32,
+    #[prost(string, tag = "3")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(bool, tag = "4")]
+    pub tls_enabled: bool,
+    #[prost(string, tag = "5")]
+    pub sni: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FullConfig {
     #[prost(string, tag = "1")]
@@ -406,7 +462,10 @@ pub struct InboundConfig {
     pub accounts: ::prost::alloc::vec::Vec<Account>,
     #[prost(bool, tag = "12")]
     pub enabled: bool,
-    #[prost(oneof = "inbound_config::Protocol", tags = "6, 7, 8, 9, 10, 11, 13")]
+    #[prost(
+        oneof = "inbound_config::Protocol",
+        tags = "6, 7, 8, 9, 10, 11, 13, 14, 15, 16"
+    )]
     pub protocol: ::core::option::Option<inbound_config::Protocol>,
 }
 /// Nested message and enum types in `InboundConfig`.
@@ -428,6 +487,12 @@ pub mod inbound_config {
         Socks5(super::Socks5InboundConfig),
         #[prost(message, tag = "13")]
         Shadowsocks(super::ShadowsocksInboundConfig),
+        #[prost(message, tag = "14")]
+        Reverseproxy(super::ReverseProxyConfig),
+        #[prost(message, tag = "15")]
+        Tproxy(super::TProxyConfig),
+        #[prost(message, tag = "16")]
+        Trojan(super::TrojanInboundConfig),
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -437,7 +502,7 @@ pub struct OutboundConfig {
     pub tag: ::prost::alloc::string::String,
     #[prost(enumeration = "OutboundType", tag = "2")]
     pub r#type: i32,
-    #[prost(oneof = "outbound_config::Settings", tags = "3, 4, 5, 6, 7")]
+    #[prost(oneof = "outbound_config::Settings", tags = "3, 4, 5, 6, 7, 8")]
     pub settings: ::core::option::Option<outbound_config::Settings>,
 }
 /// Nested message and enum types in `OutboundConfig`.
@@ -455,6 +520,8 @@ pub mod outbound_config {
         Socks5(super::Socks5OutboundConfig),
         #[prost(message, tag = "7")]
         Shadowsocks(super::ShadowsocksOutboundConfig),
+        #[prost(message, tag = "8")]
+        Trojan(super::TrojanOutboundConfig),
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -703,6 +770,7 @@ pub enum OutboundType {
     Wireguard = 4,
     Socks5 = 5,
     Shadowsocks = 6,
+    Trojan = 7,
 }
 impl OutboundType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -718,6 +786,7 @@ impl OutboundType {
             Self::Wireguard => "WIREGUARD",
             Self::Socks5 => "SOCKS5",
             Self::Shadowsocks => "SHADOWSOCKS",
+            Self::Trojan => "TROJAN",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -730,6 +799,7 @@ impl OutboundType {
             "WIREGUARD" => Some(Self::Wireguard),
             "SOCKS5" => Some(Self::Socks5),
             "SHADOWSOCKS" => Some(Self::Shadowsocks),
+            "TROJAN" => Some(Self::Trojan),
             _ => None,
         }
     }

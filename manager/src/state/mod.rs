@@ -200,6 +200,9 @@ pub struct OutboundEntryDraft {
     pub socks5: Socks5Draft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub shadowsocks: ShadowsocksDraft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub trojan: TrojanDraft,
+
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -228,6 +231,13 @@ pub struct InboundEntryDraft {
     pub socks5: Socks5Draft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub shadowsocks: ShadowsocksDraft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub reverse_proxy: ReverseProxyDraft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub tproxy: TProxyDraft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub trojan: TrojanDraft,
+
 }
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {
@@ -551,6 +561,37 @@ pub struct ShadowsocksDraft {
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TrojanDraft {
+    pub tag: String,
+    pub server: String,
+    pub port: i32,
+    pub password: String,
+    pub fallback: String,
+    pub tls_enabled: bool,
+    pub sni: String,
+}
+
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReverseProxyDraft {
+    pub mode: String,
+    pub tag: String,
+    pub domain: String,
+    pub bridge_outbound_tag: String,
+    pub target_outbound_tag: String,
+    pub portal_inbound_tag: String,
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TProxyDraft {
+    pub network: String,
+    pub sniffing_enabled: bool,
+    pub sniffing_dest_override: String,
+    pub sniffing_route_only: bool,
+    pub socket_mark: i32,
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RoutingRuleDraft {
     #[serde(default)]
     pub remark: String,
@@ -669,6 +710,8 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
             inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
         }
         "HYSTERIA2" => {
             inbound.vless = VlessInboundDraft::default();
@@ -677,6 +720,8 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
             inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
         }
         "TRUSTTUNNEL" => {
             inbound.vless = VlessInboundDraft::default();
@@ -685,6 +730,8 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
             inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
         }
         "NAIVEPROXY" => {
             inbound.vless = VlessInboundDraft::default();
@@ -693,6 +740,8 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
             inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
         }
         "WIREGUARD" => {
             inbound.vless = VlessInboundDraft::default();
@@ -701,6 +750,8 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.socks5 = Socks5Draft::default();
             inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
         }
         "SOCKS5" => {
             inbound.vless = VlessInboundDraft::default();
@@ -709,6 +760,8 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.wireguard = WireGuardDraft::default();
             inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
         }
         "SHADOWSOCKS" => {
             inbound.vless = VlessInboundDraft::default();
@@ -717,10 +770,45 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.naive_proxy = NaiveProxyDraft::default();
             inbound.wireguard = WireGuardDraft::default();
             inbound.socks5 = Socks5Draft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
+        }
+        "REVERSEPROXY" => {
+            inbound.vless = VlessInboundDraft::default();
+            inbound.hysteria2 = Hysteria2Draft::default();
+            inbound.trust_tunnel = TrustTunnelDraft::default();
+            inbound.naive_proxy = NaiveProxyDraft::default();
+            inbound.wireguard = WireGuardDraft::default();
+            inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.tproxy = TProxyDraft::default();
+        }
+        "TPROXY" => {
+            inbound.vless = VlessInboundDraft::default();
+            inbound.hysteria2 = Hysteria2Draft::default();
+            inbound.trust_tunnel = TrustTunnelDraft::default();
+            inbound.naive_proxy = NaiveProxyDraft::default();
+            inbound.wireguard = WireGuardDraft::default();
+            inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.trojan = TrojanDraft::default();
+        }
+        "TROJAN" => {
+            inbound.vless = VlessInboundDraft::default();
+            inbound.hysteria2 = Hysteria2Draft::default();
+            inbound.trust_tunnel = TrustTunnelDraft::default();
+            inbound.naive_proxy = NaiveProxyDraft::default();
+            inbound.wireguard = WireGuardDraft::default();
+            inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
         }
         _ => {}
     }
 }
+
 
 fn sanitize_outbound_for_storage(outbound: &mut OutboundEntryDraft) {
     match outbound.outbound_type.trim().to_uppercase().as_str() {
@@ -753,6 +841,14 @@ fn sanitize_outbound_for_storage(outbound: &mut OutboundEntryDraft) {
             outbound.trust_tunnel = TrustTunnelOutboundDraft::default();
             outbound.wireguard = WireGuardDraft::default();
             outbound.socks5 = Socks5Draft::default();
+            outbound.trojan = TrojanDraft::default();
+        }
+        "TROJAN" => {
+            outbound.vless = VlessOutboundDraft::default();
+            outbound.trust_tunnel = TrustTunnelOutboundDraft::default();
+            outbound.wireguard = WireGuardDraft::default();
+            outbound.socks5 = Socks5Draft::default();
+            outbound.shadowsocks = ShadowsocksDraft::default();
         }
         "DIRECT" | "BLOCK" => {
             outbound.vless = VlessOutboundDraft::default();
@@ -760,7 +856,9 @@ fn sanitize_outbound_for_storage(outbound: &mut OutboundEntryDraft) {
             outbound.wireguard = WireGuardDraft::default();
             outbound.socks5 = Socks5Draft::default();
             outbound.shadowsocks = ShadowsocksDraft::default();
+            outbound.trojan = TrojanDraft::default();
         }
         _ => {}
     }
 }
+

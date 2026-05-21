@@ -14,6 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "../proto/node/wireguard.proto",
         "../proto/node/socks5.proto",
         "../proto/node/shadowsocks.proto",
+        "../proto/node/reverseproxy.proto",
+        "../proto/node/tproxy.proto",
+        "../proto/node/trojan.proto",
         "../proto/node/service.proto",
         "../proto/registry/registry.proto",
     ];

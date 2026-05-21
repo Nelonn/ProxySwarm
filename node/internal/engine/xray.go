@@ -602,6 +602,33 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 			settings["password"] = p.Shadowsocks.Password
 		}
 		inbound.Settings = toRawPtr(settings)
+	case *pb.InboundConfig_Tproxy:
+		inbound.Protocol = "dokodemo-door"
+		network := strings.TrimSpace(p.Tproxy.Network)
+		if network == "" {
+			network = "tcp,udp"
+		}
+		inbound.Settings = toRawPtr(&conf.DokodemoConfig{
+			Network:        xrayNetworkList(network),
+			FollowRedirect: true,
+		})
+		inbound.StreamSetting = &conf.StreamConfig{
+			SocketSettings: &conf.SocketConfig{
+				TProxy: "tproxy",
+				Mark:   p.Tproxy.SocketMark,
+			},
+		}
+		if p.Tproxy.SniffingEnabled {
+			destOverride := conf.StringList(p.Tproxy.SniffingDestOverride)
+			if len(destOverride) == 0 {
+				destOverride = conf.StringList{"http", "tls", "quic"}
+			}
+			inbound.SniffingConfig = &conf.SniffingConfig{
+				Enabled:      true,
+				DestOverride: &destOverride,
+				RouteOnly:    p.Tproxy.SniffingRouteOnly,
+			}
+		}
 	default:
 		return inbound, fmt.Errorf("protocol not supported by Xray engine")
 	}
@@ -654,6 +681,91 @@ func buildXrayRoutingRules(rules []*pb.RoutingRule) []json.RawMessage {
 	return rawRules
 }
 
+func xrayReverseDomain(domain string) []string {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return nil
+	}
+	if strings.Contains(domain, ":") {
+		return []string{domain}
+	}
+	return []string{"full:" + domain}
+}
+
+func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, []json.RawMessage, map[string]struct{}, error) {
+	reverseConfig := &conf.ReverseConfig{}
+	rules := []json.RawMessage{}
+	reverseTags := map[string]struct{}{}
+
+	for _, inbound := range configs {
+		if inbound == nil {
+			continue
+		}
+		r := inbound.GetReverseproxy()
+		if r == nil {
+			continue
+		}
+		tag := strings.TrimSpace(r.Tag)
+		if tag == "" {
+			tag = strings.TrimSpace(inbound.Name)
+		}
+		domain := strings.TrimSpace(r.Domain)
+		if tag == "" || domain == "" {
+			return nil, nil, nil, fmt.Errorf("reverse proxy requires tag and domain")
+		}
+		reverseTags[tag] = struct{}{}
+		switch strings.ToLower(strings.TrimSpace(r.Mode)) {
+		case "bridge":
+			reverseConfig.Bridges = append(reverseConfig.Bridges, conf.BridgeConfig{Tag: tag, Domain: domain})
+			bridgeOutboundTag := strings.TrimSpace(r.BridgeOutboundTag)
+			if bridgeOutboundTag == "" {
+				return nil, nil, nil, fmt.Errorf("reverse bridge %q requires bridge_outbound_tag", tag)
+			}
+			targetOutboundTag := strings.TrimSpace(r.TargetOutboundTag)
+			if targetOutboundTag == "" {
+				targetOutboundTag = "direct"
+			}
+			rules = append(rules,
+				toRaw(map[string]any{
+					"type":        "field",
+					"domain":      xrayReverseDomain(domain),
+					"outboundTag": bridgeOutboundTag,
+				}),
+				toRaw(map[string]any{
+					"type":        "field",
+					"inboundTag":  []string{tag},
+					"outboundTag": targetOutboundTag,
+				}),
+			)
+		case "portal":
+			reverseConfig.Portals = append(reverseConfig.Portals, conf.PortalConfig{Tag: tag, Domain: domain})
+			portalInboundTag := strings.TrimSpace(r.PortalInboundTag)
+			if portalInboundTag == "" {
+				return nil, nil, nil, fmt.Errorf("reverse portal %q requires portal_inbound_tag", tag)
+			}
+			rules = append(rules,
+				toRaw(map[string]any{
+					"type":        "field",
+					"domain":      xrayReverseDomain(domain),
+					"outboundTag": tag,
+				}),
+				toRaw(map[string]any{
+					"type":        "field",
+					"inboundTag":  []string{portalInboundTag},
+					"outboundTag": tag,
+				}),
+			)
+		default:
+			return nil, nil, nil, fmt.Errorf("reverse proxy %q mode must be bridge or portal", tag)
+		}
+	}
+
+	if len(reverseConfig.Bridges) == 0 && len(reverseConfig.Portals) == 0 {
+		return nil, nil, reverseTags, nil
+	}
+	return reverseConfig, rules, reverseTags, nil
+}
+
 func xrayVlessNetwork(transmission string) *conf.TransportProtocol {
 	var network conf.TransportProtocol
 	switch transmission {
@@ -678,6 +790,22 @@ func xrayVlessNetwork(transmission string) *conf.TransportProtocol {
 func xrayHysteriaNetwork() *conf.TransportProtocol {
 	network := conf.TransportProtocol("hysteria")
 	return &network
+}
+
+func xrayNetworkList(value string) *conf.NetworkList {
+	parts := strings.Split(value, ",")
+	networks := make(conf.NetworkList, 0, len(parts))
+	for _, part := range parts {
+		part = strings.ToLower(strings.TrimSpace(part))
+		switch part {
+		case "tcp", "udp":
+			networks = append(networks, conf.Network(part))
+		}
+	}
+	if len(networks) == 0 {
+		networks = conf.NetworkList{conf.Network("tcp"), conf.Network("udp")}
+	}
+	return &networks
 }
 
 func parseXrayMasquerade(value string) (conf.Masquerade, error) {
@@ -879,6 +1007,9 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 		if config == nil {
 			continue
 		}
+		if config.GetReverseproxy() != nil {
+			continue
+		}
 		inbound, err := buildXrayInboundConfig(config, certificates)
 		if err != nil {
 			return nil, err
@@ -887,6 +1018,14 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 	}
 
 	allowedOutboundTags := map[string]struct{}{}
+	reverseConfig, reverseRules, reverseTags, err := buildXrayReverseConfig(configs)
+	if err != nil {
+		return nil, err
+	}
+	c.Reverse = reverseConfig
+	for tag := range reverseTags {
+		allowedOutboundTags[tag] = struct{}{}
+	}
 	for _, out := range outbounds {
 		if out == nil || strings.TrimSpace(out.Tag) == "" {
 			continue
@@ -1055,6 +1194,7 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 		val := "AsIs"
 		c.RouterConfig.DomainStrategy = &val
 	}
+	c.RouterConfig.RuleList = append(reverseRules, c.RouterConfig.RuleList...)
 
 	if len(c.OutboundConfigs) == 0 {
 		c.OutboundConfigs = append(c.OutboundConfigs, conf.OutboundDetourConfig{

@@ -287,7 +287,11 @@ func applyTrafficDelta(lastRaw map[string]trafficTotals, sourceKey string, curre
 	if current == nil {
 		return trafficTotals{}
 	}
-	prev := lastRaw[sourceKey]
+	prev, ok := lastRaw[sourceKey]
+	if !ok {
+		lastRaw[sourceKey] = trafficTotals{Rx: current.Rx, Tx: current.Tx}
+		return trafficTotals{}
+	}
 	delta := trafficTotals{
 		Rx: current.Rx,
 		Tx: current.Tx,
