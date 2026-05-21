@@ -19,8 +19,8 @@ import (
 func TestFindAccountByToken(t *testing.T) {
 	config := &pb.RegistryServiceConfig{
 		Accounts: []*pb.Account{
-			{Id: "a1", Name: "u1", Token: "tok-1"},
-			{Id: "a2", Name: "u2", Token: "tok-2"},
+			{Id: "a1", Token: "tok-1"},
+			{Id: "a2", Token: "tok-2"},
 		},
 	}
 
@@ -38,7 +38,7 @@ func TestFindAccountByToken(t *testing.T) {
 }
 
 func TestBuildSubscriptionLinks_RendersAndDeduplicates(t *testing.T) {
-	account := &pb.Account{Id: "acc-1", Name: "alice", Token: "tok-1"}
+	account := &pb.Account{Id: "acc-1", Token: "tok-1"}
 	config := &pb.RegistryServiceConfig{
 		TemplateLinks: []*pb.RegistryTemplateLink{
 			{Template: "vless://{{token}}@host:443#{{name}}"},
@@ -51,7 +51,7 @@ func TestBuildSubscriptionLinks_RendersAndDeduplicates(t *testing.T) {
 	if len(links) != 2 {
 		t.Fatalf("expected 2 unique links, got %d: %#v", len(links), links)
 	}
-	if links[0] != "vless://tok-1@host:443#alice" {
+	if links[0] != "vless://tok-1@host:443#acc-1" {
 		t.Fatalf("unexpected first link: %q", links[0])
 	}
 	if links[1] != "trojan://tok-1@node:443#acc-1" {
@@ -62,7 +62,7 @@ func TestBuildSubscriptionLinks_RendersAndDeduplicates(t *testing.T) {
 func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
 	handler := makeUserAPIHandler(testStore(&pb.RegistryServiceConfig{
 		Accounts: []*pb.Account{
-			{Id: "a1", Name: "alice", Token: "tok-1"},
+			{Id: "a1", Token: "tok-1"},
 		},
 		TemplateLinks: []*pb.RegistryTemplateLink{
 			{Template: "vless://{{token}}@host:443"},
@@ -89,7 +89,7 @@ func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
 func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	handler := makeUserAPIHandler(testStore(&pb.RegistryServiceConfig{
 		Accounts: []*pb.Account{
-			{Id: "a1", Name: "alice", Token: "tok-1", ExpiryTime: 1735689600},
+			{Id: "a1", Token: "tok-1", ExpiryTime: 1735689600},
 		},
 		TemplateLinks: []*pb.RegistryTemplateLink{
 			{Template: "vless://{{token}}@host-a:443#{{name}}"},
@@ -110,7 +110,7 @@ func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	if got := rec.Header().Get("subscription-userinfo"); got != "upload=0; download=0; total=0; expire=1735689600" {
 		t.Fatalf("unexpected subscription-userinfo: %q", got)
 	}
-	if got := rec.Header().Get("profile-title"); got != "base64:YWxpY2U=" {
+	if got := rec.Header().Get("profile-title"); got != "base64:YTE=" {
 		t.Fatalf("unexpected profile-title: %q", got)
 	}
 
@@ -118,7 +118,7 @@ func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	if len(lines) != 2 {
 		t.Fatalf("expected 2 links, got %d: %q", len(lines), rec.Body.String())
 	}
-	if lines[0] != "vless://tok-1@host-a:443#alice" {
+	if lines[0] != "vless://tok-1@host-a:443#a1" {
 		t.Fatalf("unexpected first link: %q", lines[0])
 	}
 	if lines[1] != "trojan://tok-1@host-b:443#a1" {

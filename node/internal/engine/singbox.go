@@ -242,8 +242,12 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		inbound["type"] = "vless"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			users = append(users, map[string]any{
-				"name": acc.Name,
+				"name": id,
 				"uuid": acc.Token,
 			})
 		}
@@ -283,8 +287,12 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		}
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			users = append(users, map[string]any{
-				"name":     acc.Name,
+				"name":     id,
 				"password": acc.Token,
 			})
 		}
@@ -298,8 +306,12 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		inbound["type"] = "naive"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			users = append(users, map[string]any{
-				"username": acc.Name,
+				"username": id,
 				"password": acc.Token,
 			})
 		}
@@ -323,8 +335,12 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		inbound["type"] = "socks"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			users = append(users, map[string]any{
-				"username": acc.Name,
+				"username": id,
 				"password": acc.Token,
 			})
 		}
@@ -346,12 +362,16 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		}
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			password := strings.TrimSpace(acc.Token)
 			if password == "" {
 				password = strings.TrimSpace(p.Shadowsocks.Password)
 			}
 			users = append(users, map[string]any{
-				"name":     acc.Name,
+				"name":     id,
 				"password": password,
 			})
 		}

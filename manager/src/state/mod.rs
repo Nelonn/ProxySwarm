@@ -11,6 +11,47 @@ fn normalize_account_token(value: &str) -> String {
     }
 }
 
+fn generate_account_id() -> String {
+    uuid::Uuid::new_v4()
+        .simple()
+        .to_string()
+        .chars()
+        .take(8)
+        .collect()
+}
+
+fn now_unix_timestamp() -> i64 {
+    (js_sys::Date::now() / 1000.0).floor() as i64
+}
+
+fn normalize_account_creation_date(value: i64) -> i64 {
+    if value > 0 {
+        value
+    } else {
+        now_unix_timestamp()
+    }
+}
+
+fn normalize_account_id(value: &str) -> String {
+    let id = value.trim().to_lowercase();
+    if id.is_empty() {
+        return generate_account_id();
+    }
+    if id.len() == 8 && id.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        return id;
+    }
+    let filtered = id
+        .chars()
+        .filter(|ch| ch.is_ascii_hexdigit())
+        .take(8)
+        .collect::<String>();
+    if filtered.len() == 8 {
+        filtered
+    } else {
+        generate_account_id()
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
     pub nodes: Vec<ProxyNode>,
@@ -23,7 +64,7 @@ pub struct State {
 
 impl State {
     pub fn load() -> Self {
-        storage::load_state()
+        storage::load_state().normalized_on_load()
     }
 
     pub fn save(&self) {
@@ -41,10 +82,16 @@ impl State {
             }
         }
         for account in &mut cloned.accounts {
+            account.id = normalize_account_id(&account.id);
             account.token = normalize_account_token(&account.token);
             account.groups = normalize_groups(&account.groups);
+            account.creation_date = normalize_account_creation_date(account.creation_date);
         }
         cloned
+    }
+
+    pub fn normalized_on_load(&self) -> Self {
+        self.sanitized_for_storage()
     }
 }
 
@@ -684,6 +731,8 @@ pub struct AccountInfo {
     pub allowed_ips: Vec<String>,
     #[serde(default = "default_groups")]
     pub groups: Vec<String>,
+    #[serde(default)]
+    pub creation_date: i64,
     pub expiry_date: i64,
 }
 
@@ -861,4 +910,3 @@ fn sanitize_outbound_for_storage(outbound: &mut OutboundEntryDraft) {
         _ => {}
     }
 }
-

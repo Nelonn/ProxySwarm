@@ -93,10 +93,7 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inb
 	credsPath := filepath.Join(tmpDir, "credentials.toml")
 	var credsBuilder strings.Builder
 	for _, acc := range accounts {
-		username := strings.TrimSpace(acc.Name)
-		if username == "" {
-			username = strings.TrimSpace(acc.Id)
-		}
+		username := accountRuntimeID(acc)
 		if username == "" {
 			continue
 		}

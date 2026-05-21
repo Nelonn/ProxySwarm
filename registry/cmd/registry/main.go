@@ -312,6 +312,9 @@ func buildSubscriptionLinks(config *pb.RegistryServiceConfig, account *pb.Accoun
 func groupsIntersect(accountGroups []string, templateGroups []string) bool {
 	accountSet := normalizeGroups(accountGroups)
 	templateSet := normalizeGroups(templateGroups)
+	if len(templateSet) == 0 {
+		return true
+	}
 	for _, group := range accountSet {
 		for _, candidate := range templateSet {
 			if group == candidate {
@@ -342,10 +345,10 @@ func normalizeGroups(values []string) []string {
 func renderTemplateLink(template string, account *pb.Account) string {
 	replacer := strings.NewReplacer(
 		"{{token}}", account.GetToken(),
-		"{{name}}", account.GetName(),
+		"{{name}}", account.GetId(),
 		"{{id}}", account.GetId(),
 		"{token}", account.GetToken(),
-		"{name}", account.GetName(),
+		"{name}", account.GetId(),
 		"{id}", account.GetId(),
 	)
 	return replacer.Replace(template)
@@ -365,9 +368,7 @@ func buildSubscriptionUserInfo(account *pb.Account) string {
 func buildProfileTitle(account *pb.Account) string {
 	title := "ProxySwarm"
 	if account != nil {
-		if strings.TrimSpace(account.GetName()) != "" {
-			title = account.GetName()
-		} else if strings.TrimSpace(account.GetId()) != "" {
+		if strings.TrimSpace(account.GetId()) != "" {
 			title = account.GetId()
 		}
 	}
@@ -614,7 +615,6 @@ func cloneRegistryAccounts(accounts []*pb.Account) []*pb.Account {
 		}
 		cloned = append(cloned, &pb.Account{
 			Id:         account.Id,
-			Name:       account.Name,
 			AllowedIps: append([]string(nil), account.AllowedIps...),
 			Groups:     append([]string(nil), account.Groups...),
 			ExpiryTime: account.ExpiryTime,

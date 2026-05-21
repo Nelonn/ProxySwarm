@@ -4,8 +4,6 @@
 pub struct Account {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub name: ::prost::alloc::string::String,
     /// Used as UUID for VLESS/etc
     #[prost(string, tag = "3")]
     pub token: ::prost::alloc::string::String,

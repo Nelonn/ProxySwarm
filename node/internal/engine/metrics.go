@@ -423,7 +423,7 @@ func (m *Manager) accountStatusesLocked() []*pb.AccountStatus {
 			if account == nil {
 				continue
 			}
-			names = append(names, account.Name)
+			names = append(names, account.Id)
 		}
 	} else {
 		for name := range m.metricsState.Accounts {

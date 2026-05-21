@@ -103,7 +103,6 @@ pub(super) fn build_full_config(
         })
         .map(|account| Account {
             id: account.id.clone(),
-            name: account.name.clone(),
             allowed_ips: account.allowed_ips.clone(),
             groups: normalize_groups(&account.groups),
             expiry_time: account.expiry_date,

@@ -175,10 +175,10 @@ pub(super) fn build_trusttunnel_access_link(
     }
 
     let host = normalized_node_host(node)?;
-    let username = if !account.name.trim().is_empty() {
-        account.name.trim().to_string()
-    } else {
+    let username = if !account.id.trim().is_empty() {
         account.id.trim().to_string()
+    } else {
+        account.name.trim().to_string()
     };
     if username.is_empty() {
         return Err("User name is empty".to_string());

@@ -225,7 +225,6 @@ fn registry_accounts(accounts: &[AccountInfo]) -> Vec<Account> {
         .iter()
         .map(|account| Account {
             id: account.id.clone(),
-            name: account.name.clone(),
             token: account.token.clone(),
             expiry_time: account.expiry_date,
             allowed_ips: account.allowed_ips.clone(),

@@ -22,8 +22,7 @@ func TestPersistedConfigRoundTrip(t *testing.T) {
 		},
 		Accounts: []*pb.Account{
 			{
-				Id:       "1",
-				Name:     "user",
+				Id:    "1",
 				Token: "access",
 			},
 		},
