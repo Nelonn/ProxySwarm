@@ -631,10 +631,10 @@ fn node_modal(props: &NodeModalProps) -> Html {
                     placeholder="http://1.2.3.4:9090"
                 />
                 <TextBox
-                    label="Public IP Address"
+                    label="Public Address (IP / Domain)"
                     value={(*public_ip).clone()}
                     onchange={on_public_ip_change}
-                    placeholder="1.2.3.4 or 2001:db8::1"
+                    placeholder="1.2.3.4 or 2001:db8::1 or example.org"
                     error={(*public_ip_error).clone()}
                 />
                 <TextBox
