@@ -73,6 +73,14 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
     };
 
     let data = (*inbound).clone();
+    let reverse_proxy_next_disabled = data.protocol == "REVERSEPROXY"
+        && (data.reverse_proxy.mode.trim().is_empty()
+            || data.reverse_proxy.tag.trim().is_empty()
+            || data.reverse_proxy.domain.trim().is_empty()
+            || (data.reverse_proxy.mode == "bridge"
+                && data.reverse_proxy.bridge_outbound_tag.trim().is_empty())
+            || (data.reverse_proxy.mode == "portal"
+                && data.reverse_proxy.portal_inbound_tag.trim().is_empty()));
     let popup_title: AttrValue = if props.is_new {
         "Add Inbound"
     } else {
@@ -270,6 +278,63 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                                         checked={data.shadowsocks.udp_enabled}
                                                         onchange={update_bool(|inbound, value| inbound.shadowsocks.udp_enabled = value)}
                                                     />
+                                                </ConfigSection>
+                                            },
+                                            "REVERSEPROXY" => html! {
+                                                <ConfigSection title="Reverse Proxy">
+                                                    <div class="text-sm mb-4" style="color: var(--md-sys-color-on-surface-variant);">
+                                                        { "Portal inbound tag must match the name of another inbound on this node. Reverse Proxy entries define Xray reverse routing, not a listener of their own." }
+                                                    </div>
+                                                    <Dropdown
+                                                        label="Mode"
+                                                        value={data.reverse_proxy.mode.clone()}
+                                                        options={vec![
+                                                            DropdownOption { value: "portal".to_string(), label: "Portal".to_string() },
+                                                            DropdownOption { value: "bridge".to_string(), label: "Bridge".to_string() },
+                                                        ]}
+                                                        onchange={update_text(|inbound, value| inbound.reverse_proxy.mode = value)}
+                                                    />
+                                                    <TextBox
+                                                        label="Reverse Tag"
+                                                        value={data.reverse_proxy.tag.clone()}
+                                                        onchange={update_text(|inbound, value| inbound.reverse_proxy.tag = value)}
+                                                        placeholder="portal"
+                                                    />
+                                                    <TextBox
+                                                        label="Reverse Domain"
+                                                        value={data.reverse_proxy.domain.clone()}
+                                                        onchange={update_text(|inbound, value| inbound.reverse_proxy.domain = value)}
+                                                        placeholder="reverse.local"
+                                                    />
+                                                    {
+                                                        if data.reverse_proxy.mode == "bridge" {
+                                                            html! {
+                                                                <>
+                                                                    <TextBox
+                                                                        label="Bridge Outbound Tag"
+                                                                        value={data.reverse_proxy.bridge_outbound_tag.clone()}
+                                                                        onchange={update_text(|inbound, value| inbound.reverse_proxy.bridge_outbound_tag = value)}
+                                                                        placeholder="interconn"
+                                                                    />
+                                                                    <TextBox
+                                                                        label="Target Outbound Tag"
+                                                                        value={data.reverse_proxy.target_outbound_tag.clone()}
+                                                                        onchange={update_text(|inbound, value| inbound.reverse_proxy.target_outbound_tag = value)}
+                                                                        placeholder="direct"
+                                                                    />
+                                                                </>
+                                                            }
+                                                        } else {
+                                                            html! {
+                                                                <TextBox
+                                                                    label="Portal Inbound Tag"
+                                                                    value={data.reverse_proxy.portal_inbound_tag.clone()}
+                                                                    onchange={update_text(|inbound, value| inbound.reverse_proxy.portal_inbound_tag = value)}
+                                                                    placeholder="existing-inbound-name"
+                                                                />
+                                                            }
+                                                        }
+                                                    }
                                                 </ConfigSection>
                                             },
                                             "TROJAN" => html! {
@@ -472,6 +537,7 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                             *step == 0
                                                 && (data.core_type.trim().is_empty()
                                                     || data.protocol.trim().is_empty())
+                                                || (*step == 1 && reverse_proxy_next_disabled)
                                                 || (*step == 2
                                                     && ((data.protocol == "VLESS"
                                                         && data.vless.security == "TLS")
