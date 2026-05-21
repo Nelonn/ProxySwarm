@@ -746,7 +746,7 @@ pub(super) fn core_from(value: &str) -> i32 {
 
 pub(super) fn supported_protocol_values_for_core(core_type: &str) -> Vec<&'static str> {
     match core_type.trim().to_uppercase().as_str() {
-        "XRAY" => vec!["VLESS", "HYSTERIA2", "WIREGUARD", "SOCKS5", "SHADOWSOCKS", "TPROXY", "TROJAN"],
+        "XRAY" => vec!["VLESS", "HYSTERIA2", "WIREGUARD", "SOCKS5", "SHADOWSOCKS", "TPROXY", "TROJAN", "TUNNEL"],
         "SING_BOX" => vec!["VLESS", "HYSTERIA2", "NAIVEPROXY", "SOCKS5", "SHADOWSOCKS", "TROJAN"],
         "TRUSTTUNNEL" => vec!["TRUSTTUNNEL"],
         _ => vec![],
@@ -766,6 +766,7 @@ pub(super) fn protocol_options_for_core(core_type: &str) -> Vec<DropdownOption> 
                 "TRUSTTUNNEL" => "TrustTunnel".to_string(),
                 "TPROXY" => "TProxy".to_string(),
                 "TROJAN" => "Trojan".to_string(),
+                "TUNNEL" => "Tunnel".to_string(),
                 _ => value.to_string(),
             },
         })
@@ -827,6 +828,7 @@ pub(super) fn inbound_traffic_label(inbound: &InboundEntryDraft) -> String {
                 "TCP".to_string()
             }
         }
+        "TUNNEL" => "TCP".to_string(),
         "TPROXY" => "TCP+UDP".to_string(),
         _ => "TCP".to_string(),
     }

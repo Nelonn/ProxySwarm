@@ -386,6 +386,9 @@ pub struct ReverseProxyConfig {
     pub portal_inbound_tag: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct TunnelConfig {}
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TProxyConfig {
     /// tcp, udp, or tcp,udp
@@ -462,7 +465,7 @@ pub struct InboundConfig {
     pub enabled: bool,
     #[prost(
         oneof = "inbound_config::Protocol",
-        tags = "6, 7, 8, 9, 10, 11, 13, 14, 15, 16"
+        tags = "6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17"
     )]
     pub protocol: ::core::option::Option<inbound_config::Protocol>,
 }
@@ -491,6 +494,8 @@ pub mod inbound_config {
         Tproxy(super::TProxyConfig),
         #[prost(message, tag = "16")]
         Trojan(super::TrojanInboundConfig),
+        #[prost(message, tag = "17")]
+        Tunnel(super::TunnelConfig),
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]

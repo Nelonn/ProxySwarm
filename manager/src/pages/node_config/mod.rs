@@ -21,7 +21,7 @@ use crate::pb::proxyswarm::{
     CustomCertificateConfig, DnsConfig, DnsHostMapping, DnsServerConfig, FullConfig,
     Hysteria2Config, InboundConfig, InboundStatus, NaiveProxyConfig, NodeStatus, OutboundConfig,
     OutboundStatus, OutboundType, RoutingRule, SecurityMode, ShadowsocksInboundConfig,
-    ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, VlessConfig,
+    ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, TunnelConfig, VlessConfig,
     VlessOutboundConfig, VlessRealityConfig, WireGuardConfig, WireGuardPeer,
     TrojanInboundConfig, TrojanOutboundConfig, ReverseProxyConfig, TProxyConfig,
 };

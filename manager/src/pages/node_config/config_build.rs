@@ -237,6 +237,9 @@ pub(super) fn build_full_config(
                         fallback: inbound.trojan.fallback.clone(),
                     },
                 )),
+                "TUNNEL" => Some(crate::pb::proxyswarm::inbound_config::Protocol::Tunnel(
+                    TunnelConfig {},
+                )),
                 _ => Some(crate::pb::proxyswarm::inbound_config::Protocol::Vless(
                     VlessConfig {
                         uuid: String::new(),

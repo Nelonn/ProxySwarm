@@ -284,6 +284,13 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                                     <TextBox label="Fallback Target Address" value={data.trojan.fallback.clone()} onchange={update_text(|inbound, value| inbound.trojan.fallback = value)} placeholder="e.g. 127.0.0.1:80" />
                                                 </ConfigSection>
                                             },
+                                            "TUNNEL" => html! {
+                                                <ConfigSection title="Tunnel">
+                                                    <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">
+                                                        { "Xray tunnel inbound has no protocol-specific settings." }
+                                                    </div>
+                                                </ConfigSection>
+                                            },
                                             _ => html! {
                                                 <ConfigSection title="VLESS">
                                                     <Dropdown

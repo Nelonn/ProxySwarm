@@ -118,6 +118,9 @@ pub(super) fn render_inbound_review(data: &InboundEntryDraft) -> Html {
                             review_row("Sniffing route only", bool_label(data.tproxy.sniffing_route_only)),
                             review_row("Socket mark", data.tproxy.socket_mark.to_string()),
                         ]),
+                        "TUNNEL" => review_section("Tunnel", vec![
+                            review_row("Settings", "None"),
+                        ]),
                         _ => html! {},
                     }
                 }

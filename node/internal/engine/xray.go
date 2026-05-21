@@ -658,6 +658,8 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 			"version": 2,
 			"clients": clients,
 		})
+	case *pb.InboundConfig_Tunnel:
+		inbound.Protocol = "tunnel"
 	case *pb.InboundConfig_Socks5:
 		inbound.Protocol = "socks"
 		settings := map[string]any{

@@ -877,6 +877,18 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
             inbound.reverse_proxy = ReverseProxyDraft::default();
             inbound.trojan = TrojanDraft::default();
         }
+        "TUNNEL" => {
+            inbound.vless = VlessInboundDraft::default();
+            inbound.hysteria2 = Hysteria2Draft::default();
+            inbound.trust_tunnel = TrustTunnelDraft::default();
+            inbound.naive_proxy = NaiveProxyDraft::default();
+            inbound.wireguard = WireGuardDraft::default();
+            inbound.socks5 = Socks5Draft::default();
+            inbound.shadowsocks = ShadowsocksDraft::default();
+            inbound.reverse_proxy = ReverseProxyDraft::default();
+            inbound.tproxy = TProxyDraft::default();
+            inbound.trojan = TrojanDraft::default();
+        }
         "TROJAN" => {
             inbound.vless = VlessInboundDraft::default();
             inbound.hysteria2 = Hysteria2Draft::default();

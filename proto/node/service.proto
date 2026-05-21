@@ -12,6 +12,7 @@ import "node/wireguard.proto";
 import "node/socks5.proto";
 import "node/shadowsocks.proto";
 import "node/reverseproxy.proto";
+import "node/tunnel.proto";
 import "node/tproxy.proto";
 import "node/trojan.proto";
 
@@ -53,6 +54,7 @@ message InboundConfig {
         ReverseProxyConfig reverseproxy = 14;
         TProxyConfig tproxy = 15;
         TrojanInboundConfig trojan = 16;
+        TunnelConfig tunnel = 17;
 
     }
 }
