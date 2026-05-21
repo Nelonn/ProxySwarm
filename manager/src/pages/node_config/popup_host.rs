@@ -9,7 +9,11 @@ pub(super) struct PopupHostContext<'a> {
     pub(super) editing_routing_rule: &'a UseStateHandle<Option<(usize, RoutingRuleDraft, bool)>>,
     pub(super) pending_routing_delete: &'a UseStateHandle<Option<usize>>,
     pub(super) pending_inbound_delete: &'a UseStateHandle<Option<(String, String)>>,
+    pub(super) pending_duplicate_inbound: &'a UseStateHandle<Option<InboundEntryDraft>>,
+    pub(super) action_inbound: &'a UseStateHandle<Option<(String, (f64, f64, f64))>>,
     pub(super) pending_outbound_delete: &'a UseStateHandle<Option<(String, String)>>,
+    pub(super) pending_duplicate_outbound: &'a UseStateHandle<Option<OutboundEntryDraft>>,
+    pub(super) action_outbound: &'a UseStateHandle<Option<(String, (f64, f64, f64))>>,
     pub(super) warp_popup_open: &'a UseStateHandle<bool>,
     pub(super) access_link_inbound_id: &'a UseStateHandle<Option<String>>,
     pub(super) deploy_confirm_open: &'a UseStateHandle<bool>,
@@ -35,7 +39,11 @@ struct RoutingRuleEditorPopupSlot;
 struct DeployConfirmPopupSlot;
 struct DeployPreviewPopupSlot;
 struct DeleteInboundPopupSlot;
+struct InboundActionMenuPopupSlot;
+struct DuplicateInboundPopupSlot;
+struct OutboundActionMenuPopupSlot;
 struct DeleteOutboundPopupSlot;
+struct DuplicateOutboundPopupSlot;
 struct DeleteRoutingRulePopupSlot;
 struct WarpCreatePopupSlot;
 struct AcmeConfirmPopupSlot;
@@ -63,8 +71,24 @@ impl NodeConfigPopup for DeleteInboundPopupSlot {
     fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_delete_inbound_popup(ctx) }
 }
 
+impl NodeConfigPopup for InboundActionMenuPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_inbound_action_menu_popup(ctx) }
+}
+
+impl NodeConfigPopup for DuplicateInboundPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_duplicate_inbound_popup(ctx) }
+}
+
+impl NodeConfigPopup for OutboundActionMenuPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_outbound_action_menu_popup(ctx) }
+}
+
 impl NodeConfigPopup for DeleteOutboundPopupSlot {
     fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_delete_outbound_popup(ctx) }
+}
+
+impl NodeConfigPopup for DuplicateOutboundPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_duplicate_outbound_popup(ctx) }
 }
 
 impl NodeConfigPopup for DeleteRoutingRulePopupSlot {
@@ -112,8 +136,12 @@ fn popup_slots() -> Vec<Box<dyn NodeConfigPopup>> {
         Box::new(RoutingRuleEditorPopupSlot),
         Box::new(DeployConfirmPopupSlot),
         Box::new(DeployPreviewPopupSlot),
+        Box::new(InboundActionMenuPopupSlot),
         Box::new(DeleteInboundPopupSlot),
+        Box::new(DuplicateInboundPopupSlot),
+        Box::new(OutboundActionMenuPopupSlot),
         Box::new(DeleteOutboundPopupSlot),
+        Box::new(DuplicateOutboundPopupSlot),
         Box::new(DeleteRoutingRulePopupSlot),
         Box::new(WarpCreatePopupSlot),
         Box::new(AcmeConfirmPopupSlot),
@@ -321,6 +349,55 @@ fn render_delete_inbound_popup(ctx: &PopupHostContext<'_>) -> Html {
     }
 }
 
+fn render_inbound_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
+    let Some((inbound_id, (left, top, width))) = (**ctx.action_inbound).clone() else {
+        return html! {};
+    };
+    let Some(inbound) = ctx.draft_value.inbounds.iter().find(|item| item.id == inbound_id).cloned() else {
+        return html! {};
+    };
+
+    html! {
+        <ActionMenuPopup
+            anchor_left={left}
+            anchor_top={top}
+            anchor_width={width}
+            on_close={Callback::from({
+                let action_inbound = ctx.action_inbound.clone();
+                move |_| action_inbound.set(None)
+            })}
+            on_edit={Some(Callback::from({
+                let action_inbound = ctx.action_inbound.clone();
+                let editing_inbound = ctx.editing_inbound.clone();
+                let inbound = inbound.clone();
+                move |_| {
+                    action_inbound.set(None);
+                    editing_inbound.set(Some((inbound.clone(), false)));
+                }
+            }))}
+            on_duplicate={Some(Callback::from({
+                let action_inbound = ctx.action_inbound.clone();
+                let pending_duplicate_inbound = ctx.pending_duplicate_inbound.clone();
+                let inbound = inbound.clone();
+                move |_| {
+                    action_inbound.set(None);
+                    pending_duplicate_inbound.set(Some(inbound.clone()));
+                }
+            }))}
+            on_delete={Some(Callback::from({
+                let action_inbound = ctx.action_inbound.clone();
+                let pending_inbound_delete = ctx.pending_inbound_delete.clone();
+                let inbound_id = inbound.id.clone();
+                let inbound_name = inbound_display_name(&inbound);
+                move |_| {
+                    action_inbound.set(None);
+                    pending_inbound_delete.set(Some((inbound_id.clone(), inbound_name.clone())));
+                }
+            }))}
+        />
+    }
+}
+
 fn render_delete_outbound_popup(ctx: &PopupHostContext<'_>) -> Html {
     if let Some((outbound_id, outbound_name)) = (**ctx.pending_outbound_delete).clone() {
         html! {
@@ -343,6 +420,134 @@ fn render_delete_outbound_popup(ctx: &PopupHostContext<'_>) -> Html {
                         sync_draft(&mut next);
                         draft.set(next);
                         pending_outbound_delete.set(None);
+                    }
+                })}
+            />
+        }
+    } else {
+        html! {}
+    }
+}
+
+fn render_outbound_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
+    let Some((outbound_id, (left, top, width))) = (**ctx.action_outbound).clone() else {
+        return html! {};
+    };
+    let Some(outbound) = ctx.draft_value.outbounds.iter().find(|item| item.id == outbound_id).cloned() else {
+        return html! {};
+    };
+
+    html! {
+        <ActionMenuPopup
+            anchor_left={left}
+            anchor_top={top}
+            anchor_width={width}
+            on_close={Callback::from({
+                let action_outbound = ctx.action_outbound.clone();
+                move |_| action_outbound.set(None)
+            })}
+            on_edit={Some(Callback::from({
+                let action_outbound = ctx.action_outbound.clone();
+                let editing_outbound = ctx.editing_outbound.clone();
+                let outbound = outbound.clone();
+                move |_| {
+                    action_outbound.set(None);
+                    editing_outbound.set(Some((outbound.clone(), false)));
+                }
+            }))}
+            on_duplicate={(!outbound.builtin).then_some(Callback::from({
+                let action_outbound = ctx.action_outbound.clone();
+                let pending_duplicate_outbound = ctx.pending_duplicate_outbound.clone();
+                let outbound = outbound.clone();
+                move |_| {
+                    action_outbound.set(None);
+                    pending_duplicate_outbound.set(Some(outbound.clone()));
+                }
+            }))}
+            on_delete={(!outbound.builtin).then_some(Callback::from({
+                let action_outbound = ctx.action_outbound.clone();
+                let pending_outbound_delete = ctx.pending_outbound_delete.clone();
+                let outbound_id = outbound.id.clone();
+                let outbound_name = outbound.name.clone();
+                move |_| {
+                    action_outbound.set(None);
+                    pending_outbound_delete.set(Some((outbound_id.clone(), outbound_name.clone())));
+                }
+            }))}
+        />
+    }
+}
+
+fn render_duplicate_inbound_popup(ctx: &PopupHostContext<'_>) -> Html {
+    if let Some(inbound) = (**ctx.pending_duplicate_inbound).clone() {
+        let initial_name = format!("{} Copy", inbound_display_name(&inbound));
+        html! {
+            <NamePromptPopup
+                title="Duplicate Inbound"
+                label="New inbound name"
+                confirm_label="Duplicate"
+                initial_value={initial_name}
+                on_close={Callback::from({
+                    let pending_duplicate_inbound = ctx.pending_duplicate_inbound.clone();
+                    move |_| pending_duplicate_inbound.set(None)
+                })}
+                on_confirm={Callback::from({
+                    let draft = ctx.draft.clone();
+                    let pending_duplicate_inbound = ctx.pending_duplicate_inbound.clone();
+                    move |name: String| {
+                        let mut next = (*draft).clone();
+                        sync_draft(&mut next);
+                        let mut duplicated = inbound.clone();
+                        duplicated.id = uuid::Uuid::new_v4().to_string();
+                        duplicated.name = name;
+                        next.inbounds.push(duplicated);
+                        sync_draft(&mut next);
+                        draft.set(next);
+                        pending_duplicate_inbound.set(None);
+                    }
+                })}
+            />
+        }
+    } else {
+        html! {}
+    }
+}
+
+fn render_duplicate_outbound_popup(ctx: &PopupHostContext<'_>) -> Html {
+    if let Some(outbound) = (**ctx.pending_duplicate_outbound).clone() {
+        let initial_name = format!("{} Copy", outbound.name.trim());
+        html! {
+            <NamePromptPopup
+                title="Duplicate Outbound"
+                label="New outbound name"
+                confirm_label="Duplicate"
+                initial_value={initial_name}
+                on_close={Callback::from({
+                    let pending_duplicate_outbound = ctx.pending_duplicate_outbound.clone();
+                    move |_| pending_duplicate_outbound.set(None)
+                })}
+                on_confirm={Callback::from({
+                    let draft = ctx.draft.clone();
+                    let pending_duplicate_outbound = ctx.pending_duplicate_outbound.clone();
+                    move |name: String| {
+                        let mut next = (*draft).clone();
+                        sync_draft(&mut next);
+                        let mut duplicated = outbound.clone();
+                        duplicated.id = uuid::Uuid::new_v4().to_string();
+                        duplicated.name = name.clone();
+                        match duplicated.outbound_type.trim().to_uppercase().as_str() {
+                            "VLESS" => duplicated.vless.tag = name,
+                            "TRUSTTUNNEL" => duplicated.trust_tunnel.tag = name,
+                            "WIREGUARD" => duplicated.wireguard.tag = name,
+                            "SOCKS5" => duplicated.socks5.tag = name,
+                            "SHADOWSOCKS" => duplicated.shadowsocks.tag = name,
+                            "TROJAN" => duplicated.trojan.tag = name,
+                            _ => {}
+                        }
+                        next.outbounds.push(duplicated);
+                        sync_draft(&mut next);
+                        draft.set(next);
+                        pending_duplicate_outbound.set(None);
                     }
                 })}
             />

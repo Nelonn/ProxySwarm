@@ -6,7 +6,8 @@ use yew::prelude::*;
 use yew_router::prelude::use_navigator;
 
 use crate::components::{
-    Button, ButtonType, FixedHeightText, Popup, PopupSize, RichTable, TextBox,
+    ActionMenuPopup, Button, ButtonType, FixedHeightText, Popup, PopupSize, RichTable, TextBox,
+    menu_anchor_from_mouse_event,
 };
 use crate::country::{
     country_display, find_country_by_query, flag_emoji, normalize_country_code, search_countries,
@@ -30,6 +31,8 @@ pub fn nodes() -> Html {
     let show_modal = use_state(|| false);
     let editing_node = use_state(|| Option::<ProxyNode>::None);
     let pending_delete = use_state(|| Option::<ProxyNode>::None);
+    let pending_duplicate = use_state(|| Option::<ProxyNode>::None);
+    let action_node = use_state(|| Option::<(ProxyNode, (f64, f64, f64))>::None);
     let navigator = use_navigator();
 
     let on_open_modal = {
@@ -72,8 +75,7 @@ pub fn nodes() -> Html {
                     ]}>
                         { for state.nodes.iter().map(|node| {
                             let flag = flag_emoji(&node.country);
-                            let node_for_edit = node.clone();
-                            let node_for_delete = node.clone();
+                            let node_for_action = node.clone();
                             let node_id = node.id.clone();
                             html! {
                                 <>
@@ -127,26 +129,20 @@ pub fn nodes() -> Html {
                                                     }}
                                                 />
                                                 <Button
-                                                    label="Edit"
-                                                    button_type={ButtonType::Outlined}
-                                                    onclick={{
-                                                        let show_modal = show_modal.clone();
-                                                        let editing_node = editing_node.clone();
-                                                        Callback::from(move |_| {
-                                                            editing_node.set(Some(node_for_edit.clone()));
-                                                            show_modal.set(true);
-                                                        })
-                                                    }}
-                                                />
-                                                <Button
-                                                    label="Delete"
-                                                    button_type={ButtonType::Outlined}
-                                                    color={Some("#F2B8B5".to_string())}
-                                                    onclick={{
-                                                        let pending_delete = pending_delete.clone();
-                                                        Callback::from(move |_| pending_delete.set(Some(node_for_delete.clone())))
-                                                    }}
-                                                />
+                                                        label="Action"
+                                                        button_type={ButtonType::Outlined}
+                                                        onclick={{
+                                                            let action_node = action_node.clone();
+                                                            Callback::from(move |e: MouseEvent| {
+                                                                if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                    action_node.set(Some((
+                                                                        node_for_action.clone(),
+                                                                        (left, top, width),
+                                                                    )));
+                                                                }
+                                                            })
+                                                        }}
+                                                    />
                                             </div>
                                         </div>
                                     </div>
@@ -163,7 +159,10 @@ pub fn nodes() -> Html {
                     <NodeModal
                         state={state.clone()}
                         initial_node={(*editing_node).clone()}
-                        on_close={Callback::from(move |_| show_modal.set(false))}
+                        on_close={Callback::from({
+                            let show_modal = show_modal.clone();
+                            move |_| show_modal.set(false)
+                        })}
                     />
                 }
             } else {
@@ -187,6 +186,71 @@ pub fn nodes() -> Html {
                             state.set(new_state);
                             pending_delete_confirm.set(None);
                         })}
+                    />
+                }
+            } else {
+                html! {}
+            }}
+
+            { if let Some(node) = &*pending_duplicate {
+                let state = state.clone();
+                let pending_duplicate_close = pending_duplicate.clone();
+                let pending_duplicate_confirm = pending_duplicate.clone();
+                let source = node.clone();
+                html! {
+                    <DuplicateNamePopup
+                        title={"Duplicate Node"}
+                        label={"New node name"}
+                        confirm_label={"Duplicate"}
+                        initial_value={format!("{} Copy", node.name)}
+                        on_cancel={Callback::from(move |_| pending_duplicate_close.set(None))}
+                        on_confirm={Callback::from(move |name: String| {
+                            let mut new_state = (*state).clone();
+                            let mut duplicated = source.clone();
+                            duplicated.id = uuid::Uuid::new_v4().to_string();
+                            duplicated.name = name;
+                            new_state.nodes.push(duplicated);
+                            new_state.save();
+                            state.set(new_state);
+                            pending_duplicate_confirm.set(None);
+                        })}
+                    />
+                }
+            } else {
+                html! {}
+            }}
+
+            { if let Some((node, anchor)) = &*action_node {
+                let action_node_close = action_node.clone();
+                let action_node_edit = action_node.clone();
+                let action_node_duplicate = action_node.clone();
+                let action_node_delete = action_node.clone();
+                let show_modal = show_modal.clone();
+                let editing_node = editing_node.clone();
+                let pending_duplicate = pending_duplicate.clone();
+                let pending_delete = pending_delete.clone();
+                let selected_edit = node.clone();
+                let selected_duplicate = node.clone();
+                let selected_delete = node.clone();
+                html! {
+                    <ActionMenuPopup
+                        anchor_left={anchor.0}
+                        anchor_top={anchor.1}
+                        anchor_width={anchor.2}
+                        on_close={Callback::from(move |_| action_node_close.set(None))}
+                        on_edit={Some(Callback::from(move |_| {
+                            action_node_edit.set(None);
+                            editing_node.set(Some(selected_edit.clone()));
+                            show_modal.set(true);
+                        }))}
+                        on_duplicate={Some(Callback::from(move |_| {
+                            action_node_duplicate.set(None);
+                            pending_duplicate.set(Some(selected_duplicate.clone()));
+                        }))}
+                        on_delete={Some(Callback::from(move |_| {
+                            action_node_delete.set(None);
+                            pending_delete.set(Some(selected_delete.clone()));
+                        }))}
                     />
                 }
             } else {
@@ -692,6 +756,75 @@ struct DeleteConfirmPopupProps {
     message: String,
     on_cancel: Callback<()>,
     on_confirm: Callback<()>,
+}
+
+#[derive(Properties, PartialEq)]
+struct DuplicateNamePopupProps {
+    title: AttrValue,
+    label: AttrValue,
+    confirm_label: AttrValue,
+    initial_value: String,
+    on_cancel: Callback<()>,
+    on_confirm: Callback<String>,
+}
+
+#[function_component(DuplicateNamePopup)]
+fn duplicate_name_popup(props: &DuplicateNamePopupProps) -> Html {
+    let value = use_state(|| props.initial_value.clone());
+    let error = use_state(|| Option::<String>::None);
+
+    let on_change = {
+        let value = value.clone();
+        let error = error.clone();
+        Callback::from(move |next: String| {
+            value.set(next);
+            error.set(None);
+        })
+    };
+
+    let on_cancel_click = props.on_cancel.clone();
+    let on_confirm_click = {
+        let value = value.clone();
+        let error = error.clone();
+        let on_confirm = props.on_confirm.clone();
+        Callback::from(move |_| {
+            let next = value.trim().to_string();
+            if next.is_empty() {
+                error.set(Some("Name is required.".to_string()));
+                return;
+            }
+            on_confirm.emit(next);
+        })
+    };
+
+    html! {
+        <Popup
+            title={props.title.clone()}
+            size={PopupSize::Sm}
+            on_close={props.on_cancel.clone()}
+        >
+            <div class="space-y-4">
+                <TextBox
+                    label={props.label.to_string()}
+                    value={(*value).clone()}
+                    onchange={on_change}
+                    error={(*error).clone()}
+                />
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button
+                        label="Cancel"
+                        button_type={ButtonType::Text}
+                        onclick={move |_| on_cancel_click.emit(())}
+                    />
+                    <Button
+                        label={props.confirm_label.to_string()}
+                        button_type={ButtonType::Filled}
+                        onclick={on_confirm_click}
+                    />
+                </div>
+            </div>
+        </Popup>
+    }
 }
 
 #[function_component(DeleteConfirmPopup)]

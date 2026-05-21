@@ -763,5 +763,3 @@ pub(super) fn inbound_traffic_label(inbound: &InboundEntryDraft) -> String {
         _ => "TCP".to_string(),
     }
 }
-
-

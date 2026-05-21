@@ -308,6 +308,38 @@ fn app() -> Html {
                 .md3-country-picker-option:hover {
                     background-color: rgba(208, 188, 255, 0.08);
                 }
+                .md3-action-menu {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.25rem;
+                }
+                .md3-action-menu-item {
+                    width: 100%;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                    padding: 0.6rem 0.75rem;
+                    border: none;
+                    background: transparent;
+                    color: var(--md-sys-color-on-surface);
+                    border-radius: 0.5rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: background-color 0.15s ease, color 0.15s ease;
+                }
+                .md3-action-menu-item:hover {
+                    background-color: rgba(208, 188, 255, 0.08);
+                }
+                .md3-action-menu-item-danger {
+                    color: #F2B8B5;
+                }
+                .md3-action-menu-item-danger:hover {
+                    background-color: rgba(242, 184, 181, 0.1);
+                }
+                .md3-action-menu-popup {
+                    animation: md3-popup-scale-in 140ms ease-out;
+                    transform-origin: top left;
+                }
 
                 /* Border radius utilities */
                 .rounded-2xl { border-radius: 1rem; }

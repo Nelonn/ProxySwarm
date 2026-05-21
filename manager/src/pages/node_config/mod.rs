@@ -12,9 +12,9 @@ use yew::prelude::*;
 use yew_router::prelude::use_navigator;
 
 use crate::components::{
-    Button, ButtonType, Chip, ChipMode, Dropdown, DropdownOption, IconButton, Popup, PopupSize,
-    RichTable, SnackbarBus, SvgIcon, Switch, SwitchField, TextBox, WideNavigationBar,
-    WideNavigationBarItem,
+    ActionMenuPopup, Button, ButtonType, Chip, ChipMode, Dropdown, DropdownOption, IconButton,
+    Popup, PopupSize, RichTable, SnackbarBus, SvgIcon, Switch, SwitchField, TextBox,
+    WideNavigationBar, WideNavigationBarItem,
 };
 use crate::pb::proxyswarm::{
     outbound_config, Account, AccountStatus, AcmeCertificateConfig, CertificateConfig, CoreType,
@@ -87,6 +87,8 @@ use popups::*;
 use review::*;
 use routing_rule_editor::*;
 use status_widgets::*;
+
+pub(super) use crate::components::menu_anchor_from_mouse_event;
 
 fn nav_key(tab: &ConfigTab) -> AttrValue {
     match tab {
@@ -211,8 +213,12 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
     let editing_dns_host = use_state(|| Option::<(usize, DnsHostDraft, bool)>::None);
     let editing_routing_rule = use_state(|| Option::<(usize, RoutingRuleDraft, bool)>::None);
     let pending_routing_delete = use_state(|| Option::<usize>::None);
+    let action_inbound = use_state(|| Option::<(String, (f64, f64, f64))>::None);
     let pending_inbound_delete = use_state(|| Option::<(String, String)>::None);
+    let pending_duplicate_inbound = use_state(|| Option::<InboundEntryDraft>::None);
+    let action_outbound = use_state(|| Option::<(String, (f64, f64, f64))>::None);
     let pending_outbound_delete = use_state(|| Option::<(String, String)>::None);
+    let pending_duplicate_outbound = use_state(|| Option::<OutboundEntryDraft>::None);
     let routing_move_anim = use_state(|| Option::<(usize, bool)>::None);
     let warp_popup_open = use_state(|| false);
     let access_link_inbound_id = use_state(|| Option::<String>::None);
@@ -495,8 +501,8 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
 
             {
                 match &*active_tab {
-                    ConfigTab::Inbounds => inbounds::render_inbounds_tab(&draft, &inbounds, &editing_inbound, &access_link_inbound_id, &pending_inbound_delete),
-                    ConfigTab::Outbounds => outbounds::render_outbounds_tab(&draft, &d.outbounds, &editing_outbound, &warp_popup_open, &pending_outbound_delete),
+                    ConfigTab::Inbounds => inbounds::render_inbounds_tab(&draft, &inbounds, &editing_inbound, &access_link_inbound_id, &action_inbound),
+                    ConfigTab::Outbounds => outbounds::render_outbounds_tab(&draft, &d.outbounds, &editing_outbound, &warp_popup_open, &action_outbound),
                     ConfigTab::Routing => routing::render_routing_tab(
                         &draft,
                         &routing_rules,
@@ -543,7 +549,11 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                 editing_routing_rule: &editing_routing_rule,
                 pending_routing_delete: &pending_routing_delete,
                 pending_inbound_delete: &pending_inbound_delete,
+                pending_duplicate_inbound: &pending_duplicate_inbound,
+                action_inbound: &action_inbound,
                 pending_outbound_delete: &pending_outbound_delete,
+                pending_duplicate_outbound: &pending_duplicate_outbound,
+                action_outbound: &action_outbound,
                 warp_popup_open: &warp_popup_open,
                 access_link_inbound_id: &access_link_inbound_id,
                 deploy_confirm_open: &deploy_confirm_open,

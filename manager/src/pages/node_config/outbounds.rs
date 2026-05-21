@@ -5,7 +5,7 @@ pub(super) fn render_outbounds_tab(
     outbounds: &[OutboundEntryDraft],
     editing_outbound: &UseStateHandle<Option<(OutboundEntryDraft, bool)>>,
     warp_popup_open: &UseStateHandle<bool>,
-    pending_outbound_delete: &UseStateHandle<Option<(String, String)>>,
+    action_outbound: &UseStateHandle<Option<(String, (f64, f64, f64))>>,
 ) -> Html {
     html! {                        <div class="space-y-6">
                             <div class="flex justify-between" style="align-items: center;">
@@ -38,8 +38,7 @@ pub(super) fn render_outbounds_tab(
                             ]} card_class={Some("bg-surface-container".to_string())} header_in_list={true}>
                                 {
                                     for outbounds.iter().map(|outbound| {
-                                        let edit_id = outbound.id.clone();
-                                        let delete_id = outbound.id.clone();
+                                        let action_id = outbound.id.clone();
                                         let type_label = outbound.outbound_type.clone();
                                         let toggle_id = outbound.id.clone();
                                         let toggle_allowed = outbound.outbound_type.trim().to_uppercase() != "BLOCK";
@@ -102,28 +101,17 @@ pub(super) fn render_outbounds_tab(
                                                     <div class="md3-list-col">{ target_label }</div>
                                                     <div class="md3-list-col-actions">
                                                         <div class="md3-list-actions">
-                                                            <Button label="Edit" button_type={ButtonType::Outlined} onclick={Callback::from({
-                                                                let editing_outbound = editing_outbound.clone();
-                                                                let draft = draft.clone();
-                                                                move |_| {
-                                                                    let mut data = (*draft).clone();
-                                                                    sync_draft(&mut data);
-                                                                    editing_outbound.set(data.outbounds.iter().find(|item| item.id == edit_id).cloned().map(|value| (value, false)));
-                                                                }
-                                                            })} />
-                                                            {
-                                                                if outbound.builtin {
-                                                                    html! {}
-                                                                } else {
-                                                                    html! {
-                                                                        <Button label="Delete" button_type={ButtonType::Text} color={Some("#F2B8B5".to_string())} onclick={Callback::from({
-                                                                            let pending_outbound_delete = pending_outbound_delete.clone();
-                                                                            let outbound_name = outbound.name.clone();
-                                                                            move |_| pending_outbound_delete.set(Some((delete_id.clone(), outbound_name.clone())))
-                                                                        })} />
+                                                            <Button label="Action" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                                                let action_outbound = action_outbound.clone();
+                                                                move |e: MouseEvent| {
+                                                                    if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                        action_outbound.set(Some((
+                                                                            action_id.clone(),
+                                                                            (left, top, width),
+                                                                        )));
                                                                     }
                                                                 }
-                                                            }
+                                                            })} />
                                                         </div>
                                                     </div>
                                                 </div>

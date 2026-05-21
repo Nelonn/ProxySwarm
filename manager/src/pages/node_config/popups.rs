@@ -1,5 +1,6 @@
 use super::*;
 
+
 #[derive(Properties, PartialEq)]
 pub(super) struct SectionProps {
     pub(super) title: AttrValue,
@@ -119,4 +120,63 @@ pub(super) fn acme_logs_popup(props: &AcmeLogsPopupProps) -> Html {
     }
 }
 
+#[derive(Properties, PartialEq)]
+pub(super) struct NamePromptPopupProps {
+    pub(super) title: AttrValue,
+    pub(super) label: AttrValue,
+    pub(super) confirm_label: AttrValue,
+    pub(super) initial_value: String,
+    pub(super) on_confirm: Callback<String>,
+    pub(super) on_close: Callback<()>,
+}
 
+#[function_component(NamePromptPopup)]
+pub(super) fn name_prompt_popup(props: &NamePromptPopupProps) -> Html {
+    let value = use_state(|| props.initial_value.clone());
+    let error = use_state(|| Option::<String>::None);
+
+    let on_change = {
+        let value = value.clone();
+        let error = error.clone();
+        Callback::from(move |next: String| {
+            value.set(next);
+            error.set(None);
+        })
+    };
+
+    let on_confirm = {
+        let value = value.clone();
+        let error = error.clone();
+        let on_confirm = props.on_confirm.clone();
+        Callback::from(move |_| {
+            let next = value.trim().to_string();
+            if next.is_empty() {
+                error.set(Some("Name is required.".to_string()));
+                return;
+            }
+            on_confirm.emit(next);
+        })
+    };
+
+    let on_close_btn = {
+        let on_close = props.on_close.clone();
+        Callback::from(move |_| on_close.emit(()))
+    };
+
+    html! {
+        <Popup title={props.title.clone()} size={PopupSize::Sm} on_close={props.on_close.clone()}>
+            <div class="space-y-6">
+                <TextBox
+                    label={props.label.to_string()}
+                    value={(*value).clone()}
+                    onchange={on_change}
+                    error={(*error).clone()}
+                />
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button label="Cancel" button_type={ButtonType::Text} onclick={on_close_btn} />
+                    <Button label={props.confirm_label.to_string()} button_type={ButtonType::Filled} onclick={on_confirm} />
+                </div>
+            </div>
+        </Popup>
+    }
+}
