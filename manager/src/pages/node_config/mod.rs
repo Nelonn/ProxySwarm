@@ -34,7 +34,7 @@ use crate::state::{
     default_link_remark_template, effective_inbound_groups, format_link_remark, normalize_groups, AccountInfo,
     CertificateDraft, DnsDraft, DnsHostDraft, DnsServerDraft, Hysteria2Draft, InboundEntryDraft,
     NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision, OutboundEntryDraft, ProxyNode,
-    RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State, TlsDraft, TrustTunnelDraft,
+    RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State, TlsDraft, TrustTunnelDraft, TunnelDraft,
     TrustTunnelOutboundDraft, VlessInboundDraft, VlessOutboundDraft, WarpRegistrationDraft,
     WireGuardDraft, WireGuardPeerItem, TrojanDraft, ReverseProxyDraft, TProxyDraft,
 };
@@ -214,7 +214,11 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
     let editing_dns_host = use_state(|| Option::<(usize, DnsHostDraft, bool)>::None);
     let editing_routing_rule = use_state(|| Option::<(usize, RoutingRuleDraft, bool)>::None);
     let editing_reverse_proxy = use_state(|| Option::<(usize, ReverseProxyDraft, bool)>::None);
+    let action_routing_rule = use_state(|| Option::<(usize, (f64, f64, f64))>::None);
     let pending_routing_delete = use_state(|| Option::<usize>::None);
+    let action_reverse_proxy = use_state(|| Option::<(usize, (f64, f64, f64))>::None);
+    let pending_reverse_proxy_delete = use_state(|| Option::<(usize, String)>::None);
+    let pending_duplicate_reverse_proxy = use_state(|| Option::<ReverseProxyDraft>::None);
     let action_inbound = use_state(|| Option::<(String, (f64, f64, f64))>::None);
     let pending_inbound_delete = use_state(|| Option::<(String, String)>::None);
     let pending_duplicate_inbound = use_state(|| Option::<InboundEntryDraft>::None);
@@ -510,6 +514,8 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                         &routing_rules,
                         &editing_routing_rule,
                         &editing_reverse_proxy,
+                        &action_routing_rule,
+                        &action_reverse_proxy,
                         &pending_routing_delete,
                         &routing_move_anim,
                     ),
@@ -552,7 +558,11 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                 snackbar: &snackbar,
                 editing_routing_rule: &editing_routing_rule,
                 editing_reverse_proxy: &editing_reverse_proxy,
+                action_routing_rule: &action_routing_rule,
                 pending_routing_delete: &pending_routing_delete,
+                action_reverse_proxy: &action_reverse_proxy,
+                pending_reverse_proxy_delete: &pending_reverse_proxy_delete,
+                pending_duplicate_reverse_proxy: &pending_duplicate_reverse_proxy,
                 pending_inbound_delete: &pending_inbound_delete,
                 pending_duplicate_inbound: &pending_duplicate_inbound,
                 action_inbound: &action_inbound,

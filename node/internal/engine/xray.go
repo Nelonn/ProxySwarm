@@ -660,6 +660,13 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		})
 	case *pb.InboundConfig_Tunnel:
 		inbound.Protocol = "tunnel"
+		network := strings.TrimSpace(p.Tunnel.AllowedNetwork)
+		if network == "" {
+			network = "tcp"
+		}
+		inbound.Settings = toRawPtr(&conf.DokodemoConfig{
+			Network: xrayNetworkList(network),
+		})
 	case *pb.InboundConfig_Socks5:
 		inbound.Protocol = "socks"
 		settings := map[string]any{

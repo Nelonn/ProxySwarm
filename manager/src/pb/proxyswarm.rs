@@ -386,10 +386,10 @@ pub struct ReverseProxyConfig {
     pub portal_inbound_tag: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TunnelConfig {
-    #[prost(bool, tag = "1")]
-    pub active: bool,
+    #[prost(string, tag = "1")]
+    pub allowed_network: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

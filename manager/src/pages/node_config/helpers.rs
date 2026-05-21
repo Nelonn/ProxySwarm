@@ -111,6 +111,9 @@ pub(super) fn default_inbound_entry() -> InboundEntryDraft {
             target_outbound_tag: "direct".to_string(),
             ..ReverseProxyDraft::default()
         },
+        tunnel: TunnelDraft {
+            allowed_network: "tcp".to_string(),
+        },
         tproxy: TProxyDraft {
             network: "tcp,udp".to_string(),
             sniffing_enabled: true,
@@ -828,7 +831,11 @@ pub(super) fn inbound_traffic_label(inbound: &InboundEntryDraft) -> String {
                 "TCP".to_string()
             }
         }
-        "TUNNEL" => "TCP".to_string(),
+        "TUNNEL" => match inbound.tunnel.allowed_network.trim() {
+            "udp" => "UDP".to_string(),
+            "tcp,udp" => "TCP+UDP".to_string(),
+            _ => "TCP".to_string(),
+        },
         "TPROXY" => "TCP+UDP".to_string(),
         _ => "TCP".to_string(),
     }

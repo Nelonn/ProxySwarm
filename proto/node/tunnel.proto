@@ -3,5 +3,5 @@ package proxyswarm;
 option go_package = "./pb";
 
 message TunnelConfig {
-    bool active = 1;
+    string allowed_network = 1;
 }

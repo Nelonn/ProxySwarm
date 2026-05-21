@@ -300,6 +300,8 @@ pub struct InboundEntryDraft {
     #[serde(default, skip_serializing_if = "is_default")]
     pub reverse_proxy: ReverseProxyDraft,
     #[serde(default, skip_serializing_if = "is_default")]
+    pub tunnel: TunnelDraft,
+    #[serde(default, skip_serializing_if = "is_default")]
     pub tproxy: TProxyDraft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub trojan: TrojanDraft,
@@ -650,6 +652,11 @@ pub struct ReverseProxyDraft {
     pub portal_inbound_tag: String,
 }
 
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TunnelDraft {
+    pub allowed_network: String,
+}
+
 fn sanitize_reverse_proxy_for_storage(reverse_proxy: &mut ReverseProxyDraft) {
     reverse_proxy.mode = reverse_proxy.mode.trim().to_lowercase();
     if reverse_proxy.mode != "bridge" && reverse_proxy.mode != "portal" {
@@ -785,6 +792,16 @@ pub struct RegistryInfo {
 
 fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
     inbound.groups = normalize_groups(&inbound.groups);
+    if inbound.protocol.trim().eq_ignore_ascii_case("TUNNEL") {
+        let allowed_network = inbound.tunnel.allowed_network.trim();
+        inbound.tunnel.allowed_network = match allowed_network {
+            "udp" => "udp".to_string(),
+            "tcp,udp" => "tcp,udp".to_string(),
+            _ => "tcp".to_string(),
+        };
+    } else {
+        inbound.tunnel = TunnelDraft::default();
+    }
     match inbound.protocol.trim().to_uppercase().as_str() {
         "VLESS" => {
             inbound.hysteria2 = Hysteria2Draft::default();

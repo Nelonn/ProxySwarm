@@ -8,7 +8,11 @@ pub(super) struct PopupHostContext<'a> {
     pub(super) snackbar: &'a Option<SnackbarBus>,
     pub(super) editing_routing_rule: &'a UseStateHandle<Option<(usize, RoutingRuleDraft, bool)>>,
     pub(super) editing_reverse_proxy: &'a UseStateHandle<Option<(usize, ReverseProxyDraft, bool)>>,
+    pub(super) action_routing_rule: &'a UseStateHandle<Option<(usize, (f64, f64, f64))>>,
     pub(super) pending_routing_delete: &'a UseStateHandle<Option<usize>>,
+    pub(super) action_reverse_proxy: &'a UseStateHandle<Option<(usize, (f64, f64, f64))>>,
+    pub(super) pending_reverse_proxy_delete: &'a UseStateHandle<Option<(usize, String)>>,
+    pub(super) pending_duplicate_reverse_proxy: &'a UseStateHandle<Option<ReverseProxyDraft>>,
     pub(super) pending_inbound_delete: &'a UseStateHandle<Option<(String, String)>>,
     pub(super) pending_duplicate_inbound: &'a UseStateHandle<Option<InboundEntryDraft>>,
     pub(super) action_inbound: &'a UseStateHandle<Option<(String, (f64, f64, f64))>>,
@@ -37,7 +41,11 @@ trait NodeConfigPopup {
 }
 
 struct RoutingRuleEditorPopupSlot;
+struct RoutingRuleActionMenuPopupSlot;
 struct ReverseProxyEditorPopupSlot;
+struct ReverseProxyActionMenuPopupSlot;
+struct DeleteReverseProxyPopupSlot;
+struct DuplicateReverseProxyPopupSlot;
 struct DeployConfirmPopupSlot;
 struct DeployPreviewPopupSlot;
 struct DeleteInboundPopupSlot;
@@ -61,8 +69,24 @@ impl NodeConfigPopup for RoutingRuleEditorPopupSlot {
     fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_routing_rule_editor_popup(ctx) }
 }
 
+impl NodeConfigPopup for RoutingRuleActionMenuPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_routing_rule_action_menu_popup(ctx) }
+}
+
 impl NodeConfigPopup for ReverseProxyEditorPopupSlot {
     fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_reverse_proxy_editor_popup(ctx) }
+}
+
+impl NodeConfigPopup for ReverseProxyActionMenuPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_reverse_proxy_action_menu_popup(ctx) }
+}
+
+impl NodeConfigPopup for DeleteReverseProxyPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_delete_reverse_proxy_popup(ctx) }
+}
+
+impl NodeConfigPopup for DuplicateReverseProxyPopupSlot {
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_duplicate_reverse_proxy_popup(ctx) }
 }
 
 impl NodeConfigPopup for DeployConfirmPopupSlot {
@@ -140,7 +164,11 @@ impl NodeConfigPopup for AccessLinkPopupSlot {
 fn popup_slots() -> Vec<Box<dyn NodeConfigPopup>> {
     vec![
         Box::new(RoutingRuleEditorPopupSlot),
+        Box::new(RoutingRuleActionMenuPopupSlot),
         Box::new(ReverseProxyEditorPopupSlot),
+        Box::new(ReverseProxyActionMenuPopupSlot),
+        Box::new(DeleteReverseProxyPopupSlot),
+        Box::new(DuplicateReverseProxyPopupSlot),
         Box::new(DeployConfirmPopupSlot),
         Box::new(DeployPreviewPopupSlot),
         Box::new(InboundActionMenuPopupSlot),
@@ -194,15 +222,24 @@ fn routing_inbound_options(draft: &NodeConfigDraft) -> Vec<String> {
     options
 }
 
-fn routing_user_options(state: &State) -> Vec<String> {
+fn routing_user_options(state: &State) -> Vec<DropdownOption> {
     let mut options = state
         .accounts
         .iter()
-        .map(|account| account.name.trim().to_string())
-        .filter(|value| !value.is_empty())
+        .map(|account| {
+            let id = account.id.trim().to_string();
+            let name = account.name.trim();
+            let label = if name.is_empty() || name == id {
+                id.clone()
+            } else {
+                format!("{} ({})", id, name)
+            };
+            DropdownOption { value: id, label }
+        })
+        .filter(|option| !option.value.is_empty())
         .collect::<Vec<_>>();
-    options.sort();
-    options.dedup();
+    options.sort_by(|a, b| a.label.cmp(&b.label).then(a.value.cmp(&b.value)));
+    options.dedup_by(|a, b| a.value == b.value);
     options
 }
 
@@ -243,6 +280,58 @@ fn render_routing_rule_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
     }
 }
 
+fn render_routing_rule_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
+    let Some((rule_index, (left, top, width))) = (**ctx.action_routing_rule).clone() else {
+        return html! {};
+    };
+    let Some(rule) = ctx.draft_value.routing_rules.get(rule_index).cloned() else {
+        return html! {};
+    };
+
+    html! {
+        <ActionMenuPopup
+            anchor_left={left}
+            anchor_top={top}
+            anchor_width={width}
+            on_close={Callback::from({
+                let action_routing_rule = ctx.action_routing_rule.clone();
+                move |_| action_routing_rule.set(None)
+            })}
+            on_edit={Some(Callback::from({
+                let action_routing_rule = ctx.action_routing_rule.clone();
+                let editing_routing_rule = ctx.editing_routing_rule.clone();
+                let rule = rule.clone();
+                move |_| {
+                    action_routing_rule.set(None);
+                    editing_routing_rule.set(Some((rule_index, rule.clone(), false)));
+                }
+            }))}
+            on_duplicate={Some(Callback::from({
+                let action_routing_rule = ctx.action_routing_rule.clone();
+                let draft = ctx.draft.clone();
+                let rule = rule.clone();
+                move |_| {
+                    action_routing_rule.set(None);
+                    let mut next = (*draft).clone();
+                    sync_draft(&mut next);
+                    let insert_at = (rule_index + 1).min(next.routing_rules.len());
+                    next.routing_rules.insert(insert_at, rule.clone());
+                    sync_draft(&mut next);
+                    draft.set(next);
+                }
+            }))}
+            on_delete={Some(Callback::from({
+                let action_routing_rule = ctx.action_routing_rule.clone();
+                let pending_routing_delete = ctx.pending_routing_delete.clone();
+                move |_| {
+                    action_routing_rule.set(None);
+                    pending_routing_delete.set(Some(rule_index));
+                }
+            }))}
+        />
+    }
+}
+
 fn render_reverse_proxy_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
     if let Some((reverse_proxy_index, reverse_proxy, is_new)) = &**ctx.editing_reverse_proxy {
         html! {
@@ -269,6 +358,126 @@ fn render_reverse_proxy_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
                         sync_draft(&mut next);
                         draft.set(next);
                         editing_reverse_proxy.set(None);
+                    }
+                })}
+            />
+        }
+    } else {
+        html! {}
+    }
+}
+
+fn render_reverse_proxy_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
+    let Some((reverse_proxy_index, (left, top, width))) = (**ctx.action_reverse_proxy).clone() else {
+        return html! {};
+    };
+    let Some(reverse_proxy) = ctx.draft_value.reverse_proxies.get(reverse_proxy_index).cloned() else {
+        return html! {};
+    };
+
+    html! {
+        <ActionMenuPopup
+            anchor_left={left}
+            anchor_top={top}
+            anchor_width={width}
+            on_close={Callback::from({
+                let action_reverse_proxy = ctx.action_reverse_proxy.clone();
+                move |_| action_reverse_proxy.set(None)
+            })}
+            on_edit={Some(Callback::from({
+                let action_reverse_proxy = ctx.action_reverse_proxy.clone();
+                let editing_reverse_proxy = ctx.editing_reverse_proxy.clone();
+                let reverse_proxy = reverse_proxy.clone();
+                move |_| {
+                    action_reverse_proxy.set(None);
+                    editing_reverse_proxy.set(Some((reverse_proxy_index, reverse_proxy.clone(), false)));
+                }
+            }))}
+            on_duplicate={Some(Callback::from({
+                let action_reverse_proxy = ctx.action_reverse_proxy.clone();
+                let pending_duplicate_reverse_proxy = ctx.pending_duplicate_reverse_proxy.clone();
+                let reverse_proxy = reverse_proxy.clone();
+                move |_| {
+                    action_reverse_proxy.set(None);
+                    pending_duplicate_reverse_proxy.set(Some(reverse_proxy.clone()));
+                }
+            }))}
+            on_delete={Some(Callback::from({
+                let action_reverse_proxy = ctx.action_reverse_proxy.clone();
+                let pending_reverse_proxy_delete = ctx.pending_reverse_proxy_delete.clone();
+                let reverse_proxy_name = reverse_proxy_display_name(&reverse_proxy, reverse_proxy_index);
+                move |_| {
+                    action_reverse_proxy.set(None);
+                    pending_reverse_proxy_delete.set(Some((reverse_proxy_index, reverse_proxy_name.clone())));
+                }
+            }))}
+        />
+    }
+}
+
+fn render_delete_reverse_proxy_popup(ctx: &PopupHostContext<'_>) -> Html {
+    if let Some((reverse_proxy_index, reverse_proxy_name)) = (**ctx.pending_reverse_proxy_delete).clone() {
+        html! {
+            <ConfirmPopup
+                title="Delete Reverse Proxy"
+                body={format!("Are you sure you want to delete reverse proxy \"{}\"?", reverse_proxy_name)}
+                confirm_label="Delete"
+                align_actions_end={true}
+                on_close={Callback::from({
+                    let pending_reverse_proxy_delete = ctx.pending_reverse_proxy_delete.clone();
+                    move |_| pending_reverse_proxy_delete.set(None)
+                })}
+                on_confirm={Callback::from({
+                    let draft = ctx.draft.clone();
+                    let pending_reverse_proxy_delete = ctx.pending_reverse_proxy_delete.clone();
+                    move |_| {
+                        let mut next = (*draft).clone();
+                        sync_draft(&mut next);
+                        if reverse_proxy_index < next.reverse_proxies.len() {
+                            next.reverse_proxies.remove(reverse_proxy_index);
+                        }
+                        sync_draft(&mut next);
+                        draft.set(next);
+                        pending_reverse_proxy_delete.set(None);
+                    }
+                })}
+            />
+        }
+    } else {
+        html! {}
+    }
+}
+
+fn render_duplicate_reverse_proxy_popup(ctx: &PopupHostContext<'_>) -> Html {
+    if let Some(reverse_proxy) = (**ctx.pending_duplicate_reverse_proxy).clone() {
+        let base_tag = reverse_proxy.tag.trim();
+        let initial_tag = if base_tag.is_empty() {
+            "reverse-copy".to_string()
+        } else {
+            format!("{}-copy", base_tag)
+        };
+        html! {
+            <NamePromptPopup
+                title="Duplicate Reverse Proxy"
+                label="New reverse tag"
+                confirm_label="Duplicate"
+                initial_value={initial_tag}
+                on_close={Callback::from({
+                    let pending_duplicate_reverse_proxy = ctx.pending_duplicate_reverse_proxy.clone();
+                    move |_| pending_duplicate_reverse_proxy.set(None)
+                })}
+                on_confirm={Callback::from({
+                    let draft = ctx.draft.clone();
+                    let pending_duplicate_reverse_proxy = ctx.pending_duplicate_reverse_proxy.clone();
+                    move |name: String| {
+                        let mut next = (*draft).clone();
+                        sync_draft(&mut next);
+                        let mut duplicated = reverse_proxy.clone();
+                        duplicated.tag = name;
+                        next.reverse_proxies.push(duplicated);
+                        sync_draft(&mut next);
+                        draft.set(next);
+                        pending_duplicate_reverse_proxy.set(None);
                     }
                 })}
             />

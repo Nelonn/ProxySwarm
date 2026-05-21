@@ -286,9 +286,16 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                             },
                                             "TUNNEL" => html! {
                                                 <ConfigSection title="Tunnel">
-                                                    <div class="text-sm" style="color: var(--md-sys-color-on-surface-variant);">
-                                                        { "Xray tunnel inbound has no protocol-specific settings." }
-                                                    </div>
+                                                    <Dropdown
+                                                        label="Allowed Network"
+                                                        value={data.tunnel.allowed_network.clone()}
+                                                        options={vec![
+                                                            DropdownOption { value: "tcp".to_string(), label: "tcp".to_string() },
+                                                            DropdownOption { value: "udp".to_string(), label: "udp".to_string() },
+                                                            DropdownOption { value: "tcp,udp".to_string(), label: "tcp,udp".to_string() },
+                                                        ]}
+                                                        onchange={update_text(|inbound, value| inbound.tunnel.allowed_network = value)}
+                                                    />
                                                 </ConfigSection>
                                             },
                                             _ => html! {

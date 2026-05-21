@@ -22,10 +22,10 @@ const (
 )
 
 type TunnelConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Active        bool                   `protobuf:"varint,1,opt,name=active,proto3" json:"active,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AllowedNetwork string                 `protobuf:"bytes,1,opt,name=allowed_network,json=allowedNetwork,proto3" json:"allowed_network,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *TunnelConfig) Reset() {
@@ -58,11 +58,11 @@ func (*TunnelConfig) Descriptor() ([]byte, []int) {
 	return file_node_tunnel_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *TunnelConfig) GetActive() bool {
+func (x *TunnelConfig) GetAllowedNetwork() string {
 	if x != nil {
-		return x.Active
+		return x.AllowedNetwork
 	}
-	return false
+	return ""
 }
 
 var File_node_tunnel_proto protoreflect.FileDescriptor
@@ -70,9 +70,9 @@ var File_node_tunnel_proto protoreflect.FileDescriptor
 const file_node_tunnel_proto_rawDesc = "" +
 	"\n" +
 	"\x11node/tunnel.proto\x12\n" +
-	"proxyswarm\"&\n" +
-	"\fTunnelConfig\x12\x16\n" +
-	"\x06active\x18\x01 \x01(\bR\x06activeB\x06Z\x04./pbb\x06proto3"
+	"proxyswarm\"7\n" +
+	"\fTunnelConfig\x12'\n" +
+	"\x0fallowed_network\x18\x01 \x01(\tR\x0eallowedNetworkB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_node_tunnel_proto_rawDescOnce sync.Once

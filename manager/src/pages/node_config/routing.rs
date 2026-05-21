@@ -5,7 +5,9 @@ pub(super) fn render_routing_tab(
     routing_rules: &[RoutingRuleDraft],
     editing_routing_rule: &UseStateHandle<Option<(usize, RoutingRuleDraft, bool)>>,
     editing_reverse_proxy: &UseStateHandle<Option<(usize, ReverseProxyDraft, bool)>>,
-    pending_routing_delete: &UseStateHandle<Option<usize>>,
+    action_routing_rule: &UseStateHandle<Option<(usize, (f64, f64, f64))>>,
+    action_reverse_proxy: &UseStateHandle<Option<(usize, (f64, f64, f64))>>,
+    _pending_routing_delete: &UseStateHandle<Option<usize>>,
     routing_move_anim: &UseStateHandle<Option<(usize, bool)>>,
 ) -> Html {
     html! {
@@ -43,33 +45,14 @@ pub(super) fn render_routing_tab(
                                                         <div class="text-sm opacity-70">{ if reverse_proxy.enabled { "Enabled" } else { "Disabled" } }</div>
                                                     </div>
                                                     <div class="md3-list-actions">
-                                                        <Button
-                                                            label="Edit"
-                                                            icon={Some("icon-edit".to_string())}
-                                                            button_type={ButtonType::Outlined}
-                                                            onclick={Callback::from({
-                                                                let editing_reverse_proxy = editing_reverse_proxy.clone();
-                                                                let reverse_proxy = reverse_proxy.clone();
-                                                                move |_| editing_reverse_proxy.set(Some((idx, reverse_proxy.clone(), false)))
-                                                            })}
-                                                        />
-                                                        <Button
-                                                            label="Delete"
-                                                            button_type={ButtonType::Text}
-                                                            color={Some("#F2B8B5".to_string())}
-                                                            onclick={Callback::from({
-                                                                let draft = draft.clone();
-                                                                move |_| {
-                                                                    let mut next = (*draft).clone();
-                                                                    sync_draft(&mut next);
-                                                                    if idx < next.reverse_proxies.len() {
-                                                                        next.reverse_proxies.remove(idx);
-                                                                    }
-                                                                    sync_draft(&mut next);
-                                                                    draft.set(next);
+                                                        <Button label="Action" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                                            let action_reverse_proxy = action_reverse_proxy.clone();
+                                                            move |e: MouseEvent| {
+                                                                if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                    action_reverse_proxy.set(Some((idx, (left, top, width))));
                                                                 }
-                                                            })}
-                                                        />
+                                                            }
+                                                        })} />
                                                     </div>
                                                 </div>
 
@@ -161,24 +144,14 @@ pub(super) fn render_routing_tab(
                                             html! {
                                                 <div class={classes!(
                                                     "md3-card",
-                                                    "space-y-4",
+                                                    "space-y-3",
                                                     "md3-routing-rule-card",
                                                     move_up_active.then_some("md3-routing-rule-card-move-up"),
                                                     move_down_active.then_some("md3-routing-rule-card-move-down")
-                                                )}>
+                                                )} style="padding: 0.875rem 1rem;">
                                                     <div class="flex justify-between items-center" style="gap: 0.75rem;">
                                                         <div class="font-semibold">{ format!("Rule #{}", idx + 1) }</div>
                                                         <div class="md3-list-actions">
-                                                            <Button
-                                                                label="Edit"
-                                                                icon={Some("icon-edit".to_string())}
-                                                                button_type={ButtonType::Outlined}
-                                                                onclick={Callback::from({
-                                                                    let editing_routing_rule = editing_routing_rule.clone();
-                                                                    let rule = rule.clone();
-                                                                    move |_| editing_routing_rule.set(Some((idx, rule.clone(), false)))
-                                                                })}
-                                                            />
                                                             <button
                                                                 type="button"
                                                                 class="md3-btn md3-btn-outlined"
@@ -234,39 +207,42 @@ pub(super) fn render_routing_tab(
                                                                 { "Move down" }
                                                             </button>
                                                             <Button
-                                                                label="Delete"
-                                                                button_type={ButtonType::Text}
-                                                                color={Some("#F2B8B5".to_string())}
+                                                                label="Action"
+                                                                button_type={ButtonType::Outlined}
                                                                 onclick={Callback::from({
-                                                                    let pending_routing_delete = pending_routing_delete.clone();
-                                                                    move |_| pending_routing_delete.set(Some(idx_delete))
+                                                                    let action_routing_rule = action_routing_rule.clone();
+                                                                    move |e: MouseEvent| {
+                                                                        if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                            action_routing_rule.set(Some((idx_delete, (left, top, width))));
+                                                                        }
+                                                                    }
                                                                 })}
                                                             />
                                                         </div>
                                                     </div>
-                                                    <div class="grid grid-cols-1 md-grid-cols-3 gap-6">
+                                                    <div class="grid gap-3 text-sm" style="line-height: 1.3; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Remark" }</div>
+                                                            <div class="opacity-70">{ "Remark" }</div>
                                                             <div>{ if rule.remark.trim().is_empty() { "-" } else { rule.remark.as_str() } }</div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Outbound" }</div>
+                                                            <div class="opacity-70">{ "Outbound" }</div>
                                                             <div>{ if rule.outbound_tag.trim().is_empty() { "-" } else { rule.outbound_tag.as_str() } }</div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Domains" }</div>
+                                                            <div class="opacity-70">{ "Domains" }</div>
                                                             <div>{ if rule.domain.trim().is_empty() { "-" } else { rule.domain.as_str() } }</div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "IPs" }</div>
+                                                            <div class="opacity-70">{ "IPs" }</div>
                                                             <div>{ if rule.ip.trim().is_empty() { "-" } else { rule.ip.as_str() } }</div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Ports" }</div>
+                                                            <div class="opacity-70">{ "Ports" }</div>
                                                             <div>{ if rule.port.trim().is_empty() { "-" } else { rule.port.as_str() } }</div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Transport" }</div>
+                                                            <div class="opacity-70">{ "Transport" }</div>
                                                             <div>
                                                                 {
                                                                     {
@@ -294,7 +270,7 @@ pub(super) fn render_routing_tab(
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Protocols" }</div>
+                                                            <div class="opacity-70">{ "Protocols" }</div>
                                                             <div>
                                                                 {
                                                                     {
@@ -315,11 +291,11 @@ pub(super) fn render_routing_tab(
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Inbound Tags" }</div>
+                                                            <div class="opacity-70">{ "Inbound Tags" }</div>
                                                             <div>{ if rule.inbound_tag.trim().is_empty() { "-" } else { rule.inbound_tag.as_str() } }</div>
                                                         </div>
                                                         <div>
-                                                            <div class="text-sm opacity-70">{ "Users" }</div>
+                                                            <div class="opacity-70">{ "Users" }</div>
                                                             <div>{ if rule.user.trim().is_empty() { "-" } else { rule.user.as_str() } }</div>
                                                         </div>
                                                     </div>

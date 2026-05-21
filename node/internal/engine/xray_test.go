@@ -213,3 +213,28 @@ func TestXrayNeedsRestartForConfigShapeChanges(t *testing.T) {
 		t.Fatal("expected restart when dns config changes")
 	}
 }
+
+func TestBuildXrayInboundConfigTunnel(t *testing.T) {
+	config := &pb.InboundConfig{
+		Name:    "reverse-25565",
+		Listen:  "0.0.0.0",
+		Port:    25565,
+		Enabled: true,
+		Protocol: &pb.InboundConfig_Tunnel{
+			Tunnel: &pb.TunnelConfig{
+				AllowedNetwork: "tcp,udp",
+			},
+		},
+	}
+	certs := NewCertificatesManager()
+	inbound, err := buildXrayInboundConfig(config, certs)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if inbound.Protocol != "tunnel" {
+		t.Fatalf("expected protocol tunnel, got %q", inbound.Protocol)
+	}
+	if inbound.Settings == nil {
+		t.Fatal("expected tunnel settings to be present")
+	}
+}

@@ -5,10 +5,18 @@ pub(super) struct RoutingRuleEditorPopupProps {
     pub(super) rule: RoutingRuleDraft,
     pub(super) is_new: bool,
     pub(super) inbound_options: Vec<String>,
-    pub(super) user_options: Vec<String>,
+    pub(super) user_options: Vec<DropdownOption>,
     pub(super) outbound_options: Vec<DropdownOption>,
     pub(super) on_close: Callback<()>,
     pub(super) on_save: Callback<RoutingRuleDraft>,
+}
+
+fn routing_user_label(user_id: &str, user_options: &[DropdownOption]) -> String {
+    user_options
+        .iter()
+        .find(|option| option.value == user_id)
+        .map(|option| option.label.clone())
+        .unwrap_or_else(|| user_id.to_string())
 }
 
 #[function_component(RoutingRuleEditorPopup)]
@@ -98,7 +106,7 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
                 .into_iter()
                 .map(|value| value.trim().to_string())
                 .filter(|value| {
-                    !value.is_empty() && allowed_user_options.iter().any(|opt| opt == value)
+                    !value.is_empty() && allowed_user_options.iter().any(|opt| &opt.value == value)
                 })
                 .collect::<Vec<_>>();
             let mut users = allowed_users;
@@ -159,16 +167,19 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
         let mut options = props
             .user_options
             .iter()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
-            .filter(|value| !selected_users.iter().any(|existing| existing == value))
+            .filter(|option| !option.value.trim().is_empty())
+            .filter(|option| !selected_users.iter().any(|existing| existing == &option.value))
+            .cloned()
             .collect::<Vec<_>>();
 
         if !needle.is_empty() {
-            options.retain(|value| value.to_lowercase().contains(&needle));
+            options.retain(|option| {
+                option.value.to_lowercase().contains(&needle)
+                    || option.label.to_lowercase().contains(&needle)
+            });
         }
-        options.sort();
-        options.dedup();
+        options.sort_by(|a, b| a.label.cmp(&b.label).then(a.value.cmp(&b.value)));
+        options.dedup_by(|a, b| a.value == b.value);
         options
     };
 
@@ -599,12 +610,13 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
                             })}
                         >
                             {
-                                for selected_users.iter().cloned().map(|name| {
+                                for selected_users.iter().cloned().map(|user_id| {
                                     let rule = rule.clone();
-                                    let remove_name = name.clone();
+                                    let remove_user_id = user_id.clone();
+                                    let chip_label = routing_user_label(&user_id, &props.user_options);
                                     html! {
                                         <Chip
-                                            label={AttrValue::from(name)}
+                                            label={AttrValue::from(chip_label)}
                                             mode={ChipMode::Outlined}
                                             trailing_icon={Some("close_24dp".to_string())}
                                             on_trailing_click={Some(Callback::from(move |_| {
@@ -612,7 +624,7 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
                                                 let remaining = split_lines_csv(&next.user)
                                                     .into_iter()
                                                     .map(|value| value.trim().to_string())
-                                                    .filter(|value| !value.is_empty() && value != &remove_name)
+                                                    .filter(|value| !value.is_empty() && value != &remove_user_id)
                                                     .collect::<Vec<_>>();
                                                 next.user = remaining.join(", ");
                                                 rule.set(next);
@@ -671,8 +683,8 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
                                         };
                                         let mut next = (*rule).clone();
                                         let mut combined = selected_users.clone();
-                                        if !combined.iter().any(|value| value == &first) {
-                                            combined.push(first);
+                                        if !combined.iter().any(|value| value == &first.value) {
+                                            combined.push(first.value);
                                         }
                                         combined.sort();
                                         combined.dedup();
@@ -696,8 +708,8 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
                                     >
                                         <div class="flex flex-wrap" style="gap: 8px; align-items: center;">
                                             {
-                                                for user_suggestions.iter().cloned().map(|name| {
-                                                    let chip_label = name.clone();
+                                                for user_suggestions.iter().cloned().map(|option| {
+                                                    let chip_label = option.label.clone();
                                                     let rule = rule.clone();
                                                     let user_query = user_query.clone();
                                                     let user_open = user_open.clone();
@@ -707,8 +719,8 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
                                                             e.prevent_default();
                                                             let mut next = (*rule).clone();
                                                             let mut combined = selected_users.clone();
-                                                            if !combined.iter().any(|value| value == &name) {
-                                                                combined.push(name.clone());
+                                                            if !combined.iter().any(|value| value == &option.value) {
+                                                                combined.push(option.value.clone());
                                                             }
                                                             combined.sort();
                                                             combined.dedup();
