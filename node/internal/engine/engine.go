@@ -345,7 +345,7 @@ func engineKeyForInbound(inbound *pb.InboundConfig) string {
 	if _, ok := inbound.Protocol.(*pb.InboundConfig_Trusttunnel); ok {
 		return fmt.Sprintf("trusttunnel:%s:%s:%d", inbound.Name, inbound.Listen, inbound.Port)
 	}
-	if _, ok := inbound.Protocol.(*pb.InboundConfig_Reverseproxy); ok {
+	if _, ok := inbound.Protocol.(*pb.InboundConfig_VlessReverseProxy); ok {
 		return sharedXrayEngineKey
 	}
 	if _, ok := inbound.Protocol.(*pb.InboundConfig_Tproxy); ok {
@@ -406,7 +406,7 @@ func engineMatchesInbound(e Engine, inbound *pb.InboundConfig) bool {
 		_, ok := inbound.Protocol.(*pb.InboundConfig_Trusttunnel)
 		return ok
 	case *XrayEngine:
-		if _, ok := inbound.Protocol.(*pb.InboundConfig_Reverseproxy); ok {
+		if _, ok := inbound.Protocol.(*pb.InboundConfig_VlessReverseProxy); ok {
 			return true
 		}
 		if _, ok := inbound.Protocol.(*pb.InboundConfig_Tproxy); ok {

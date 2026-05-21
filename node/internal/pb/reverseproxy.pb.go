@@ -21,33 +21,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ReverseProxyConfig struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Mode              string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"` // "bridge" or "portal"
-	Tag               string                 `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
-	Domain            string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
-	BridgeOutboundTag string                 `protobuf:"bytes,4,opt,name=bridge_outbound_tag,json=bridgeOutboundTag,proto3" json:"bridge_outbound_tag,omitempty"`
-	TargetOutboundTag string                 `protobuf:"bytes,5,opt,name=target_outbound_tag,json=targetOutboundTag,proto3" json:"target_outbound_tag,omitempty"`
-	PortalInboundTag  string                 `protobuf:"bytes,6,opt,name=portal_inbound_tag,json=portalInboundTag,proto3" json:"portal_inbound_tag,omitempty"`
-	PortalUserId      string                 `protobuf:"bytes,7,opt,name=portal_user_id,json=portalUserId,proto3" json:"portal_user_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+type VlessReverseProxyConfig struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Tag              string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	PortalInboundTag string                 `protobuf:"bytes,2,opt,name=portal_inbound_tag,json=portalInboundTag,proto3" json:"portal_inbound_tag,omitempty"`
+	PortalUserId     string                 `protobuf:"bytes,3,opt,name=portal_user_id,json=portalUserId,proto3" json:"portal_user_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *ReverseProxyConfig) Reset() {
-	*x = ReverseProxyConfig{}
+func (x *VlessReverseProxyConfig) Reset() {
+	*x = VlessReverseProxyConfig{}
 	mi := &file_node_reverseproxy_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReverseProxyConfig) String() string {
+func (x *VlessReverseProxyConfig) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReverseProxyConfig) ProtoMessage() {}
+func (*VlessReverseProxyConfig) ProtoMessage() {}
 
-func (x *ReverseProxyConfig) ProtoReflect() protoreflect.Message {
+func (x *VlessReverseProxyConfig) ProtoReflect() protoreflect.Message {
 	mi := &file_node_reverseproxy_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -59,54 +55,26 @@ func (x *ReverseProxyConfig) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReverseProxyConfig.ProtoReflect.Descriptor instead.
-func (*ReverseProxyConfig) Descriptor() ([]byte, []int) {
+// Deprecated: Use VlessReverseProxyConfig.ProtoReflect.Descriptor instead.
+func (*VlessReverseProxyConfig) Descriptor() ([]byte, []int) {
 	return file_node_reverseproxy_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ReverseProxyConfig) GetMode() string {
-	if x != nil {
-		return x.Mode
-	}
-	return ""
-}
-
-func (x *ReverseProxyConfig) GetTag() string {
+func (x *VlessReverseProxyConfig) GetTag() string {
 	if x != nil {
 		return x.Tag
 	}
 	return ""
 }
 
-func (x *ReverseProxyConfig) GetDomain() string {
-	if x != nil {
-		return x.Domain
-	}
-	return ""
-}
-
-func (x *ReverseProxyConfig) GetBridgeOutboundTag() string {
-	if x != nil {
-		return x.BridgeOutboundTag
-	}
-	return ""
-}
-
-func (x *ReverseProxyConfig) GetTargetOutboundTag() string {
-	if x != nil {
-		return x.TargetOutboundTag
-	}
-	return ""
-}
-
-func (x *ReverseProxyConfig) GetPortalInboundTag() string {
+func (x *VlessReverseProxyConfig) GetPortalInboundTag() string {
 	if x != nil {
 		return x.PortalInboundTag
 	}
 	return ""
 }
 
-func (x *ReverseProxyConfig) GetPortalUserId() string {
+func (x *VlessReverseProxyConfig) GetPortalUserId() string {
 	if x != nil {
 		return x.PortalUserId
 	}
@@ -118,15 +86,11 @@ var File_node_reverseproxy_proto protoreflect.FileDescriptor
 const file_node_reverseproxy_proto_rawDesc = "" +
 	"\n" +
 	"\x17node/reverseproxy.proto\x12\n" +
-	"proxyswarm\"\x86\x02\n" +
-	"\x12ReverseProxyConfig\x12\x12\n" +
-	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x10\n" +
-	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x16\n" +
-	"\x06domain\x18\x03 \x01(\tR\x06domain\x12.\n" +
-	"\x13bridge_outbound_tag\x18\x04 \x01(\tR\x11bridgeOutboundTag\x12.\n" +
-	"\x13target_outbound_tag\x18\x05 \x01(\tR\x11targetOutboundTag\x12,\n" +
-	"\x12portal_inbound_tag\x18\x06 \x01(\tR\x10portalInboundTag\x12$\n" +
-	"\x0eportal_user_id\x18\a \x01(\tR\fportalUserIdB\x06Z\x04./pbb\x06proto3"
+	"proxyswarm\"\x7f\n" +
+	"\x17VlessReverseProxyConfig\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12,\n" +
+	"\x12portal_inbound_tag\x18\x02 \x01(\tR\x10portalInboundTag\x12$\n" +
+	"\x0eportal_user_id\x18\x03 \x01(\tR\fportalUserIdB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_node_reverseproxy_proto_rawDescOnce sync.Once
@@ -142,7 +106,7 @@ func file_node_reverseproxy_proto_rawDescGZIP() []byte {
 
 var file_node_reverseproxy_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_node_reverseproxy_proto_goTypes = []any{
-	(*ReverseProxyConfig)(nil), // 0: proxyswarm.ReverseProxyConfig
+	(*VlessReverseProxyConfig)(nil), // 0: proxyswarm.VlessReverseProxyConfig
 }
 var file_node_reverseproxy_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

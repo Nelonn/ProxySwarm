@@ -370,21 +370,12 @@ pub struct ShadowsocksOutboundConfig {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ReverseProxyConfig {
-    /// "bridge" or "portal"
+pub struct VlessReverseProxyConfig {
     #[prost(string, tag = "1")]
-    pub mode: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
     pub tag: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub domain: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub bridge_outbound_tag: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub target_outbound_tag: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
+    #[prost(string, tag = "2")]
     pub portal_inbound_tag: ::prost::alloc::string::String,
-    #[prost(string, tag = "7")]
+    #[prost(string, tag = "3")]
     pub portal_user_id: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -494,7 +485,7 @@ pub mod inbound_config {
         #[prost(message, tag = "13")]
         Shadowsocks(super::ShadowsocksInboundConfig),
         #[prost(message, tag = "14")]
-        Reverseproxy(super::ReverseProxyConfig),
+        VlessReverseProxy(super::VlessReverseProxyConfig),
         #[prost(message, tag = "15")]
         Tproxy(super::TProxyConfig),
         #[prost(message, tag = "16")]

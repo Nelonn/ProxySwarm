@@ -248,7 +248,7 @@ type InboundConfig struct {
 	//	*InboundConfig_Wireguard
 	//	*InboundConfig_Socks5
 	//	*InboundConfig_Shadowsocks
-	//	*InboundConfig_Reverseproxy
+	//	*InboundConfig_VlessReverseProxy
 	//	*InboundConfig_Tproxy
 	//	*InboundConfig_Trojan
 	//	*InboundConfig_Tunnel
@@ -399,10 +399,10 @@ func (x *InboundConfig) GetShadowsocks() *ShadowsocksInboundConfig {
 	return nil
 }
 
-func (x *InboundConfig) GetReverseproxy() *ReverseProxyConfig {
+func (x *InboundConfig) GetVlessReverseProxy() *VlessReverseProxyConfig {
 	if x != nil {
-		if x, ok := x.Protocol.(*InboundConfig_Reverseproxy); ok {
-			return x.Reverseproxy
+		if x, ok := x.Protocol.(*InboundConfig_VlessReverseProxy); ok {
+			return x.VlessReverseProxy
 		}
 	}
 	return nil
@@ -467,8 +467,8 @@ type InboundConfig_Shadowsocks struct {
 	Shadowsocks *ShadowsocksInboundConfig `protobuf:"bytes,13,opt,name=shadowsocks,proto3,oneof"`
 }
 
-type InboundConfig_Reverseproxy struct {
-	Reverseproxy *ReverseProxyConfig `protobuf:"bytes,14,opt,name=reverseproxy,proto3,oneof"`
+type InboundConfig_VlessReverseProxy struct {
+	VlessReverseProxy *VlessReverseProxyConfig `protobuf:"bytes,14,opt,name=vless_reverse_proxy,json=vlessReverseProxy,proto3,oneof"`
 }
 
 type InboundConfig_Tproxy struct {
@@ -497,7 +497,7 @@ func (*InboundConfig_Socks5) isInboundConfig_Protocol() {}
 
 func (*InboundConfig_Shadowsocks) isInboundConfig_Protocol() {}
 
-func (*InboundConfig_Reverseproxy) isInboundConfig_Protocol() {}
+func (*InboundConfig_VlessReverseProxy) isInboundConfig_Protocol() {}
 
 func (*InboundConfig_Tproxy) isInboundConfig_Protocol() {}
 
@@ -1795,7 +1795,7 @@ const file_node_service_proto_rawDesc = "" +
 	"\rrouting_rules\x18\x05 \x03(\v2\x17.proxyswarm.RoutingRuleR\froutingRules\x12A\n" +
 	"\fcertificates\x18\x06 \x03(\v2\x1d.proxyswarm.CertificateConfigR\fcertificates\x12'\n" +
 	"\x03dns\x18\a \x01(\v2\x15.proxyswarm.DnsConfigR\x03dns\x120\n" +
-	"\x14link_remark_template\x18\b \x01(\tR\x12linkRemarkTemplate\"\xec\x06\n" +
+	"\x14link_remark_template\x18\b \x01(\tR\x12linkRemarkTemplate\"\xfd\x06\n" +
 	"\rInboundConfig\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06listen\x18\x02 \x01(\tR\x06listen\x12\x12\n" +
@@ -1812,8 +1812,8 @@ const file_node_service_proto_rawDesc = "" +
 	"\twireguard\x18\n" +
 	" \x01(\v2\x1b.proxyswarm.WireGuardConfigH\x00R\twireguard\x129\n" +
 	"\x06socks5\x18\v \x01(\v2\x1f.proxyswarm.Socks5InboundConfigH\x00R\x06socks5\x12H\n" +
-	"\vshadowsocks\x18\r \x01(\v2$.proxyswarm.ShadowsocksInboundConfigH\x00R\vshadowsocks\x12D\n" +
-	"\freverseproxy\x18\x0e \x01(\v2\x1e.proxyswarm.ReverseProxyConfigH\x00R\freverseproxy\x122\n" +
+	"\vshadowsocks\x18\r \x01(\v2$.proxyswarm.ShadowsocksInboundConfigH\x00R\vshadowsocks\x12U\n" +
+	"\x13vless_reverse_proxy\x18\x0e \x01(\v2#.proxyswarm.VlessReverseProxyConfigH\x00R\x11vlessReverseProxy\x122\n" +
 	"\x06tproxy\x18\x0f \x01(\v2\x18.proxyswarm.TProxyConfigH\x00R\x06tproxy\x129\n" +
 	"\x06trojan\x18\x10 \x01(\v2\x1f.proxyswarm.TrojanInboundConfigH\x00R\x06trojan\x122\n" +
 	"\x06tunnel\x18\x11 \x01(\v2\x18.proxyswarm.TunnelConfigH\x00R\x06tunnelB\n" +
@@ -2002,7 +2002,7 @@ var file_node_service_proto_goTypes = []any{
 	(*WireGuardConfig)(nil),           // 25: proxyswarm.WireGuardConfig
 	(*Socks5InboundConfig)(nil),       // 26: proxyswarm.Socks5InboundConfig
 	(*ShadowsocksInboundConfig)(nil),  // 27: proxyswarm.ShadowsocksInboundConfig
-	(*ReverseProxyConfig)(nil),        // 28: proxyswarm.ReverseProxyConfig
+	(*VlessReverseProxyConfig)(nil),   // 28: proxyswarm.VlessReverseProxyConfig
 	(*TProxyConfig)(nil),              // 29: proxyswarm.TProxyConfig
 	(*TrojanInboundConfig)(nil),       // 30: proxyswarm.TrojanInboundConfig
 	(*TunnelConfig)(nil),              // 31: proxyswarm.TunnelConfig
@@ -2028,7 +2028,7 @@ var file_node_service_proto_depIdxs = []int32{
 	25, // 12: proxyswarm.InboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
 	26, // 13: proxyswarm.InboundConfig.socks5:type_name -> proxyswarm.Socks5InboundConfig
 	27, // 14: proxyswarm.InboundConfig.shadowsocks:type_name -> proxyswarm.ShadowsocksInboundConfig
-	28, // 15: proxyswarm.InboundConfig.reverseproxy:type_name -> proxyswarm.ReverseProxyConfig
+	28, // 15: proxyswarm.InboundConfig.vless_reverse_proxy:type_name -> proxyswarm.VlessReverseProxyConfig
 	29, // 16: proxyswarm.InboundConfig.tproxy:type_name -> proxyswarm.TProxyConfig
 	30, // 17: proxyswarm.InboundConfig.trojan:type_name -> proxyswarm.TrojanInboundConfig
 	31, // 18: proxyswarm.InboundConfig.tunnel:type_name -> proxyswarm.TunnelConfig
@@ -2086,7 +2086,7 @@ func file_node_service_proto_init() {
 		(*InboundConfig_Wireguard)(nil),
 		(*InboundConfig_Socks5)(nil),
 		(*InboundConfig_Shadowsocks)(nil),
-		(*InboundConfig_Reverseproxy)(nil),
+		(*InboundConfig_VlessReverseProxy)(nil),
 		(*InboundConfig_Tproxy)(nil),
 		(*InboundConfig_Trojan)(nil),
 		(*InboundConfig_Tunnel)(nil),

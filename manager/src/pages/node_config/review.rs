@@ -103,7 +103,7 @@ pub(super) fn render_inbound_review(data: &InboundEntryDraft) -> Html {
                             review_row("Default password", optional_label(&data.shadowsocks.password)),
                             review_row("UDP enabled", bool_label(data.shadowsocks.udp_enabled)),
                         ]),
-                        "REVERSEPROXY" => review_section("Reverse Proxy", vec![
+                        "REVERSEPROXY" => review_section("VLESS Reverse", vec![
                             review_row("Mode", optional_label(&data.reverse_proxy.mode)),
                             review_row("Reverse tag", optional_label(&data.reverse_proxy.tag)),
                             review_row("Reverse domain", optional_label(&data.reverse_proxy.domain)),

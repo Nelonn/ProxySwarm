@@ -51,7 +51,7 @@ message InboundConfig {
         WireGuardConfig wireguard = 10;
         Socks5InboundConfig socks5 = 11;
         ShadowsocksInboundConfig shadowsocks = 13;
-        ReverseProxyConfig reverseproxy = 14;
+        VlessReverseProxyConfig vless_reverse_proxy = 14;
         TProxyConfig tproxy = 15;
         TrojanInboundConfig trojan = 16;
         TunnelConfig tunnel = 17;

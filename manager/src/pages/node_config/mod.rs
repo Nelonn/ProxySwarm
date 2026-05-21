@@ -23,7 +23,7 @@ use crate::pb::proxyswarm::{
     OutboundStatus, OutboundType, RoutingRule, SecurityMode, ShadowsocksInboundConfig,
     ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, TunnelConfig, VlessConfig,
     VlessOutboundConfig, VlessRealityConfig, WireGuardConfig, WireGuardPeer,
-    TrojanInboundConfig, TrojanOutboundConfig, ReverseProxyConfig, TProxyConfig,
+    TrojanInboundConfig, TrojanOutboundConfig, VlessReverseProxyConfig, TProxyConfig,
 };
 use crate::services::node_api::{AcmeIssueRequest, AcmeIssueResponse};
 use crate::services::warp::{
@@ -508,14 +508,12 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
             {
                 match &*active_tab {
                     ConfigTab::Inbounds => inbounds::render_inbounds_tab(&draft, &inbounds, &editing_inbound, &access_link_inbound_id, &action_inbound),
-                    ConfigTab::Outbounds => outbounds::render_outbounds_tab(&draft, &d.outbounds, &editing_outbound, &warp_popup_open, &action_outbound),
+                    ConfigTab::Outbounds => outbounds::render_outbounds_tab(&draft, &d.outbounds, &d.reverse_proxies, &editing_outbound, &editing_reverse_proxy, &warp_popup_open, &action_outbound, &action_reverse_proxy),
                     ConfigTab::Routing => routing::render_routing_tab(
                         &draft,
                         &routing_rules,
                         &editing_routing_rule,
-                        &editing_reverse_proxy,
                         &action_routing_rule,
-                        &action_reverse_proxy,
                         &pending_routing_delete,
                         &routing_move_anim,
                     ),

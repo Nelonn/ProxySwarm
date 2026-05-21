@@ -210,13 +210,9 @@ pub(super) fn build_full_config(
                     ),
                 ),
                 "REVERSEPROXY" => Some(
-                    crate::pb::proxyswarm::inbound_config::Protocol::Reverseproxy(
-                        ReverseProxyConfig {
-                            mode: inbound.reverse_proxy.mode.clone(),
+                    crate::pb::proxyswarm::inbound_config::Protocol::VlessReverseProxy(
+                        VlessReverseProxyConfig {
                             tag: inbound.reverse_proxy.tag.clone(),
-                            domain: inbound.reverse_proxy.domain.clone(),
-                            bridge_outbound_tag: inbound.reverse_proxy.bridge_outbound_tag.clone(),
-                            target_outbound_tag: inbound.reverse_proxy.target_outbound_tag.clone(),
                             portal_inbound_tag: inbound.reverse_proxy.portal_inbound_tag.clone(),
                             portal_user_id: inbound.reverse_proxy.portal_user_id.clone(),
                         },
@@ -281,13 +277,9 @@ pub(super) fn build_full_config(
             accounts: Vec::new(),
             enabled: true,
             core: CoreType::Xray as i32,
-            protocol: Some(crate::pb::proxyswarm::inbound_config::Protocol::Reverseproxy(
-                ReverseProxyConfig {
-                    mode: reverse_proxy.mode,
+            protocol: Some(crate::pb::proxyswarm::inbound_config::Protocol::VlessReverseProxy(
+                VlessReverseProxyConfig {
                     tag: reverse_proxy.tag,
-                    domain: reverse_proxy.domain,
-                    bridge_outbound_tag: reverse_proxy.bridge_outbound_tag,
-                    target_outbound_tag: reverse_proxy.target_outbound_tag,
                     portal_inbound_tag: reverse_proxy.portal_inbound_tag,
                     portal_user_id: reverse_proxy.portal_user_id,
                 },

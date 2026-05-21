@@ -147,9 +147,7 @@ pub(super) fn default_reverse_proxy_entry() -> ReverseProxyDraft {
     ReverseProxyDraft {
         enabled: true,
         mode: "portal".to_string(),
-        tag: "portal".to_string(),
-        domain: "reverse.local".to_string(),
-        target_outbound_tag: "direct".to_string(),
+        tag: "r-outbound".to_string(),
         ..ReverseProxyDraft::default()
     }
 }
@@ -157,7 +155,7 @@ pub(super) fn default_reverse_proxy_entry() -> ReverseProxyDraft {
 pub(super) fn reverse_proxy_display_name(reverse_proxy: &ReverseProxyDraft, index: usize) -> String {
     let tag = reverse_proxy.tag.trim();
     if tag.is_empty() {
-        format!("Reverse Proxy #{}", index + 1)
+        format!("VLESS Reverse #{}", index + 1)
     } else {
         tag.to_string()
     }

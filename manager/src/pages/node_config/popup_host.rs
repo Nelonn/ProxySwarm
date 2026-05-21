@@ -207,6 +207,16 @@ fn routing_outbound_options(draft: &NodeConfigDraft) -> Vec<DropdownOption> {
             label: outbound_label_for_routing(outbound),
         });
     }
+    for (index, reverse_proxy) in draft.reverse_proxies.iter().enumerate() {
+        let tag = reverse_proxy.tag.trim().to_string();
+        if tag.is_empty() || options.iter().any(|option: &DropdownOption| option.value == tag) {
+            continue;
+        }
+        options.push(DropdownOption {
+            value: tag.clone(),
+            label: format!("{} (VLESS Reverse)", reverse_proxy_display_name(reverse_proxy, index)),
+        });
+    }
     options
 }
 
@@ -351,6 +361,11 @@ fn render_reverse_proxy_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
                     move |reverse_proxy: ReverseProxyDraft| {
                         let mut next = (*draft).clone();
                         sync_draft(&mut next);
+                        let mut reverse_proxy = reverse_proxy;
+                        reverse_proxy.mode = "portal".to_string();
+                        reverse_proxy.domain.clear();
+                        reverse_proxy.bridge_outbound_tag.clear();
+                        reverse_proxy.target_outbound_tag.clear();
                         if let Some(existing) = next.reverse_proxies.get_mut(reverse_proxy_index) {
                             *existing = reverse_proxy;
                         } else {
@@ -420,8 +435,8 @@ fn render_delete_reverse_proxy_popup(ctx: &PopupHostContext<'_>) -> Html {
     if let Some((reverse_proxy_index, reverse_proxy_name)) = (**ctx.pending_reverse_proxy_delete).clone() {
         html! {
             <ConfirmPopup
-                title="Delete Reverse Proxy"
-                body={format!("Are you sure you want to delete reverse proxy \"{}\"?", reverse_proxy_name)}
+                title="Delete VLESS Reverse"
+                body={format!("Are you sure you want to delete VLESS reverse \"{}\"?", reverse_proxy_name)}
                 confirm_label="Delete"
                 align_actions_end={true}
                 on_close={Callback::from({
@@ -459,7 +474,7 @@ fn render_duplicate_reverse_proxy_popup(ctx: &PopupHostContext<'_>) -> Html {
         };
         html! {
             <NamePromptPopup
-                title="Duplicate Reverse Proxy"
+                title="Duplicate VLESS Reverse"
                 label="New reverse tag"
                 confirm_label="Duplicate"
                 initial_value={initial_tag}

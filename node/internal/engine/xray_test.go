@@ -242,8 +242,7 @@ func TestBuildXrayInboundConfigTunnel(t *testing.T) {
 func TestBuildXrayReverseConfigPortalUsesUserReverse(t *testing.T) {
 	reverseConfig, rules, reverseTags, portalUserTags, err := buildXrayReverseConfig([]*pb.InboundConfig{{
 		Name: "reverse-portal",
-		Protocol: &pb.InboundConfig_Reverseproxy{Reverseproxy: &pb.ReverseProxyConfig{
-			Mode:             "portal",
+		Protocol: &pb.InboundConfig_VlessReverseProxy{VlessReverseProxy: &pb.VlessReverseProxyConfig{
 			Tag:              "r-outbound",
 			PortalInboundTag: "portal",
 			PortalUserId:     "ac40ca0f",
