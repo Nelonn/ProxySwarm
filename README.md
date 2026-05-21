@@ -113,7 +113,7 @@ PS_MASTER_KEY="change-me" go run .\cmd\registry
 
 > [!CAUTION]
 > Be careful with GRPC_LISTEN! It’s better to listen only on the local network and use a reverse proxy with HTTPS or an
-> SSH tunnel.
+> SSH tunnel (ssh -L 9091:localhost:9090 user@host)
 
 ```yaml
 services:
@@ -125,7 +125,7 @@ services:
       - PS_MASTER_KEY=${PS_MASTER_KEY:-my-secret-key}
       - GRPC_LISTEN=127.0.0.1:9090
     volumes:
-      - ./data:/data
+      - ./proxyswarm-node-data:/data
 ```
 
 ```bash
