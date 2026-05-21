@@ -243,6 +243,7 @@ fn registry_accounts(accounts: &[AccountInfo]) -> Vec<Account> {
             expiry_time: account.expiry_date,
             allowed_ips: account.allowed_ips.clone(),
             groups: normalize_groups(&account.groups),
+            name: account.name.clone(),
         })
         .collect()
 }

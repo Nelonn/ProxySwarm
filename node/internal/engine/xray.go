@@ -82,7 +82,14 @@ func accountRuntimeID(acc *pb.Account) string {
 }
 
 func accountDisplayName(acc *pb.Account) string {
-	return accountRuntimeID(acc)
+	if acc == nil {
+		return ""
+	}
+	name := strings.TrimSpace(acc.Name)
+	if name == "" {
+		return accountRuntimeID(acc)
+	}
+	return name
 }
 
 func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {

@@ -107,6 +107,7 @@ pub(super) fn build_full_config(
             groups: normalize_groups(&account.groups),
             expiry_time: account.expiry_date,
             token: account.token.clone(),
+            name: account.name.clone(),
         })
         .collect();
     let mut inbounds: Vec<InboundConfig> = normalized_inbounds(draft)

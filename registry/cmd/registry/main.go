@@ -343,12 +343,16 @@ func normalizeGroups(values []string) []string {
 }
 
 func renderTemplateLink(template string, account *pb.Account) string {
+	displayName := account.GetName()
+	if displayName == "" {
+		displayName = account.GetId()
+	}
 	replacer := strings.NewReplacer(
 		"{{token}}", account.GetToken(),
-		"{{name}}", account.GetId(),
+		"{{name}}", displayName,
 		"{{id}}", account.GetId(),
 		"{token}", account.GetToken(),
-		"{name}", account.GetId(),
+		"{name}", displayName,
 		"{id}", account.GetId(),
 	)
 	return replacer.Replace(template)
@@ -619,6 +623,7 @@ func cloneRegistryAccounts(accounts []*pb.Account) []*pb.Account {
 			Groups:     append([]string(nil), account.Groups...),
 			ExpiryTime: account.ExpiryTime,
 			Token:      account.Token,
+			Name:       account.Name,
 		})
 	}
 	return cloned

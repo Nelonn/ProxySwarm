@@ -4,6 +4,7 @@ option go_package = "./pb";
 
 message Account {
     string id = 1;
+    string name = 2;
     string token = 3; // Used as UUID for VLESS/etc
     int64 expiry_time = 4; // Unix timestamp
     repeated string allowed_ips = 5;

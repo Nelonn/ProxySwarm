@@ -24,6 +24,7 @@ const (
 type Account struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`                              // Used as UUID for VLESS/etc
 	ExpiryTime    int64                  `protobuf:"varint,4,opt,name=expiry_time,json=expiryTime,proto3" json:"expiry_time,omitempty"` // Unix timestamp
 	AllowedIps    []string               `protobuf:"bytes,5,rep,name=allowed_ips,json=allowedIps,proto3" json:"allowed_ips,omitempty"`
@@ -69,6 +70,13 @@ func (x *Account) GetId() string {
 	return ""
 }
 
+func (x *Account) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 func (x *Account) GetToken() string {
 	if x != nil {
 		return x.Token
@@ -102,9 +110,10 @@ var File_account_proto protoreflect.FileDescriptor
 const file_account_proto_rawDesc = "" +
 	"\n" +
 	"\raccount.proto\x12\n" +
-	"proxyswarm\"\x89\x01\n" +
+	"proxyswarm\"\x9d\x01\n" +
 	"\aAccount\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05token\x18\x03 \x01(\tR\x05token\x12\x1f\n" +
 	"\vexpiry_time\x18\x04 \x01(\x03R\n" +
 	"expiryTime\x12\x1f\n" +
