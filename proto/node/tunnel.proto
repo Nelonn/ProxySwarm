@@ -1,0 +1,7 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message TunnelConfig {
+    string allowed_network = 1;
+}

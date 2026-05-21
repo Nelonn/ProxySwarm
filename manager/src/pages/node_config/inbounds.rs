@@ -5,7 +5,7 @@ pub(super) fn render_inbounds_tab(
     inbounds: &[InboundEntryDraft],
     editing_inbound: &UseStateHandle<Option<(InboundEntryDraft, bool)>>,
     access_link_inbound_id: &UseStateHandle<Option<String>>,
-    pending_inbound_delete: &UseStateHandle<Option<(String, String)>>,
+    action_inbound: &UseStateHandle<Option<(String, (f64, f64, f64))>>,
 ) -> Html {
     html! {                        <div class="space-y-6">
                             <div class="flex justify-between" style="align-items: center;">
@@ -33,15 +33,15 @@ pub(super) fn render_inbounds_tab(
                             ]} card_class={Some("bg-surface-container".to_string())} header_in_list={true}>
                                 {
                                     for inbounds.iter().map(|inbound| {
-                                        let edit_id = inbound.id.clone();
                                         let link_id = inbound.id.clone();
-                                        let delete_id = inbound.id.clone();
+                                        let action_id = inbound.id.clone();
                                         html! {
                                             <>
                                                 <div class="md3-divider"></div>
                                                 <div class="md3-list-row">
                                                     <div class="md3-list-col-main">
                                                         <div class="font-semibold">{ inbound.name.clone() }</div>
+                                                        <div class="text-sm opacity-70">{ inbound_groups_label(inbound) }</div>
                                                     </div>
                                                     <div class="md3-list-col">{ inbound.port }</div>
                                                     <div class="md3-list-col">{ inbound.protocol.clone() }</div>
@@ -71,19 +71,16 @@ pub(super) fn render_inbounds_tab(
                                                                 let access_link_inbound_id = access_link_inbound_id.clone();
                                                                 move |_| access_link_inbound_id.set(Some(link_id.clone()))
                                                             })} />
-                                                            <Button label="Edit" button_type={ButtonType::Outlined} onclick={Callback::from({
-                                                                let editing_inbound = editing_inbound.clone();
-                                                                let draft = draft.clone();
-                                                                move |_| {
-                                                                    let mut data = (*draft).clone();
-                                                                    sync_draft(&mut data);
-                                                                    editing_inbound.set(data.inbounds.iter().find(|item| item.id == edit_id).cloned().map(|value| (value, false)));
+                                                            <Button label="Action" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                                                let action_inbound = action_inbound.clone();
+                                                                move |e: MouseEvent| {
+                                                                    if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                        action_inbound.set(Some((
+                                                                            action_id.clone(),
+                                                                            (left, top, width),
+                                                                        )));
+                                                                    }
                                                                 }
-                                                            })} />
-                                                            <Button label="Delete" button_type={ButtonType::Text} color={Some("#F2B8B5".to_string())} onclick={Callback::from({
-                                                                let pending_inbound_delete = pending_inbound_delete.clone();
-                                                                let inbound_name = inbound_display_name(inbound);
-                                                                move |_| pending_inbound_delete.set(Some((delete_id.clone(), inbound_name.clone())))
                                                             })} />
                                                         </div>
                                                     </div>
@@ -96,3 +93,4 @@ pub(super) fn render_inbounds_tab(
                         </div>
     }
 }
+

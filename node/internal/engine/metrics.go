@@ -287,7 +287,11 @@ func applyTrafficDelta(lastRaw map[string]trafficTotals, sourceKey string, curre
 	if current == nil {
 		return trafficTotals{}
 	}
-	prev := lastRaw[sourceKey]
+	prev, ok := lastRaw[sourceKey]
+	if !ok {
+		lastRaw[sourceKey] = trafficTotals{Rx: current.Rx, Tx: current.Tx}
+		return trafficTotals{}
+	}
 	delta := trafficTotals{
 		Rx: current.Rx,
 		Tx: current.Tx,
@@ -419,7 +423,7 @@ func (m *Manager) accountStatusesLocked() []*pb.AccountStatus {
 			if account == nil {
 				continue
 			}
-			names = append(names, account.Name)
+			names = append(names, account.Id)
 		}
 	} else {
 		for name := range m.metricsState.Accounts {

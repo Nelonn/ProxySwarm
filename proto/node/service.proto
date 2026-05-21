@@ -11,6 +11,11 @@ import "node/naiveproxy.proto";
 import "node/wireguard.proto";
 import "node/socks5.proto";
 import "node/shadowsocks.proto";
+import "node/reverseproxy.proto";
+import "node/tunnel.proto";
+import "node/tproxy.proto";
+import "node/trojan.proto";
+
 
 service NodeService {
     rpc UpdateConfig(FullConfig) returns (UpdateResponse);
@@ -46,6 +51,11 @@ message InboundConfig {
         WireGuardConfig wireguard = 10;
         Socks5InboundConfig socks5 = 11;
         ShadowsocksInboundConfig shadowsocks = 13;
+        VlessReverseProxyConfig vless_reverse_proxy = 14;
+        TProxyConfig tproxy = 15;
+        TrojanInboundConfig trojan = 16;
+        TunnelConfig tunnel = 17;
+
     }
 }
 
@@ -62,6 +72,8 @@ enum OutboundType {
     WIREGUARD = 4;
     SOCKS5 = 5;
     SHADOWSOCKS = 6;
+    TROJAN = 7;
+
 }
 
 message OutboundConfig {
@@ -73,6 +85,8 @@ message OutboundConfig {
         WireGuardConfig wireguard = 5;
         Socks5OutboundConfig socks5 = 6;
         ShadowsocksOutboundConfig shadowsocks = 7;
+        TrojanOutboundConfig trojan = 8;
+
     }
 }
 

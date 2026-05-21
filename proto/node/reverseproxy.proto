@@ -1,0 +1,9 @@
+syntax = "proto3";
+package proxyswarm;
+option go_package = "./pb";
+
+message VlessReverseProxyConfig {
+    string tag = 1;
+    string portal_inbound_tag = 2;
+    string portal_user_id = 3;
+}

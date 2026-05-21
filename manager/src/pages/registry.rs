@@ -5,8 +5,8 @@ use web_sys::{window, HtmlInputElement};
 use yew::prelude::*;
 
 use crate::components::{
-    Button, ButtonType, Dropdown, DropdownOption, Popup, PopupSize, RichTable, SnackbarBus,
-    Switch, TextBox,
+    ActionMenuPopup, Button, ButtonType, Dropdown, DropdownOption, Popup, PopupSize, RichTable,
+    SnackbarBus, Switch, TextBox, menu_anchor_from_mouse_event,
 };
 use crate::pb::proxyswarm::RegistryStatusResponse;
 use crate::services::registry_api::RegistryApiService;
@@ -20,6 +20,8 @@ pub fn registries() -> Html {
     let show_modal = use_state(|| false);
     let editing_registry = use_state(|| Option::<RegistryInfo>::None);
     let pending_delete = use_state(|| Option::<RegistryInfo>::None);
+    let pending_duplicate = use_state(|| Option::<RegistryInfo>::None);
+    let action_registry = use_state(|| Option::<(RegistryInfo, (f64, f64, f64))>::None);
     let pending_deploy = use_state(|| false);
     let deploy_loading = use_state(|| false);
     let deploy_registry_id = use_state(|| Option::<String>::None);
@@ -128,10 +130,9 @@ pub fn registries() -> Html {
                             "Actions".to_string(),
                         ]}>
                             { for state.registries.iter().map(|registry| {
-                                let registry_for_edit = registry.clone();
-                                let registry_for_delete = registry.clone();
                                 let registry_for_status = registry.clone();
                                 let registry_for_access_link = registry.clone();
+                                let registry_for_action = registry.clone();
                                 html! {
                                     <>
                                         <div class="md3-list-row">
@@ -178,24 +179,18 @@ pub fn registries() -> Html {
                                                         }}
                                                     />
                                                     <Button
-                                                        label="Edit"
+                                                        label="Action"
                                                         button_type={ButtonType::Outlined}
                                                         onclick={{
-                                                            let show_modal = show_modal.clone();
-                                                            let editing_registry = editing_registry.clone();
-                                                            Callback::from(move |_| {
-                                                                editing_registry.set(Some(registry_for_edit.clone()));
-                                                                show_modal.set(true);
+                                                            let action_registry = action_registry.clone();
+                                                            Callback::from(move |e: MouseEvent| {
+                                                                if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                    action_registry.set(Some((
+                                                                        registry_for_action.clone(),
+                                                                        (left, top, width),
+                                                                    )));
+                                                                }
                                                             })
-                                                        }}
-                                                    />
-                                                    <Button
-                                                        label="Delete"
-                                                        button_type={ButtonType::Outlined}
-                                                        color={Some("#F2B8B5".to_string())}
-                                                        onclick={{
-                                                            let pending_delete = pending_delete.clone();
-                                                            Callback::from(move |_| pending_delete.set(Some(registry_for_delete.clone())))
                                                         }}
                                                     />
                                                 </div>
@@ -316,6 +311,36 @@ pub fn registries() -> Html {
             }
 
             {
+                if let Some(registry) = &*pending_duplicate {
+                    let state = state.clone();
+                    let pending_duplicate_close = pending_duplicate.clone();
+                    let pending_duplicate_confirm = pending_duplicate.clone();
+                    let source = registry.clone();
+                    html! {
+                        <DuplicateNamePopup
+                            title={"Duplicate Registry"}
+                            message_label={"New registry name"}
+                            confirm_label={"Duplicate"}
+                            initial_value={format!("{} Copy", registry.name)}
+                            on_cancel={Callback::from(move |_| pending_duplicate_close.set(None))}
+                            on_confirm={Callback::from(move |name: String| {
+                                let mut new_state = (*state).clone();
+                                let mut duplicated = source.clone();
+                                duplicated.id = uuid::Uuid::new_v4().to_string();
+                                duplicated.name = name;
+                                new_state.registries.push(duplicated);
+                                new_state.save();
+                                state.set(new_state);
+                                pending_duplicate_confirm.set(None);
+                            })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
                 if let Some(registry) = &*pending_delete {
                     let state = state.clone();
                     let pending_delete_close = pending_delete.clone();
@@ -366,6 +391,45 @@ pub fn registries() -> Html {
                                 let status_registry = status_registry.clone();
                                 move |_| status_registry.set(None)
                             })}
+                        />
+                    }
+                } else {
+                    html! {}
+                }
+            }
+
+            {
+                if let Some((registry, anchor)) = &*action_registry {
+                    let action_registry_close = action_registry.clone();
+                    let action_registry_edit = action_registry.clone();
+                    let action_registry_duplicate = action_registry.clone();
+                    let action_registry_delete = action_registry.clone();
+                    let show_modal = show_modal.clone();
+                    let editing_registry = editing_registry.clone();
+                    let pending_duplicate = pending_duplicate.clone();
+                    let pending_delete = pending_delete.clone();
+                    let selected_edit = registry.clone();
+                    let selected_duplicate = registry.clone();
+                    let selected_delete = registry.clone();
+                    html! {
+                        <ActionMenuPopup
+                            anchor_left={anchor.0}
+                            anchor_top={anchor.1}
+                            anchor_width={anchor.2}
+                            on_close={Callback::from(move |_| action_registry_close.set(None))}
+                            on_edit={Some(Callback::from(move |_| {
+                                action_registry_edit.set(None);
+                                editing_registry.set(Some(selected_edit.clone()));
+                                show_modal.set(true);
+                            }))}
+                            on_duplicate={Some(Callback::from(move |_| {
+                                action_registry_duplicate.set(None);
+                                pending_duplicate.set(Some(selected_duplicate.clone()));
+                            }))}
+                            on_delete={Some(Callback::from(move |_| {
+                                action_registry_delete.set(None);
+                                pending_delete.set(Some(selected_delete.clone()));
+                            }))}
                         />
                     }
                 } else {
@@ -932,6 +996,62 @@ struct DeleteConfirmPopupProps {
     confirm_label: AttrValue,
     on_cancel: Callback<()>,
     on_confirm: Callback<()>,
+}
+
+#[derive(Properties, PartialEq)]
+struct DuplicateNamePopupProps {
+    title: AttrValue,
+    message_label: AttrValue,
+    confirm_label: AttrValue,
+    initial_value: String,
+    on_cancel: Callback<()>,
+    on_confirm: Callback<String>,
+}
+
+#[function_component(DuplicateNamePopup)]
+fn duplicate_name_popup(props: &DuplicateNamePopupProps) -> Html {
+    let value = use_state(|| props.initial_value.clone());
+    let error = use_state(|| Option::<String>::None);
+
+    let on_change = {
+        let value = value.clone();
+        let error = error.clone();
+        Callback::from(move |next: String| {
+            value.set(next);
+            error.set(None);
+        })
+    };
+
+    let on_confirm_click = {
+        let value = value.clone();
+        let error = error.clone();
+        let on_confirm = props.on_confirm.clone();
+        Callback::from(move |_| {
+            let next = value.trim().to_string();
+            if next.is_empty() {
+                error.set(Some("Name is required.".to_string()));
+                return;
+            }
+            on_confirm.emit(next);
+        })
+    };
+
+    html! {
+        <Popup title={props.title.clone()} size={PopupSize::Sm} on_close={props.on_cancel.clone()}>
+            <div class="space-y-4">
+                <TextBox
+                    label={props.message_label.to_string()}
+                    value={(*value).clone()}
+                    onchange={on_change}
+                    error={(*error).clone()}
+                />
+                <div class="md3-popup-actions" style="justify-content: flex-end;">
+                    <Button label="Cancel" button_type={ButtonType::Text} onclick={Callback::from({ let on_cancel = props.on_cancel.clone(); move |_| on_cancel.emit(()) })} />
+                    <Button label={props.confirm_label.to_string()} button_type={ButtonType::Filled} onclick={on_confirm_click} />
+                </div>
+            </div>
+        </Popup>
+    }
 }
 
 #[function_component(DeleteConfirmPopup)]

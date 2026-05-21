@@ -40,7 +40,8 @@ type XrayEngine struct {
 	lastConfigs           []*pb.InboundConfig
 	lastDnsConfig         *pb.DnsConfig
 	lastRules             []*pb.RoutingRule
-	lastAccounts          map[string]string // email -> token
+	lastAccounts          map[string]map[string]string // inbound tag -> email -> token
+	lastAccountNames      map[string]string            // account id -> public remark
 	lastOutboundsSnapshot []*pb.OutboundConfig
 	lastOutbounds         map[string]*pb.OutboundStatus
 }
@@ -67,14 +68,41 @@ type WireGuardDeviceConfig struct {
 func NewXrayEngine(name string) *XrayEngine {
 	return &XrayEngine{
 		name:          name,
-		lastAccounts:  make(map[string]string),
+		lastAccounts:  make(map[string]map[string]string),
+		lastAccountNames: make(map[string]string),
 		lastOutbounds: make(map[string]*pb.OutboundStatus),
 	}
+}
+
+func accountRuntimeID(acc *pb.Account) string {
+	if acc == nil {
+		return ""
+	}
+	return strings.TrimSpace(acc.Id)
+}
+
+func accountDisplayName(acc *pb.Account) string {
+	if acc == nil {
+		return ""
+	}
+	name := strings.TrimSpace(acc.Name)
+	if name == "" {
+		return accountRuntimeID(acc)
+	}
+	return name
 }
 
 func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.instance != nil && !e.needsRestart(inbounds, outbounds, rules, dns) {
+		if err := e.syncInboundAccounts(ctx, inbounds); err != nil {
+			return err
+		}
+		e.lastConfigs = normalizeInboundsForRestart(inbounds)
+		return nil
+	}
 
 	return e.restart(inbounds, outbounds, rules, dns, certificates)
 }
@@ -91,7 +119,7 @@ func (e *XrayEngine) needsRestart(configs []*pb.InboundConfig, outbounds []*pb.O
 	if len(e.lastConfigs) == 0 {
 		return true
 	}
-	if !equalProtoSlices(e.lastConfigs, configs) {
+	if !equalProtoSlices(e.lastConfigs, normalizeInboundsForRestart(configs)) {
 		return true
 	}
 	if !proto.Equal(e.lastDnsConfig, dns) {
@@ -135,18 +163,28 @@ func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.Outbo
 	}
 
 	e.instance = instance
-	e.lastConfigs = cloneProtoSlice(inbounds)
+	e.lastConfigs = normalizeInboundsForRestart(inbounds)
 	e.lastDnsConfig = cloneProtoMessage(dns)
 	e.lastOutboundsSnapshot = cloneProtoSlice(outbounds)
 	e.lastRules = cloneProtoSlice(rules)
-	e.lastAccounts = make(map[string]string)
+	e.lastAccounts = make(map[string]map[string]string)
+	e.lastAccountNames = make(map[string]string)
 	e.lastOutbounds = make(map[string]*pb.OutboundStatus)
 	for _, inbound := range inbounds {
+		if inbound == nil || strings.TrimSpace(inbound.Name) == "" {
+			continue
+		}
+		accounts := make(map[string]string)
 		for _, acc := range inbound.GetAccounts() {
-			if acc == nil || strings.TrimSpace(acc.Name) == "" {
+			id := accountRuntimeID(acc)
+			if id == "" {
 				continue
 			}
-			e.lastAccounts[acc.Name] = acc.Token
+			accounts[id] = acc.Token
+			e.lastAccountNames[id] = accountDisplayName(acc)
+		}
+		if len(accounts) > 0 {
+			e.lastAccounts[inbound.Name] = accounts
 		}
 	}
 	for _, outbound := range outbounds {
@@ -198,7 +236,47 @@ func equalProtoSlices[T proto.Message](left []T, right []T) bool {
 	return true
 }
 
+func normalizeInboundsForRestart(inbounds []*pb.InboundConfig) []*pb.InboundConfig {
+	if len(inbounds) == 0 {
+		return nil
+	}
+	cloned := cloneProtoSlice(inbounds)
+	for _, inbound := range cloned {
+		if inbound == nil {
+			continue
+		}
+		inbound.Accounts = nil
+	}
+	return cloned
+}
+
+func (e *XrayEngine) syncInboundAccounts(ctx context.Context, inbounds []*pb.InboundConfig) error {
+	seenTags := make(map[string]struct{})
+	for _, inbound := range inbounds {
+		if inbound == nil || strings.TrimSpace(inbound.Name) == "" {
+			continue
+		}
+		tag := strings.TrimSpace(inbound.Name)
+		seenTags[tag] = struct{}{}
+		if inbound.GetVless() == nil && inbound.GetHysteria2() == nil {
+			continue
+		}
+		if err := e.syncAccounts(ctx, inbound, inbound.GetAccounts()); err != nil {
+			return err
+		}
+	}
+	for tag := range e.lastAccounts {
+		if _, ok := seenTags[tag]; !ok {
+			delete(e.lastAccounts, tag)
+		}
+	}
+	return nil
+}
+
 func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig, accounts []*pb.Account) error {
+	if config == nil || strings.TrimSpace(config.Name) == "" {
+		return nil
+	}
 	addr := fmt.Sprintf("127.0.0.1:%d", e.apiPort)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -207,14 +285,24 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 	defer conn.Close()
 
 	client := command.NewHandlerServiceClient(conn)
+	tag := strings.TrimSpace(config.Name)
 
 	newAccounts := make(map[string]string)
 	for _, acc := range accounts {
+		id := accountRuntimeID(acc)
+		if id == "" {
+			continue
+		}
 		credential := strings.TrimSpace(acc.Token)
 		if hy2Cfg := config.GetHysteria2(); hy2Cfg != nil && credential == "" {
 			credential = strings.TrimSpace(hy2Cfg.Password)
 		}
-		newAccounts[acc.Name] = credential
+		newAccounts[id] = credential
+		e.lastAccountNames[id] = accountDisplayName(acc)
+	}
+	oldAccounts := e.lastAccounts[tag]
+	if oldAccounts == nil {
+		oldAccounts = make(map[string]string)
 	}
 
 	flow := ""
@@ -224,11 +312,11 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 
 	// Add new or updated accounts
 	for email, token := range newAccounts {
-		if oldId, ok := e.lastAccounts[email]; !ok || oldId != token {
+		if oldId, ok := oldAccounts[email]; !ok || oldId != token {
 			if ok {
 				// Remove old one first if ID changed
 				client.AlterInbound(ctx, &command.AlterInboundRequest{
-					Tag: e.name,
+					Tag: tag,
 					Operation: serial.ToTypedMessage(&command.RemoveUserOperation{
 						Email: email,
 					}),
@@ -249,7 +337,7 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 			}
 
 			client.AlterInbound(ctx, &command.AlterInboundRequest{
-				Tag: e.name,
+				Tag: tag,
 				Operation: serial.ToTypedMessage(&command.AddUserOperation{
 					User: &protocol.User{
 						Email:   email,
@@ -261,10 +349,10 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 	}
 
 	// Remove deleted accounts
-	for email := range e.lastAccounts {
+	for email := range oldAccounts {
 		if _, ok := newAccounts[email]; !ok {
 			client.AlterInbound(ctx, &command.AlterInboundRequest{
-				Tag: e.name,
+				Tag: tag,
 				Operation: serial.ToTypedMessage(&command.RemoveUserOperation{
 					Email: email,
 				}),
@@ -272,7 +360,23 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 		}
 	}
 
-	e.lastAccounts = newAccounts
+	if len(newAccounts) == 0 {
+		delete(e.lastAccounts, tag)
+	} else {
+		e.lastAccounts[tag] = newAccounts
+	}
+	for id := range e.lastAccountNames {
+		stillUsed := false
+		for _, inboundAccounts := range e.lastAccounts {
+			if _, ok := inboundAccounts[id]; ok {
+				stillUsed = true
+				break
+			}
+		}
+		if !stillUsed {
+			delete(e.lastAccountNames, id)
+		}
+	}
 	return nil
 }
 
@@ -377,7 +481,7 @@ func normalizedRealityShortIDs(values []string) []string {
 	return shortIDs
 }
 
-func buildXrayInboundConfig(config *pb.InboundConfig, certificates *CertificatesManager) (conf.InboundDetourConfig, error) {
+func buildXrayInboundConfig(config *pb.InboundConfig, certificates *CertificatesManager, portalUserTags map[string]string, matchedPortalUsers map[string]struct{}) (conf.InboundDetourConfig, error) {
 	inbound := conf.InboundDetourConfig{
 		Tag:      config.Name,
 		ListenOn: &conf.Address{Address: xnet.ParseAddress(config.Listen)},
@@ -512,11 +616,20 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		inbound.Protocol = "vless"
 		var clients []map[string]any
 		for _, acc := range accounts {
-			clients = append(clients, map[string]any{
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
+			client := map[string]any{
 				"id":    acc.Token,
-				"email": acc.Name,
+				"email": id,
 				"flow":  p.Vless.Flow,
-			})
+			}
+			if reverseTag, ok := portalUserTags[strings.TrimSpace(acc.Id)]; ok {
+				client["reverse"] = map[string]any{"tag": reverseTag}
+				matchedPortalUsers[strings.TrimSpace(acc.Id)] = struct{}{}
+			}
+			clients = append(clients, client)
 		}
 		inbound.Settings = toRawPtr(map[string]any{
 			"clients":    clients,
@@ -543,15 +656,28 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		inbound.Protocol = "hysteria"
 		clients := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			clients = append(clients, map[string]any{
 				"auth":  strings.TrimSpace(acc.Token),
-				"email": acc.Name,
+				"email": id,
 				"level": 0,
 			})
 		}
 		inbound.Settings = toRawPtr(map[string]any{
 			"version": 2,
 			"clients": clients,
+		})
+	case *pb.InboundConfig_Tunnel:
+		inbound.Protocol = "tunnel"
+		network := strings.TrimSpace(p.Tunnel.AllowedNetwork)
+		if network == "" {
+			network = "tcp"
+		}
+		inbound.Settings = toRawPtr(&conf.DokodemoConfig{
+			Network: xrayNetworkList(network),
 		})
 	case *pb.InboundConfig_Socks5:
 		inbound.Protocol = "socks"
@@ -561,8 +687,12 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		}
 		accountsList := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			accountsList = append(accountsList, map[string]any{
-				"user": acc.Name,
+				"user": id,
 				"pass": acc.Token,
 			})
 		}
@@ -581,12 +711,16 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		inbound.Protocol = "shadowsocks"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
+			id := accountRuntimeID(acc)
+			if id == "" {
+				continue
+			}
 			password := strings.TrimSpace(acc.Token)
 			if password == "" {
 				password = strings.TrimSpace(p.Shadowsocks.Password)
 			}
 			users = append(users, map[string]any{
-				"email":    acc.Name,
+				"email":    id,
 				"method":   p.Shadowsocks.Method,
 				"password": password,
 			})
@@ -602,6 +736,33 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 			settings["password"] = p.Shadowsocks.Password
 		}
 		inbound.Settings = toRawPtr(settings)
+	case *pb.InboundConfig_Tproxy:
+		inbound.Protocol = "dokodemo-door"
+		network := strings.TrimSpace(p.Tproxy.Network)
+		if network == "" {
+			network = "tcp,udp"
+		}
+		inbound.Settings = toRawPtr(&conf.DokodemoConfig{
+			Network:        xrayNetworkList(network),
+			FollowRedirect: true,
+		})
+		inbound.StreamSetting = &conf.StreamConfig{
+			SocketSettings: &conf.SocketConfig{
+				TProxy: "tproxy",
+				Mark:   p.Tproxy.SocketMark,
+			},
+		}
+		if p.Tproxy.SniffingEnabled {
+			destOverride := conf.StringList(p.Tproxy.SniffingDestOverride)
+			if len(destOverride) == 0 {
+				destOverride = conf.StringList{"http", "tls", "quic"}
+			}
+			inbound.SniffingConfig = &conf.SniffingConfig{
+				Enabled:      true,
+				DestOverride: &destOverride,
+				RouteOnly:    p.Tproxy.SniffingRouteOnly,
+			}
+		}
 	default:
 		return inbound, fmt.Errorf("protocol not supported by Xray engine")
 	}
@@ -654,6 +815,50 @@ func buildXrayRoutingRules(rules []*pb.RoutingRule) []json.RawMessage {
 	return rawRules
 }
 
+func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, []json.RawMessage, map[string]struct{}, map[string]string, error) {
+	rules := []json.RawMessage{}
+	reverseTags := map[string]struct{}{}
+	portalUserTags := map[string]string{}
+
+	for _, inbound := range configs {
+		if inbound == nil {
+			continue
+		}
+		r := inbound.GetVlessReverseProxy()
+		if r == nil {
+			continue
+		}
+		tag := strings.TrimSpace(r.Tag)
+		if tag == "" {
+			tag = strings.TrimSpace(inbound.Name)
+		}
+		if tag == "" {
+			return nil, nil, nil, nil, fmt.Errorf("reverse proxy requires tag")
+		}
+		reverseTags[tag] = struct{}{}
+		portalInboundTag := strings.TrimSpace(r.PortalInboundTag)
+		if portalInboundTag == "" {
+			return nil, nil, nil, nil, fmt.Errorf("vless reverse proxy %q requires portal_inbound_tag", tag)
+		}
+		portalUserID := strings.TrimSpace(r.PortalUserId)
+		if portalUserID == "" {
+			return nil, nil, nil, nil, fmt.Errorf("vless reverse proxy %q requires portal_user_id", tag)
+		}
+		if existingTag, ok := portalUserTags[portalUserID]; ok && existingTag != tag {
+			return nil, nil, nil, nil, fmt.Errorf("vless reverse proxy user %q already assigned to tag %q", portalUserID, existingTag)
+		}
+		portalUserTags[portalUserID] = tag
+		rules = append(rules,
+			toRaw(map[string]any{
+				"type":        "field",
+				"inboundTag":  []string{portalInboundTag},
+				"outboundTag": tag,
+			}),
+		)
+	}
+	return nil, rules, reverseTags, portalUserTags, nil
+}
+
 func xrayVlessNetwork(transmission string) *conf.TransportProtocol {
 	var network conf.TransportProtocol
 	switch transmission {
@@ -678,6 +883,22 @@ func xrayVlessNetwork(transmission string) *conf.TransportProtocol {
 func xrayHysteriaNetwork() *conf.TransportProtocol {
 	network := conf.TransportProtocol("hysteria")
 	return &network
+}
+
+func xrayNetworkList(value string) *conf.NetworkList {
+	parts := strings.Split(value, ",")
+	networks := make(conf.NetworkList, 0, len(parts))
+	for _, part := range parts {
+		part = strings.ToLower(strings.TrimSpace(part))
+		switch part {
+		case "tcp", "udp":
+			networks = append(networks, conf.Network(part))
+		}
+	}
+	if len(networks) == 0 {
+		networks = conf.NetworkList{conf.Network("tcp"), conf.Network("udp")}
+	}
+	return &networks
 }
 
 func parseXrayMasquerade(value string) (conf.Masquerade, error) {
@@ -875,18 +1096,38 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 		}),
 	}
 	c.InboundConfigs = append(c.InboundConfigs, apiInbound)
+	portalUserTags := map[string]string{}
+	matchedPortalUsers := map[string]struct{}{}
+	reverseConfig, reverseRules, reverseTags, portalAssignments, err := buildXrayReverseConfig(configs)
+	if err != nil {
+		return nil, err
+	}
+	portalUserTags = portalAssignments
+
 	for _, config := range configs {
 		if config == nil {
 			continue
 		}
-		inbound, err := buildXrayInboundConfig(config, certificates)
+		if config.GetVlessReverseProxy() != nil {
+			continue
+		}
+		inbound, err := buildXrayInboundConfig(config, certificates, portalUserTags, matchedPortalUsers)
 		if err != nil {
 			return nil, err
 		}
 		c.InboundConfigs = append(c.InboundConfigs, inbound)
 	}
+	for portalUserID := range portalUserTags {
+		if _, ok := matchedPortalUsers[portalUserID]; !ok {
+			return nil, fmt.Errorf("reverse portal user %q requires at least one VLESS inbound with that account", portalUserID)
+		}
+	}
 
 	allowedOutboundTags := map[string]struct{}{}
+	c.Reverse = reverseConfig
+	for tag := range reverseTags {
+		allowedOutboundTags[tag] = struct{}{}
+	}
 	for _, out := range outbounds {
 		if out == nil || strings.TrimSpace(out.Tag) == "" {
 			continue
@@ -1055,6 +1296,7 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 		val := "AsIs"
 		c.RouterConfig.DomainStrategy = &val
 	}
+	c.RouterConfig.RuleList = append(reverseRules, c.RouterConfig.RuleList...)
 
 	if len(c.OutboundConfigs) == 0 {
 		c.OutboundConfigs = append(c.OutboundConfigs, conf.OutboundDetourConfig{
@@ -1144,56 +1386,67 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 		}
 	}
 
-	for accountName := range e.lastAccounts {
+	seenAccounts := make(map[string]struct{})
+	for _, accounts := range e.lastAccounts {
+		for accountName := range accounts {
+			if _, ok := seenAccounts[accountName]; ok {
+				continue
+			}
+			seenAccounts[accountName] = struct{}{}
+			displayName := strings.TrimSpace(e.lastAccountNames[accountName])
+			if displayName == "" {
+				displayName = accountName
+			}
 		account := &pb.AccountStatus{
-			Name: accountName,
+			Name: displayName,
 			Traffic: querySingleStatPair(
 				ctx,
 				client,
 				fmt.Sprintf("user>>>%s>>>traffic>>>downlink", accountName),
-				fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountName),
-			),
-		}
-		if _, ok := onlineUsers[accountName]; ok {
-			account.Online = 1
-			if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-				Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-				Reset_: false,
-			}); err == nil {
-				for ip := range onlineIps.GetIps() {
-					account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
-						Ip:        ip,
-						UserAgent: "Unknown",
-					})
-				}
-				slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
-					return strings.Compare(a.GetIp(), b.GetIp())
-				})
-				if len(account.Sessions) > 0 {
-					account.Online = uint32(len(account.Sessions))
-				}
-			}
-		} else if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-			Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-			Reset_: false,
-		}); err == nil {
-			for ip := range onlineIps.GetIps() {
-				account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
-					Ip:        ip,
-					UserAgent: "Unknown",
-				})
-			}
-			slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
-				return strings.Compare(a.GetIp(), b.GetIp())
-			})
-			account.Online = uint32(len(account.Sessions))
-		} else if online, err := client.GetStatsOnline(ctx, &statsService.GetStatsRequest{
-			Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-			Reset_: false,
-		}); err == nil && online.GetStat() != nil && online.Stat.Value > 0 {
-			account.Online = uint32(online.Stat.Value)
-		}
+                    fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountName),
+                ),
+            }
+            if _, ok := onlineUsers[accountName]; ok {
+                account.Online = 1
+                if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
+                    Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+                    Reset_: false,
+                }); err == nil {
+                    for ip := range onlineIps.GetIps() {
+                        account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
+                            Ip:        ip,
+                            UserAgent: "Unknown",
+                        })
+                    }
+                    slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
+                        return strings.Compare(a.GetIp(), b.GetIp())
+                    })
+                    if len(account.Sessions) > 0 {
+                        account.Online = uint32(len(account.Sessions))
+                    }
+                }
+            } else if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
+                Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+                Reset_: false,
+            }); err == nil {
+                for ip := range onlineIps.GetIps() {
+                    account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
+                        Ip:        ip,
+                        UserAgent: "Unknown",
+                    })
+                }
+                slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
+                    return strings.Compare(a.GetIp(), b.GetIp())
+                })
+                account.Online = uint32(len(account.Sessions))
+            } else if online, err := client.GetStatsOnline(ctx, &statsService.GetStatsRequest{
+                Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+                Reset_: false,
+            }); err == nil && online.GetStat() != nil && online.Stat.Value > 0 {
+                account.Online = uint32(online.Stat.Value)
+            }
 		metrics.Accounts = append(metrics.Accounts, account)
+		}
 	}
 
 	for tag, outbound := range e.lastOutbounds {

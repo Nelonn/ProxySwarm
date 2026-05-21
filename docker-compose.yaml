@@ -11,4 +11,4 @@ services:
       - PS_MASTER_KEY=${PS_MASTER_KEY:-my-secret-key}
       - GRPC_LISTEN=:9090
     volumes:
-      - ./data:/data
+      - ./proxyswarm-node-data:/data

@@ -113,6 +113,12 @@ fn build_sprite_defs() -> String {
             ),
         ),
         symbol(
+            "icon-duplicate",
+            include_str!(
+                "../../assets/icons/content_copy_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"
+            ),
+        ),
+        symbol(
             "icon-groups",
             include_str!("../../assets/icons/groups_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"),
         ),

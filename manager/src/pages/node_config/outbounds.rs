@@ -3,15 +3,18 @@ use super::*;
 pub(super) fn render_outbounds_tab(
     draft: &UseStateHandle<NodeConfigDraft>,
     outbounds: &[OutboundEntryDraft],
+    reverse_proxies: &[ReverseProxyDraft],
     editing_outbound: &UseStateHandle<Option<(OutboundEntryDraft, bool)>>,
+    editing_reverse_proxy: &UseStateHandle<Option<(usize, ReverseProxyDraft, bool)>>,
     warp_popup_open: &UseStateHandle<bool>,
-    pending_outbound_delete: &UseStateHandle<Option<(String, String)>>,
+    action_outbound: &UseStateHandle<Option<(String, (f64, f64, f64))>>,
+    action_reverse_proxy: &UseStateHandle<Option<(usize, (f64, f64, f64))>>,
 ) -> Html {
     html! {                        <div class="space-y-6">
                             <div class="flex justify-between" style="align-items: center;">
                                 <div>
                                     <h2 class="text-2xl font-bold">{ "Outbounds" }</h2>
-                                    <div class="text-sm opacity-70">{ "Builtin Direct and Block stay fixed. Add VLESS, TrustTunnel, WireGuard, SOCKS5, and Shadowsocks as reusable outbound entries." }</div>
+                                    <div class="text-sm opacity-70">{ "Builtin Direct and Block stay fixed. Add VLESS, VLESS Reverse, TrustTunnel, WireGuard, SOCKS5, and Shadowsocks as reusable outbound entries." }</div>
                                 </div>
                                 <div class="flex" style="gap: 0.75rem;">
                                     <Button
@@ -27,6 +30,14 @@ pub(super) fn render_outbounds_tab(
                                         let warp_popup_open = warp_popup_open.clone();
                                         move |_| warp_popup_open.set(true)
                                     })} />
+                                    <Button
+                                        label="Add VLESS Reverse"
+                                        button_type={ButtonType::Outlined}
+                                        onclick={Callback::from({
+                                            let editing_reverse_proxy = editing_reverse_proxy.clone();
+                                            move |_| editing_reverse_proxy.set(Some((usize::MAX, default_reverse_proxy_entry(), true)))
+                                        })}
+                                    />
                                 </div>
                             </div>
                             <RichTable columns={vec![
@@ -38,8 +49,7 @@ pub(super) fn render_outbounds_tab(
                             ]} card_class={Some("bg-surface-container".to_string())} header_in_list={true}>
                                 {
                                     for outbounds.iter().map(|outbound| {
-                                        let edit_id = outbound.id.clone();
-                                        let delete_id = outbound.id.clone();
+                                        let action_id = outbound.id.clone();
                                         let type_label = outbound.outbound_type.clone();
                                         let toggle_id = outbound.id.clone();
                                         let toggle_allowed = outbound.outbound_type.trim().to_uppercase() != "BLOCK";
@@ -102,28 +112,17 @@ pub(super) fn render_outbounds_tab(
                                                     <div class="md3-list-col">{ target_label }</div>
                                                     <div class="md3-list-col-actions">
                                                         <div class="md3-list-actions">
-                                                            <Button label="Edit" button_type={ButtonType::Outlined} onclick={Callback::from({
-                                                                let editing_outbound = editing_outbound.clone();
-                                                                let draft = draft.clone();
-                                                                move |_| {
-                                                                    let mut data = (*draft).clone();
-                                                                    sync_draft(&mut data);
-                                                                    editing_outbound.set(data.outbounds.iter().find(|item| item.id == edit_id).cloned().map(|value| (value, false)));
-                                                                }
-                                                            })} />
-                                                            {
-                                                                if outbound.builtin {
-                                                                    html! {}
-                                                                } else {
-                                                                    html! {
-                                                                        <Button label="Delete" button_type={ButtonType::Text} color={Some("#F2B8B5".to_string())} onclick={Callback::from({
-                                                                            let pending_outbound_delete = pending_outbound_delete.clone();
-                                                                            let outbound_name = outbound.name.clone();
-                                                                            move |_| pending_outbound_delete.set(Some((delete_id.clone(), outbound_name.clone())))
-                                                                        })} />
+                                                            <Button label="Action" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                                                let action_outbound = action_outbound.clone();
+                                                                move |e: MouseEvent| {
+                                                                    if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                        action_outbound.set(Some((
+                                                                            action_id.clone(),
+                                                                            (left, top, width),
+                                                                        )));
                                                                     }
                                                                 }
-                                                            }
+                                                            })} />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -132,6 +131,78 @@ pub(super) fn render_outbounds_tab(
                                     })
                                 }
                             </RichTable>
+
+                            <div class="space-y-3">
+                                <div class="text-sm font-semibold opacity-80">{ "VLESS Reverse" }</div>
+                                {
+                                    if reverse_proxies.is_empty() {
+                                        html! {
+                                            <div class="md3-card bg-surface-container">
+                                                <div class="text-sm opacity-70">{ "No VLESS Reverse entries configured." }</div>
+                                            </div>
+                                        }
+                                    } else {
+                                        html! {
+                                            <RichTable columns={vec![
+                                                "Name".to_string(),
+                                                "Type".to_string(),
+                                                "Enabled".to_string(),
+                                                "Tag / Target".to_string(),
+                                                "Actions".to_string(),
+                                            ]} card_class={Some("bg-surface-container".to_string())} header_in_list={true}>
+                                                {
+                                                    for reverse_proxies.iter().enumerate().map(|(idx, reverse_proxy)| {
+                                                        html! {
+                                                            <>
+                                                                <div class="md3-divider"></div>
+                                                                <div class="md3-list-row">
+                                                                    <div class="md3-list-col-main">
+                                                                        <div class="font-semibold">{ reverse_proxy_display_name(reverse_proxy, idx) }</div>
+                                                                        <div class="text-sm opacity-70">{ "VLESS reverse outbound" }</div>
+                                                                    </div>
+                                                                    <div class="md3-list-col">{ "VLESS Reverse" }</div>
+                                                                    <div class="md3-list-col">
+                                                                        <Switch
+                                                                            checked={reverse_proxy.enabled}
+                                                                            onchange={Callback::from({
+                                                                                let draft = draft.clone();
+                                                                                move |e: Event| {
+                                                                                    let input = e.target_unchecked_into::<web_sys::HtmlInputElement>();
+                                                                                    let mut next = (*draft).clone();
+                                                                                    sync_draft(&mut next);
+                                                                                    if let Some(item) = next.reverse_proxies.get_mut(idx) {
+                                                                                        item.enabled = input.checked();
+                                                                                    }
+                                                                                    sync_draft(&mut next);
+                                                                                    draft.set(next);
+                                                                                }
+                                                                            })}
+                                                                        />
+                                                                    </div>
+                                                                    <div class="md3-list-col">{ format!("{} / {}", optional_label(&reverse_proxy.portal_inbound_tag), optional_label(&reverse_proxy.portal_user_id)) }</div>
+                                                                    <div class="md3-list-col-actions">
+                                                                        <div class="md3-list-actions">
+                                                                            <Button label="Action" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                                                                let action_reverse_proxy = action_reverse_proxy.clone();
+                                                                                move |e: MouseEvent| {
+                                                                                    if let Some((left, top, width)) = menu_anchor_from_mouse_event(&e) {
+                                                                                        action_reverse_proxy.set(Some((idx, (left, top, width))));
+                                                                                    }
+                                                                                }
+                                                                            })} />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        }
+                                                    })
+                                                }
+                                            </RichTable>
+                                        }
+                                    }
+                                }
+                            </div>
                         </div>
     }
 }
+

@@ -62,6 +62,7 @@ pub fn accounts() -> Html {
             } else {
                 html! {
                     <RichTable columns={vec![
+                        "ID".to_string(),
                         "Account".to_string(),
                         "Token".to_string(),
                         "Groups".to_string(),
@@ -215,6 +216,9 @@ fn account_row(props: &AccountCardProps) -> Html {
 
     html! {
         <div class="md3-list-row">
+            <div class="md3-list-col">
+                <code>{ &props.account.id }</code>
+            </div>
             <div class="md3-list-col md3-list-col-main">
                 <div class="text-lg font-bold">{ &props.account.name }</div>
             </div>
@@ -564,6 +568,11 @@ fn account_modal(props: &AccountModalProps) -> Html {
                         };
                         a.allowed_ips = allowed_ips_vec.clone();
                         a.groups = groups_vec.clone();
+                        a.creation_date = if a.creation_date > 0 {
+                            a.creation_date
+                        } else {
+                            chrono::Utc::now().timestamp()
+                        };
                         a.expiry_date = expiry_date;
                         updated = true;
                         break;
@@ -580,12 +589,17 @@ fn account_modal(props: &AccountModalProps) -> Html {
                         },
                         allowed_ips: allowed_ips_vec,
                         groups: groups_vec,
+                        creation_date: if existing.creation_date > 0 {
+                            existing.creation_date
+                        } else {
+                            chrono::Utc::now().timestamp()
+                        },
                         expiry_date,
                     });
                 }
             } else {
                 new_state.accounts.push(AccountInfo {
-                    id: Uuid::new_v4().to_string(),
+                    id: Uuid::new_v4().simple().to_string().chars().take(8).collect(),
                     name: (*name_for_submit).clone(),
                     token: if token_for_submit.trim().is_empty() {
                         Uuid::new_v4().to_string()
@@ -594,6 +608,7 @@ fn account_modal(props: &AccountModalProps) -> Html {
                     },
                     allowed_ips: allowed_ips_vec,
                     groups: groups_vec,
+                    creation_date: chrono::Utc::now().timestamp(),
                     expiry_date,
                 });
             }

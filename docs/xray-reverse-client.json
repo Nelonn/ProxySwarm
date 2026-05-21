@@ -1,0 +1,43 @@
+{
+  "routing": {
+    "rules": [
+      {
+        "inboundTag": ["reverse-in"],
+        "outboundTag": "reverse-direct"
+      }
+    ]
+  },
+  "outbounds": [
+    {
+      "protocol": "freedom"
+    },
+    {
+      "protocol": "freedom",
+      "tag": "reverse-direct",
+      "settings": {
+        "redirect": "192.168.1.123:8888",
+        "finalRules": [
+          {
+            "action": "allow",
+            "network": "tcp,udp",
+            "ip": "192.168.1.123",
+            "port": "8888"
+          }
+        ]
+      }
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "address": "yourserver.com",
+        "port": 8443,
+        "encryption": "mlkem768x25519plus.native.0rtt.2PcBa3Yz0zBdt4p8-PkJMzx9hIj2Ve-UmrnmZRPnpRk",
+        "id": "ac04551d-6ebf-4685-86e2-17c12491f7f4",
+        "flow": "xtls-rprx-vision",
+        "reverse": {
+          "tag": "reverse-in"
+        }
+      }
+    }
+  ]
+}

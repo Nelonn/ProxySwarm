@@ -37,6 +37,7 @@ pub fn hydrate_desktop_state(state: UseStateHandle<State>) {
         let Ok(desktop_state) = serde_json::from_str::<State>(&contents) else {
             return;
         };
+        let desktop_state = desktop_state.normalized_on_load();
 
         let _ = LocalStorage::set(STATE_KEY, &desktop_state);
         if *state != desktop_state {

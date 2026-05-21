@@ -1,6 +1,7 @@
 .idea
-/reference
+#/reference
 /data
+/proxyswarm-node-data
 .gocache
 
 # Common
