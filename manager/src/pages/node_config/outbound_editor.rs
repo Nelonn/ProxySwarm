@@ -275,6 +275,8 @@ pub(super) fn warp_create_popup(props: &WarpCreatePopupProps) -> Html {
 pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
     let outbound = use_state(|| props.outbound.clone());
     let step = use_state(|| 0usize);
+    let import_link = use_state(String::new);
+    let import_status = use_state(|| Option::<String>::None);
 
     let update_text = |mutator: fn(&mut OutboundEntryDraft, String)| {
         let outbound = outbound.clone();
@@ -480,32 +482,69 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                 </div>
                                             },
                                             _ => html! {
-                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                                    <TextBox label="Tag" value={data.vless.tag.clone()} onchange={update_text(|outbound, value| outbound.vless.tag = value)} />
-                                                    <Dropdown
-                                                        label="Security"
-                                                        value={data.vless.security.clone()}
-                                                        options={vec![
-                                                            DropdownOption { value: "NONE".to_string(), label: "None".to_string() },
-                                                            DropdownOption { value: "TLS".to_string(), label: "TLS".to_string() },
-                                                            DropdownOption { value: "REALITY".to_string(), label: "Reality".to_string() },
-                                                        ]}
-                                                        onchange={update_text(|outbound, value| outbound.vless.security = value)}
+                                                <div class="space-y-4">
+                                                    <TextBox
+                                                        label="Import VLESS Link"
+                                                        value={(*import_link).clone()}
+                                                        onchange={Callback::from({
+                                                            let import_link = import_link.clone();
+                                                            move |value: String| import_link.set(value)
+                                                        })}
+                                                        is_textarea={true}
+                                                        placeholder="vless://uuid@host:443?security=reality&type=tcp..."
                                                     />
-                                                    <Dropdown
-                                                        label="Transmission"
-                                                        value={vless_transmission_from(&data.vless.transmission)}
-                                                        options={vec![
-                                                            DropdownOption { value: "TCP".to_string(), label: "TCP (RAW)".to_string() },
-                                                            DropdownOption { value: "HTTP".to_string(), label: "HTTP".to_string() },
-                                                            DropdownOption { value: "gRPC".to_string(), label: "gRPC".to_string() },
-                                                            DropdownOption { value: "WebSocket".to_string(), label: "WebSocket".to_string() },
-                                                            DropdownOption { value: "mKCP".to_string(), label: "mKCP".to_string() },
-                                                            DropdownOption { value: "HttpUpgrade".to_string(), label: "HttpUpgrade".to_string() },
-                                                            DropdownOption { value: "SplitHTTP".to_string(), label: "SplitHTTP".to_string() },
-                                                        ]}
-                                                        onchange={update_text(|outbound, value| outbound.vless.transmission = value)}
-                                                    />
+                                                    <div class="flex" style="gap: 0.75rem; align-items: center;">
+                                                        <Button
+                                                            label="Import Link"
+                                                            button_type={ButtonType::Outlined}
+                                                            onclick={Callback::from({
+                                                                let outbound = outbound.clone();
+                                                                let import_link = import_link.clone();
+                                                                let import_status = import_status.clone();
+                                                                move |_| match import_vless_outbound_link(&(*import_link), &(*outbound)) {
+                                                                    Ok(next) => {
+                                                                        outbound.set(next);
+                                                                        import_status.set(Some("Imported VLESS link. Review and adjust fields below.".to_string()));
+                                                                    }
+                                                                    Err(error) => import_status.set(Some(error)),
+                                                                }
+                                                            })}
+                                                        />
+                                                        {
+                                                            if let Some(message) = &*import_status {
+                                                                html! { <div class="text-sm opacity-70">{ message.clone() }</div> }
+                                                            } else {
+                                                                html! {}
+                                                            }
+                                                        }
+                                                    </div>
+                                                    <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                        <TextBox label="UUID" value={data.vless.uuid.clone()} onchange={update_text(|outbound, value| outbound.vless.uuid = value)} />
+                                                        <Dropdown
+                                                            label="Security"
+                                                            value={data.vless.security.clone()}
+                                                            options={vec![
+                                                                DropdownOption { value: "NONE".to_string(), label: "None".to_string() },
+                                                                DropdownOption { value: "TLS".to_string(), label: "TLS".to_string() },
+                                                                DropdownOption { value: "REALITY".to_string(), label: "Reality".to_string() },
+                                                            ]}
+                                                            onchange={update_text(|outbound, value| outbound.vless.security = value)}
+                                                        />
+                                                        <Dropdown
+                                                            label="Transmission"
+                                                            value={vless_transmission_from(&data.vless.transmission)}
+                                                            options={vec![
+                                                                DropdownOption { value: "TCP".to_string(), label: "TCP (RAW)".to_string() },
+                                                                DropdownOption { value: "HTTP".to_string(), label: "HTTP".to_string() },
+                                                                DropdownOption { value: "gRPC".to_string(), label: "gRPC".to_string() },
+                                                                DropdownOption { value: "WebSocket".to_string(), label: "WebSocket".to_string() },
+                                                                DropdownOption { value: "mKCP".to_string(), label: "mKCP".to_string() },
+                                                                DropdownOption { value: "HttpUpgrade".to_string(), label: "HttpUpgrade".to_string() },
+                                                                DropdownOption { value: "SplitHTTP".to_string(), label: "SplitHTTP".to_string() },
+                                                            ]}
+                                                            onchange={update_text(|outbound, value| outbound.vless.transmission = value)}
+                                                        />
+                                                    </div>
                                                 </div>
                                             }
                                         }
@@ -517,33 +556,64 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                     {
                                         match data.outbound_type.trim().to_uppercase().as_str() {
                                             "VLESS" => html! {
-                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                                    <TextBox label="Server" value={data.vless.server.clone()} onchange={update_text(|outbound, value| outbound.vless.server = value)} />
-                                                    <TextBox label="Port" value={data.vless.port.to_string()} onchange={update_text(|outbound, value| outbound.vless.port = value.parse().unwrap_or(0))} input_type="number" />
-                                                    <Dropdown
-                                                        label="Flow"
-                                                        value={data.vless.flow.clone()}
-                                                        options={vec![
-                                                            DropdownOption { value: "".to_string(), label: "None".to_string() },
-                                                            DropdownOption { value: "xtls-rprx-vision".to_string(), label: "xtls-rprx-vision".to_string() },
-                                                            DropdownOption { value: "xtls-rprx-vision-udp443".to_string(), label: "xtls-rprx-vision-udp443".to_string() },
-                                                        ]}
-                                                        onchange={update_text(|outbound, value| outbound.vless.flow = value)}
-                                                    />
-                                                    <Dropdown
-                                                        label="Transmission"
-                                                        value={data.vless.transmission.clone()}
-                                                        options={vec![
-                                                            DropdownOption { value: "TCP".to_string(), label: "TCP (RAW)".to_string() },
-                                                            DropdownOption { value: "HTTP".to_string(), label: "HTTP".to_string() },
-                                                            DropdownOption { value: "gRPC".to_string(), label: "gRPC".to_string() },
-                                                            DropdownOption { value: "WebSocket".to_string(), label: "WebSocket".to_string() },
-                                                            DropdownOption { value: "mKCP".to_string(), label: "mKCP".to_string() },
-                                                            DropdownOption { value: "HttpUpgrade".to_string(), label: "HttpUpgrade".to_string() },
-                                                            DropdownOption { value: "SplitHTTP".to_string(), label: "SplitHTTP".to_string() },
-                                                        ]}
-                                                        onchange={update_text(|outbound, value| outbound.vless.transmission = value)}
-                                                    />
+                                                <div class="space-y-4">
+                                                    <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                        <TextBox label="Server" value={data.vless.server.clone()} onchange={update_text(|outbound, value| outbound.vless.server = value)} />
+                                                        <TextBox label="Port" value={data.vless.port.to_string()} onchange={update_text(|outbound, value| outbound.vless.port = value.parse().unwrap_or(0))} input_type="number" />
+                                                        <Dropdown
+                                                            label="Flow"
+                                                            value={data.vless.flow.clone()}
+                                                            options={vec![
+                                                                DropdownOption { value: "".to_string(), label: "None".to_string() },
+                                                                DropdownOption { value: "xtls-rprx-vision".to_string(), label: "xtls-rprx-vision".to_string() },
+                                                                DropdownOption { value: "xtls-rprx-vision-udp443".to_string(), label: "xtls-rprx-vision-udp443".to_string() },
+                                                            ]}
+                                                            onchange={update_text(|outbound, value| outbound.vless.flow = value)}
+                                                        />
+                                                        <TextBox label="TLS Server Name" value={data.vless.tls_server_name.clone()} onchange={update_text(|outbound, value| outbound.vless.tls_server_name = value)} />
+                                                    </div>
+                                                    {
+                                                        if data.vless.security.trim().eq_ignore_ascii_case("REALITY") {
+                                                            html! {
+                                                                <>
+                                                                    <ConfigSection title="Reality">
+                                                                        <TextBox label="SNI" value={data.vless.reality_sni.clone()} onchange={update_text(|outbound, value| outbound.vless.reality_sni = value)} />
+                                                                        <Dropdown
+                                                                            label="uTLS"
+                                                                            value={data.vless.reality_utls.clone()}
+                                                                            options={vec![
+                                                                                DropdownOption { value: "chrome".to_string(), label: "chrome".to_string() },
+                                                                                DropdownOption { value: "firefox".to_string(), label: "firefox".to_string() },
+                                                                                DropdownOption { value: "safari".to_string(), label: "safari".to_string() },
+                                                                                DropdownOption { value: "edge".to_string(), label: "edge".to_string() },
+                                                                                DropdownOption { value: "ios".to_string(), label: "ios".to_string() },
+                                                                                DropdownOption { value: "android".to_string(), label: "android".to_string() },
+                                                                                DropdownOption { value: "randomized".to_string(), label: "randomized".to_string() },
+                                                                            ]}
+                                                                            onchange={update_text(|outbound, value| outbound.vless.reality_utls = value)}
+                                                                        />
+                                                                        <TextBox label="SpiderX" value={data.vless.reality_spider_x.clone()} onchange={update_text(|outbound, value| outbound.vless.reality_spider_x = value)} placeholder="/" />
+                                                                        <TextBox label="Public Key" value={data.vless.reality_public_key.clone()} onchange={update_text(|outbound, value| outbound.vless.reality_public_key = value)} />
+                                                                        <TextBox label="Short IDs" value={data.vless.reality_short_ids.clone()} onchange={update_text(|outbound, value| outbound.vless.reality_short_ids = value)} placeholder="id1, id2" />
+                                                                        <div class="flex" style="gap: 0.75rem;">
+                                                                            <Button label="Generate Short IDs" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                                                                let outbound = outbound.clone();
+                                                                                move |_| {
+                                                                                    let mut next = (*outbound).clone();
+                                                                                    let mut ids = split_lines_csv(&next.vless.reality_short_ids);
+                                                                                    ids.extend(generate_reality_short_ids_batch(6));
+                                                                                    next.vless.reality_short_ids = ids.join(",");
+                                                                                    outbound.set(next);
+                                                                                }
+                                                                            })} />
+                                                                        </div>
+                                                                    </ConfigSection>
+                                                                </>
+                                                            }
+                                                        } else {
+                                                            html! {}
+                                                        }
+                                                    }
                                                 </div>
                                             },
                                             _ => html! { { render_outbound_review(&data) } }
@@ -780,7 +850,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                         },
                         _ => html! {
                             <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                <TextBox label="Tag" value={data.vless.tag.clone()} onchange={update_text(|outbound, value| outbound.vless.tag = value)} />
                                 <TextBox label="Server" value={data.vless.server.clone()} onchange={update_text(|outbound, value| outbound.vless.server = value)} />
                                 <TextBox label="Port" value={data.vless.port.to_string()} onchange={update_text(|outbound, value| outbound.vless.port = value.parse().unwrap_or(0))} input_type="number" />
                                 <Dropdown
@@ -837,6 +906,3 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
         </Popup>
     }
 }
-
-
-

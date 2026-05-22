@@ -62,6 +62,14 @@ pub(super) fn render_outbounds_tab(
                                                 .first()
                                                 .map(|peer| peer.endpoint.clone())
                                                 .unwrap_or_default(),
+                                            "VLESS" => {
+                                                let server = outbound.vless.server.trim();
+                                                if server.is_empty() || outbound.vless.port <= 0 {
+                                                    outbound.vless.tag.clone()
+                                                } else {
+                                                    format!("{}:{}", server, outbound.vless.port)
+                                                }
+                                            }
                                             "CUSTOM" => outbound.custom.tag.clone(),
                                             "SOCKS5" => format!("{}:{}", outbound.socks5.server, outbound.socks5.port),
                                             "SHADOWSOCKS" => format!("{}:{}", outbound.shadowsocks.server, outbound.shadowsocks.port),
@@ -206,4 +214,3 @@ pub(super) fn render_outbounds_tab(
                         </div>
     }
 }
-

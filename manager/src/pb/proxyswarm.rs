@@ -550,6 +550,10 @@ pub struct VlessOutboundConfig {
     pub security: i32,
     #[prost(string, tag = "6")]
     pub transmission: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "7")]
+    pub tls: ::core::option::Option<TlsConfig>,
+    #[prost(message, optional, tag = "8")]
+    pub reality: ::core::option::Option<VlessRealityConfig>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

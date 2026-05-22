@@ -803,7 +803,7 @@ fn render_duplicate_outbound_popup(ctx: &PopupHostContext<'_>) -> Html {
                         duplicated.id = uuid::Uuid::new_v4().to_string();
                         duplicated.name = name.clone();
                         match duplicated.outbound_type.trim().to_uppercase().as_str() {
-                            "VLESS" => duplicated.vless.tag = name,
+                            "VLESS" => duplicated.vless.tag = vless_outbound_tag_from_name(&name),
                             "TRUSTTUNNEL" => duplicated.trust_tunnel.tag = name,
                             "WIREGUARD" => duplicated.wireguard.tag = name,
                             "CUSTOM" => duplicated.custom.tag = name,

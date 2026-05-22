@@ -413,9 +413,38 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 				o["transport"] = tr
 			}
 			if v.Security == pb.SecurityMode_TLS {
-				o["tls"] = map[string]any{
+				tlsOptions := map[string]any{
 					"enabled": true,
 				}
+				if tlsCfg := v.GetTls(); tlsCfg != nil && strings.TrimSpace(tlsCfg.ServerName) != "" {
+					tlsOptions["server_name"] = strings.TrimSpace(tlsCfg.ServerName)
+				}
+				o["tls"] = tlsOptions
+			} else if v.Security == pb.SecurityMode_REALITY {
+				realityCfg := v.GetReality()
+				if realityCfg == nil {
+					continue
+				}
+				tlsOptions := map[string]any{
+					"enabled": true,
+					"reality": map[string]any{
+						"enabled":    true,
+						"public_key": strings.TrimSpace(realityCfg.PublicKey),
+						"short_id":   normalizedRealityShortIDs(realityCfg.ShortId),
+					},
+				}
+				if serverName := strings.TrimSpace(realityCfg.Sni); serverName != "" {
+					tlsOptions["server_name"] = serverName
+				} else if tlsCfg := v.GetTls(); tlsCfg != nil && strings.TrimSpace(tlsCfg.ServerName) != "" {
+					tlsOptions["server_name"] = strings.TrimSpace(tlsCfg.ServerName)
+				}
+				if fingerprint := strings.TrimSpace(realityCfg.Utls); fingerprint != "" {
+					tlsOptions["utls"] = map[string]any{
+						"enabled":     true,
+						"fingerprint": fingerprint,
+					}
+				}
+				o["tls"] = tlsOptions
 			}
 		case pb.OutboundType_WIREGUARD:
 			o["type"] = "wireguard"

@@ -746,6 +746,8 @@ type VlessOutboundConfig struct {
 	Flow          string                 `protobuf:"bytes,4,opt,name=flow,proto3" json:"flow,omitempty"`
 	Security      SecurityMode           `protobuf:"varint,5,opt,name=security,proto3,enum=proxyswarm.SecurityMode" json:"security,omitempty"`
 	Transmission  string                 `protobuf:"bytes,6,opt,name=transmission,proto3" json:"transmission,omitempty"`
+	Tls           *TLSConfig             `protobuf:"bytes,7,opt,name=tls,proto3" json:"tls,omitempty"`
+	Reality       *VlessRealityConfig    `protobuf:"bytes,8,opt,name=reality,proto3" json:"reality,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -820,6 +822,20 @@ func (x *VlessOutboundConfig) GetTransmission() string {
 		return x.Transmission
 	}
 	return ""
+}
+
+func (x *VlessOutboundConfig) GetTls() *TLSConfig {
+	if x != nil {
+		return x.Tls
+	}
+	return nil
+}
+
+func (x *VlessOutboundConfig) GetReality() *VlessRealityConfig {
+	if x != nil {
+		return x.Reality
+	}
+	return nil
 }
 
 type RoutingRule struct {
@@ -1905,14 +1921,16 @@ const file_node_service_proto_rawDesc = "" +
 	"\x14CustomOutboundConfig\x12!\n" +
 	"\fhandler_name\x18\x01 \x01(\tR\vhandlerName\x12\x1f\n" +
 	"\vconfig_json\x18\x02 \x01(\tR\n" +
-	"configJson\"\xc3\x01\n" +
+	"configJson\"\xa6\x02\n" +
 	"\x13VlessOutboundConfig\x12\x16\n" +
 	"\x06server\x18\x01 \x01(\tR\x06server\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x12\n" +
 	"\x04uuid\x18\x03 \x01(\tR\x04uuid\x12\x12\n" +
 	"\x04flow\x18\x04 \x01(\tR\x04flow\x124\n" +
 	"\bsecurity\x18\x05 \x01(\x0e2\x18.proxyswarm.SecurityModeR\bsecurity\x12\"\n" +
-	"\ftransmission\x18\x06 \x01(\tR\ftransmission\"\xdb\x01\n" +
+	"\ftransmission\x18\x06 \x01(\tR\ftransmission\x12'\n" +
+	"\x03tls\x18\a \x01(\v2\x15.proxyswarm.TLSConfigR\x03tls\x128\n" +
+	"\areality\x18\b \x01(\v2\x1e.proxyswarm.VlessRealityConfigR\areality\"\xdb\x01\n" +
 	"\vRoutingRule\x12\x16\n" +
 	"\x06domain\x18\x01 \x03(\tR\x06domain\x12\x0e\n" +
 	"\x02ip\x18\x02 \x03(\tR\x02ip\x12\x12\n" +
@@ -2089,7 +2107,9 @@ var file_node_service_proto_goTypes = []any{
 	(*ShadowsocksOutboundConfig)(nil), // 34: proxyswarm.ShadowsocksOutboundConfig
 	(*TrojanOutboundConfig)(nil),      // 35: proxyswarm.TrojanOutboundConfig
 	(SecurityMode)(0),                 // 36: proxyswarm.SecurityMode
-	(*NodeStatus)(nil),                // 37: proxyswarm.NodeStatus
+	(*TLSConfig)(nil),                 // 37: proxyswarm.TLSConfig
+	(*VlessRealityConfig)(nil),        // 38: proxyswarm.VlessRealityConfig
+	(*NodeStatus)(nil),                // 39: proxyswarm.NodeStatus
 }
 var file_node_service_proto_depIdxs = []int32{
 	3,  // 0: proxyswarm.FullConfig.inbounds:type_name -> proxyswarm.InboundConfig
@@ -2120,24 +2140,26 @@ var file_node_service_proto_depIdxs = []int32{
 	35, // 25: proxyswarm.OutboundConfig.trojan:type_name -> proxyswarm.TrojanOutboundConfig
 	5,  // 26: proxyswarm.OutboundConfig.custom:type_name -> proxyswarm.CustomOutboundConfig
 	36, // 27: proxyswarm.VlessOutboundConfig.security:type_name -> proxyswarm.SecurityMode
-	9,  // 28: proxyswarm.DnsConfig.servers:type_name -> proxyswarm.DnsServerConfig
-	10, // 29: proxyswarm.DnsConfig.hosts:type_name -> proxyswarm.DnsHostMapping
-	16, // 30: proxyswarm.WarpRegisterResponse.registration:type_name -> proxyswarm.WarpRegistration
-	2,  // 31: proxyswarm.NodeService.UpdateConfig:input_type -> proxyswarm.FullConfig
-	12, // 32: proxyswarm.NodeService.GetStatus:input_type -> proxyswarm.StatusRequest
-	13, // 33: proxyswarm.NodeService.IssueAcmeCertificate:input_type -> proxyswarm.AcmeIssueRequest
-	15, // 34: proxyswarm.NodeService.RegisterWarp:input_type -> proxyswarm.WarpRegisterRequest
-	18, // 35: proxyswarm.NodeService.UpdateWarpLicense:input_type -> proxyswarm.WarpLicenseUpdateRequest
-	11, // 36: proxyswarm.NodeService.UpdateConfig:output_type -> proxyswarm.UpdateResponse
-	37, // 37: proxyswarm.NodeService.GetStatus:output_type -> proxyswarm.NodeStatus
-	14, // 38: proxyswarm.NodeService.IssueAcmeCertificate:output_type -> proxyswarm.AcmeIssueResponse
-	17, // 39: proxyswarm.NodeService.RegisterWarp:output_type -> proxyswarm.WarpRegisterResponse
-	19, // 40: proxyswarm.NodeService.UpdateWarpLicense:output_type -> proxyswarm.WarpLicenseUpdateResponse
-	36, // [36:41] is the sub-list for method output_type
-	31, // [31:36] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	37, // 28: proxyswarm.VlessOutboundConfig.tls:type_name -> proxyswarm.TLSConfig
+	38, // 29: proxyswarm.VlessOutboundConfig.reality:type_name -> proxyswarm.VlessRealityConfig
+	9,  // 30: proxyswarm.DnsConfig.servers:type_name -> proxyswarm.DnsServerConfig
+	10, // 31: proxyswarm.DnsConfig.hosts:type_name -> proxyswarm.DnsHostMapping
+	16, // 32: proxyswarm.WarpRegisterResponse.registration:type_name -> proxyswarm.WarpRegistration
+	2,  // 33: proxyswarm.NodeService.UpdateConfig:input_type -> proxyswarm.FullConfig
+	12, // 34: proxyswarm.NodeService.GetStatus:input_type -> proxyswarm.StatusRequest
+	13, // 35: proxyswarm.NodeService.IssueAcmeCertificate:input_type -> proxyswarm.AcmeIssueRequest
+	15, // 36: proxyswarm.NodeService.RegisterWarp:input_type -> proxyswarm.WarpRegisterRequest
+	18, // 37: proxyswarm.NodeService.UpdateWarpLicense:input_type -> proxyswarm.WarpLicenseUpdateRequest
+	11, // 38: proxyswarm.NodeService.UpdateConfig:output_type -> proxyswarm.UpdateResponse
+	39, // 39: proxyswarm.NodeService.GetStatus:output_type -> proxyswarm.NodeStatus
+	14, // 40: proxyswarm.NodeService.IssueAcmeCertificate:output_type -> proxyswarm.AcmeIssueResponse
+	17, // 41: proxyswarm.NodeService.RegisterWarp:output_type -> proxyswarm.WarpRegisterResponse
+	19, // 42: proxyswarm.NodeService.UpdateWarpLicense:output_type -> proxyswarm.WarpLicenseUpdateResponse
+	38, // [38:43] is the sub-list for method output_type
+	33, // [33:38] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_node_service_proto_init() }

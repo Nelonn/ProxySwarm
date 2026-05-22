@@ -1148,8 +1148,9 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 			v := out.GetVless()
 			clients := []map[string]any{
 				{
-					"id":   v.Uuid,
-					"flow": v.Flow,
+					"id":         v.Uuid,
+					"flow":       v.Flow,
+					"encryption": "none",
 				},
 			}
 			o.Settings = toRawPtr(map[string]any{
@@ -1165,9 +1166,34 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 				Network: xrayVlessNetwork(v.Transmission),
 			}
 			if v.Security == pb.SecurityMode_TLS {
+				serverName := ""
+				if tlsCfg := v.GetTls(); tlsCfg != nil {
+					serverName = strings.TrimSpace(tlsCfg.ServerName)
+				}
 				stream.Security = "tls"
 				stream.TLSSettings = &conf.TLSConfig{
 					AllowInsecure: true,
+					ServerName:    serverName,
+				}
+			} else if v.Security == pb.SecurityMode_REALITY {
+				realityCfg := v.GetReality()
+				if realityCfg == nil {
+					continue
+				}
+				serverName := strings.TrimSpace(realityCfg.Sni)
+				if serverName == "" {
+					if tlsCfg := v.GetTls(); tlsCfg != nil {
+						serverName = strings.TrimSpace(tlsCfg.ServerName)
+					}
+				}
+				stream.Security = "reality"
+				stream.REALITYSettings = &conf.REALITYConfig{
+					Show:        false,
+					Fingerprint: realityCfg.Utls,
+					ServerName:  serverName,
+					PublicKey:   strings.TrimSpace(realityCfg.PublicKey),
+					ShortId:     strings.Join(normalizedRealityShortIDs(realityCfg.ShortId), ""),
+					SpiderX:     realityCfg.SpiderX,
 				}
 			}
 			o.StreamSetting = stream

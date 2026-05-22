@@ -223,7 +223,9 @@ pub(super) fn build_full_config(
                     TProxyConfig {
                         network: inbound.tproxy.network.clone(),
                         sniffing_enabled: inbound.tproxy.sniffing_enabled,
-                        sniffing_dest_override: split_lines_csv(&inbound.tproxy.sniffing_dest_override),
+                        sniffing_dest_override: split_lines_csv(
+                            &inbound.tproxy.sniffing_dest_override,
+                        ),
                         sniffing_route_only: inbound.tproxy.sniffing_route_only,
                         socket_mark: inbound.tproxy.socket_mark,
                     },
@@ -236,7 +238,9 @@ pub(super) fn build_full_config(
                     },
                 )),
                 "TUNNEL" => Some(crate::pb::proxyswarm::inbound_config::Protocol::Tunnel(
-                    TunnelConfig { allowed_network: inbound.tunnel.allowed_network.clone() },
+                    TunnelConfig {
+                        allowed_network: inbound.tunnel.allowed_network.clone(),
+                    },
                 )),
                 _ => Some(crate::pb::proxyswarm::inbound_config::Protocol::Vless(
                     VlessConfig {
@@ -284,13 +288,15 @@ pub(super) fn build_full_config(
             accounts: Vec::new(),
             enabled: true,
             core: CoreType::Xray as i32,
-            protocol: Some(crate::pb::proxyswarm::inbound_config::Protocol::VlessReverseProxy(
-                VlessReverseProxyConfig {
-                    tag: reverse_proxy.tag,
-                    portal_inbound_tag: reverse_proxy.portal_inbound_tag,
-                    portal_user_id: reverse_proxy.portal_user_id,
-                },
-            )),
+            protocol: Some(
+                crate::pb::proxyswarm::inbound_config::Protocol::VlessReverseProxy(
+                    VlessReverseProxyConfig {
+                        tag: reverse_proxy.tag,
+                        portal_inbound_tag: reverse_proxy.portal_inbound_tag,
+                        portal_user_id: reverse_proxy.portal_user_id,
+                    },
+                ),
+            ),
         });
     }
 
@@ -325,6 +331,20 @@ pub(super) fn build_full_config(
                     flow: outbound.vless.flow.clone(),
                     security: security_from(&outbound.vless.security),
                     transmission: vless_transmission_from(&outbound.vless.transmission),
+                    tls: Some(TlsConfig {
+                        enabled: outbound.vless.security.trim().eq_ignore_ascii_case("TLS"),
+                        server_name: outbound.vless.tls_server_name.clone(),
+                        certificate_name: String::new(),
+                    }),
+                    reality: Some(VlessRealityConfig {
+                        dest: String::new(),
+                        private_key: String::new(),
+                        short_id: normalize_reality_short_ids(&outbound.vless.reality_short_ids),
+                        public_key: outbound.vless.reality_public_key.clone(),
+                        sni: outbound.vless.reality_sni.clone(),
+                        utls: outbound.vless.reality_utls.clone(),
+                        spider_x: outbound.vless.reality_spider_x.clone(),
+                    }),
                 })),
             }),
             "TRUSTTUNNEL" if !outbound.trust_tunnel.tag.trim().is_empty() => {
@@ -416,31 +436,25 @@ pub(super) fn build_full_config(
                     )),
                 })
             }
-            "TROJAN" if !outbound.trojan.tag.trim().is_empty() => {
-                outbounds.push(OutboundConfig {
-                    tag: outbound.trojan.tag.clone(),
-                    r#type: OutboundType::Trojan as i32,
-                    settings: Some(outbound_config::Settings::Trojan(
-                        TrojanOutboundConfig {
-                            server: outbound.trojan.server.clone(),
-                            port: outbound.trojan.port,
-                            password: outbound.trojan.password.clone(),
-                            tls_enabled: outbound.trojan.tls_enabled,
-                            sni: outbound.trojan.sni.clone(),
-                        },
-                    )),
-                })
-            }
-            "CUSTOM" if !outbound.custom.tag.trim().is_empty() => {
-                outbounds.push(OutboundConfig {
-                    tag: outbound.custom.tag.clone(),
-                    r#type: OutboundType::Custom as i32,
-                    settings: Some(outbound_config::Settings::Custom(CustomOutboundConfig {
-                        handler_name: outbound.custom.handler_name.clone(),
-                        config_json: outbound.custom.config_json.clone(),
-                    })),
-                })
-            }
+            "TROJAN" if !outbound.trojan.tag.trim().is_empty() => outbounds.push(OutboundConfig {
+                tag: outbound.trojan.tag.clone(),
+                r#type: OutboundType::Trojan as i32,
+                settings: Some(outbound_config::Settings::Trojan(TrojanOutboundConfig {
+                    server: outbound.trojan.server.clone(),
+                    port: outbound.trojan.port,
+                    password: outbound.trojan.password.clone(),
+                    tls_enabled: outbound.trojan.tls_enabled,
+                    sni: outbound.trojan.sni.clone(),
+                })),
+            }),
+            "CUSTOM" if !outbound.custom.tag.trim().is_empty() => outbounds.push(OutboundConfig {
+                tag: outbound.custom.tag.clone(),
+                r#type: OutboundType::Custom as i32,
+                settings: Some(outbound_config::Settings::Custom(CustomOutboundConfig {
+                    handler_name: outbound.custom.handler_name.clone(),
+                    config_json: outbound.custom.config_json.clone(),
+                })),
+            }),
             _ => {}
         }
     }
@@ -504,5 +518,3 @@ pub(super) fn build_full_config(
         link_remark_template: draft.link_remark_template.clone(),
     }
 }
-
-

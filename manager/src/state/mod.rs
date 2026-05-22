@@ -268,7 +268,6 @@ pub struct OutboundEntryDraft {
     pub trojan: TrojanDraft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub custom: CustomOutboundDraft,
-
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -307,7 +306,6 @@ pub struct InboundEntryDraft {
     pub tproxy: TProxyDraft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub trojan: TrojanDraft,
-
 }
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {
@@ -474,6 +472,24 @@ pub struct VlessOutboundDraft {
     pub security: String,
     #[serde(default = "default_vless_transmission")]
     pub transmission: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub tls_server_name: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reality_public_key: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reality_sni: String,
+    #[serde(
+        default = "default_reality_utls",
+        skip_serializing_if = "is_default_reality_utls_value"
+    )]
+    pub reality_utls: String,
+    #[serde(
+        default = "default_reality_spider_x",
+        skip_serializing_if = "is_default_reality_spider_x_value"
+    )]
+    pub reality_spider_x: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reality_short_ids: String,
 }
 
 fn default_vless_transmission() -> String {
@@ -651,7 +667,6 @@ pub struct CustomOutboundDraft {
     pub handler_name: String,
     pub config_json: String,
 }
-
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReverseProxyDraft {
@@ -937,7 +952,6 @@ fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {
         _ => {}
     }
 }
-
 
 fn sanitize_outbound_for_storage(outbound: &mut OutboundEntryDraft) {
     match outbound.outbound_type.trim().to_uppercase().as_str() {

@@ -10,12 +10,20 @@ pub(super) fn review_row(label: &str, value: impl Into<String>) -> Html {
 }
 
 pub(super) fn bool_label(value: bool) -> &'static str {
-    if value { "Yes" } else { "No" }
+    if value {
+        "Yes"
+    } else {
+        "No"
+    }
 }
 
 pub(super) fn optional_label(value: &str) -> String {
     let value = value.trim();
-    if value.is_empty() { "-".to_string() } else { value.to_string() }
+    if value.is_empty() {
+        "-".to_string()
+    } else {
+        value.to_string()
+    }
 }
 
 pub(super) fn review_section(title: &str, rows: Vec<Html>) -> Html {
@@ -146,13 +154,18 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
                             review_row("Tag", data.name.clone()),
                         ]),
                         "VLESS" => review_section("VLESS", vec![
-                            review_row("Tag", optional_label(&data.vless.tag)),
                             review_row("Server", optional_label(&data.vless.server)),
                             review_row("Port", data.vless.port.to_string()),
                             review_row("UUID", optional_label(&data.vless.uuid)),
                             review_row("Flow", optional_label(&data.vless.flow)),
                             review_row("Security", optional_label(&data.vless.security)),
                             review_row("Transmission", vless_transmission_from(&data.vless.transmission)),
+                            review_row("TLS server name", optional_label(&data.vless.tls_server_name)),
+                            review_row("Reality SNI", optional_label(&data.vless.reality_sni)),
+                            review_row("Reality uTLS", optional_label(&data.vless.reality_utls)),
+                            review_row("Reality SpiderX", optional_label(&data.vless.reality_spider_x)),
+                            review_row("Reality public key", optional_label(&data.vless.reality_public_key)),
+                            review_row("Reality short IDs", optional_label(&data.vless.reality_short_ids)),
                         ]),
                         "TRUSTTUNNEL" => review_section("TrustTunnel", vec![
                             review_row("Tag", optional_label(&data.trust_tunnel.tag)),
@@ -202,5 +215,3 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
         </ConfigSection>
     }
 }
-
-

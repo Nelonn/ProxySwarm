@@ -152,7 +152,10 @@ pub(super) fn default_reverse_proxy_entry() -> ReverseProxyDraft {
     }
 }
 
-pub(super) fn reverse_proxy_display_name(reverse_proxy: &ReverseProxyDraft, index: usize) -> String {
+pub(super) fn reverse_proxy_display_name(
+    reverse_proxy: &ReverseProxyDraft,
+    index: usize,
+) -> String {
     let tag = reverse_proxy.tag.trim();
     if tag.is_empty() {
         format!("VLESS Reverse #{}", index + 1)
@@ -215,7 +218,9 @@ pub(super) fn certificate_name_from_reference(
     }
     certificates
         .iter()
-        .find(|certificate| certificate.name.trim() == reference || certificate.id.trim() == reference)
+        .find(|certificate| {
+            certificate.name.trim() == reference || certificate.id.trim() == reference
+        })
         .map(|certificate| certificate.name.trim().to_string())
 }
 
@@ -269,10 +274,7 @@ pub(super) fn full_config_to_pretty_json(config: &FullConfig) -> String {
 pub(super) fn certmagic_certificate_paths(ca: &str, domain: &str) -> (String, String) {
     let issuer = certmagic_storage_component(acme_ca_directory_url(ca));
     let safe_domain = certmagic_storage_component(domain);
-    let base = format!(
-        "data/acme_storage/certificates/{}/{}",
-        issuer, safe_domain
-    );
+    let base = format!("data/acme_storage/certificates/{}/{}", issuer, safe_domain);
     (
         format!("{}/{}.crt", base, safe_domain),
         format!("{}/{}.key", base, safe_domain),
@@ -342,7 +344,7 @@ pub(super) fn default_vless_outbound() -> OutboundEntryDraft {
         enabled: true,
         builtin: false,
         vless: VlessOutboundDraft {
-            tag: "proxy-vless".to_string(),
+            tag: "VLESS".to_string(),
             security: "NONE".to_string(),
             ..VlessOutboundDraft::default()
         },
@@ -353,6 +355,129 @@ pub(super) fn default_vless_outbound() -> OutboundEntryDraft {
         trojan: TrojanDraft::default(),
         custom: CustomOutboundDraft::default(),
     }
+}
+
+pub(super) fn vless_outbound_tag_from_name(name: &str) -> String {
+    let name = name.trim();
+    if name.is_empty() {
+        "VLESS".to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+pub(super) fn decode_link_component(value: &str) -> String {
+    js_sys::decode_uri_component(value)
+        .ok()
+        .and_then(|decoded| decoded.as_string())
+        .unwrap_or_else(|| value.to_string())
+}
+
+pub(super) fn import_vless_outbound_link(
+    link: &str,
+    existing: &OutboundEntryDraft,
+) -> Result<OutboundEntryDraft, String> {
+    let link = link.trim();
+    let Some(raw) = link.strip_prefix("vless://") else {
+        return Err("Link must start with vless://".to_string());
+    };
+
+    let without_fragment = match raw.split_once('#') {
+        Some((base, _)) => base,
+        None => raw,
+    };
+    let (authority, query) = match without_fragment.split_once('?') {
+        Some((authority, query)) => (authority, query),
+        None => (without_fragment, ""),
+    };
+    let Some((user, host_port)) = authority.rsplit_once('@') else {
+        return Err("Link must include UUID and server".to_string());
+    };
+
+    let uuid = decode_link_component(user).trim().to_string();
+    if uuid.is_empty() {
+        return Err("VLESS UUID is empty".to_string());
+    }
+
+    let (server, port) = if let Some(rest) = host_port.strip_prefix('[') {
+        let Some((host, tail)) = rest.split_once(']') else {
+            return Err("Invalid IPv6 server syntax".to_string());
+        };
+        let Some(port_str) = tail.strip_prefix(':') else {
+            return Err("VLESS link is missing port".to_string());
+        };
+        (
+            host.trim().to_string(),
+            port_str
+                .trim()
+                .parse::<i32>()
+                .map_err(|_| "Invalid VLESS port".to_string())?,
+        )
+    } else {
+        let Some((host, port_str)) = host_port.rsplit_once(':') else {
+            return Err("VLESS link is missing port".to_string());
+        };
+        (
+            host.trim().to_string(),
+            port_str
+                .trim()
+                .parse::<i32>()
+                .map_err(|_| "Invalid VLESS port".to_string())?,
+        )
+    };
+
+    if server.is_empty() {
+        return Err("VLESS server is empty".to_string());
+    }
+
+    let mut imported = existing.clone();
+    imported.outbound_type = "VLESS".to_string();
+    imported.enabled = true;
+    imported.builtin = false;
+    imported.vless.server = server;
+    imported.vless.port = port;
+    imported.vless.uuid = uuid;
+
+    for pair in query.split('&').filter(|pair| !pair.trim().is_empty()) {
+        let (key, value) = match pair.split_once('=') {
+            Some((key, value)) => (key.trim().to_lowercase(), decode_link_component(value)),
+            None => (pair.trim().to_lowercase(), String::new()),
+        };
+        let value = value.trim().to_string();
+        match key.as_str() {
+            "type" => imported.vless.transmission = vless_transmission_from(&value),
+            "flow" => imported.vless.flow = value,
+            "security" => {
+                imported.vless.security = match value.trim().to_lowercase().as_str() {
+                    "tls" => "TLS".to_string(),
+                    "reality" => "REALITY".to_string(),
+                    _ => "NONE".to_string(),
+                }
+            }
+            "sni" | "servername" => {
+                imported.vless.reality_sni = value.clone();
+                imported.vless.tls_server_name = value;
+            }
+            "pbk" | "publickey" => imported.vless.reality_public_key = value,
+            "sid" | "shortid" => imported.vless.reality_short_ids = value,
+            "fp" | "fingerprint" => imported.vless.reality_utls = value,
+            "spx" => imported.vless.reality_spider_x = value,
+            _ => {}
+        }
+    }
+
+    if imported.vless.security.trim().is_empty() {
+        imported.vless.security = "NONE".to_string();
+    }
+    if imported.vless.transmission.trim().is_empty() {
+        imported.vless.transmission = "TCP".to_string();
+    }
+
+    if imported.vless.tag.trim().is_empty() {
+        imported.vless.tag = vless_outbound_tag_from_name(&imported.name);
+    }
+
+    Ok(imported)
 }
 
 pub(super) fn default_warp_outbound() -> OutboundEntryDraft {
@@ -607,6 +732,11 @@ pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
             if outbound.name.trim().is_empty() {
                 outbound.name = outbound.outbound_type.trim().to_lowercase();
             }
+        } else if outbound.outbound_type.trim().eq_ignore_ascii_case("VLESS") {
+            if outbound.name.trim().is_empty() {
+                outbound.name = "VLESS".to_string();
+            }
+            outbound.vless.tag = vless_outbound_tag_from_name(&outbound.name);
         } else if outbound.outbound_type.trim().eq_ignore_ascii_case("CUSTOM")
             && outbound.custom.tag.trim().is_empty()
         {
@@ -763,8 +893,24 @@ pub(super) fn core_from(value: &str) -> i32 {
 
 pub(super) fn supported_protocol_values_for_core(core_type: &str) -> Vec<&'static str> {
     match core_type.trim().to_uppercase().as_str() {
-        "XRAY" => vec!["VLESS", "HYSTERIA2", "WIREGUARD", "SOCKS5", "SHADOWSOCKS", "TPROXY", "TROJAN", "TUNNEL"],
-        "SING_BOX" => vec!["VLESS", "HYSTERIA2", "NAIVEPROXY", "SOCKS5", "SHADOWSOCKS", "TROJAN"],
+        "XRAY" => vec![
+            "VLESS",
+            "HYSTERIA2",
+            "WIREGUARD",
+            "SOCKS5",
+            "SHADOWSOCKS",
+            "TPROXY",
+            "TROJAN",
+            "TUNNEL",
+        ],
+        "SING_BOX" => vec![
+            "VLESS",
+            "HYSTERIA2",
+            "NAIVEPROXY",
+            "SOCKS5",
+            "SHADOWSOCKS",
+            "TROJAN",
+        ],
         "TRUSTTUNNEL" => vec!["TRUSTTUNNEL"],
         _ => vec![],
     }

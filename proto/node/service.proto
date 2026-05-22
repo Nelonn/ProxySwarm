@@ -104,6 +104,8 @@ message VlessOutboundConfig {
     string flow = 4;
     SecurityMode security = 5;
     string transmission = 6;
+    TLSConfig tls = 7;
+    VlessRealityConfig reality = 8;
 }
 
 message RoutingRule {
