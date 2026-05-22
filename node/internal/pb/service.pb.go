@@ -78,6 +78,7 @@ const (
 	OutboundType_SOCKS5      OutboundType = 5
 	OutboundType_SHADOWSOCKS OutboundType = 6
 	OutboundType_TROJAN      OutboundType = 7
+	OutboundType_CUSTOM      OutboundType = 8
 )
 
 // Enum value maps for OutboundType.
@@ -91,6 +92,7 @@ var (
 		5: "SOCKS5",
 		6: "SHADOWSOCKS",
 		7: "TROJAN",
+		8: "CUSTOM",
 	}
 	OutboundType_value = map[string]int32{
 		"DIRECT":      0,
@@ -101,6 +103,7 @@ var (
 		"SOCKS5":      5,
 		"SHADOWSOCKS": 6,
 		"TROJAN":      7,
+		"CUSTOM":      8,
 	}
 )
 
@@ -517,6 +520,7 @@ type OutboundConfig struct {
 	//	*OutboundConfig_Socks5
 	//	*OutboundConfig_Shadowsocks
 	//	*OutboundConfig_Trojan
+	//	*OutboundConfig_Custom
 	Settings      isOutboundConfig_Settings `protobuf_oneof:"settings"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -627,6 +631,15 @@ func (x *OutboundConfig) GetTrojan() *TrojanOutboundConfig {
 	return nil
 }
 
+func (x *OutboundConfig) GetCustom() *CustomOutboundConfig {
+	if x != nil {
+		if x, ok := x.Settings.(*OutboundConfig_Custom); ok {
+			return x.Custom
+		}
+	}
+	return nil
+}
+
 type isOutboundConfig_Settings interface {
 	isOutboundConfig_Settings()
 }
@@ -655,6 +668,10 @@ type OutboundConfig_Trojan struct {
 	Trojan *TrojanOutboundConfig `protobuf:"bytes,8,opt,name=trojan,proto3,oneof"`
 }
 
+type OutboundConfig_Custom struct {
+	Custom *CustomOutboundConfig `protobuf:"bytes,9,opt,name=custom,proto3,oneof"`
+}
+
 func (*OutboundConfig_Vless) isOutboundConfig_Settings() {}
 
 func (*OutboundConfig_Trusttunnel) isOutboundConfig_Settings() {}
@@ -666,6 +683,60 @@ func (*OutboundConfig_Socks5) isOutboundConfig_Settings() {}
 func (*OutboundConfig_Shadowsocks) isOutboundConfig_Settings() {}
 
 func (*OutboundConfig_Trojan) isOutboundConfig_Settings() {}
+
+func (*OutboundConfig_Custom) isOutboundConfig_Settings() {}
+
+type CustomOutboundConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HandlerName   string                 `protobuf:"bytes,1,opt,name=handler_name,json=handlerName,proto3" json:"handler_name,omitempty"`
+	ConfigJson    string                 `protobuf:"bytes,2,opt,name=config_json,json=configJson,proto3" json:"config_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomOutboundConfig) Reset() {
+	*x = CustomOutboundConfig{}
+	mi := &file_node_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomOutboundConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomOutboundConfig) ProtoMessage() {}
+
+func (x *CustomOutboundConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_node_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomOutboundConfig.ProtoReflect.Descriptor instead.
+func (*CustomOutboundConfig) Descriptor() ([]byte, []int) {
+	return file_node_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CustomOutboundConfig) GetHandlerName() string {
+	if x != nil {
+		return x.HandlerName
+	}
+	return ""
+}
+
+func (x *CustomOutboundConfig) GetConfigJson() string {
+	if x != nil {
+		return x.ConfigJson
+	}
+	return ""
+}
 
 type VlessOutboundConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -681,7 +752,7 @@ type VlessOutboundConfig struct {
 
 func (x *VlessOutboundConfig) Reset() {
 	*x = VlessOutboundConfig{}
-	mi := &file_node_service_proto_msgTypes[3]
+	mi := &file_node_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -693,7 +764,7 @@ func (x *VlessOutboundConfig) String() string {
 func (*VlessOutboundConfig) ProtoMessage() {}
 
 func (x *VlessOutboundConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[3]
+	mi := &file_node_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -706,7 +777,7 @@ func (x *VlessOutboundConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VlessOutboundConfig.ProtoReflect.Descriptor instead.
 func (*VlessOutboundConfig) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{3}
+	return file_node_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *VlessOutboundConfig) GetServer() string {
@@ -767,7 +838,7 @@ type RoutingRule struct {
 
 func (x *RoutingRule) Reset() {
 	*x = RoutingRule{}
-	mi := &file_node_service_proto_msgTypes[4]
+	mi := &file_node_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +850,7 @@ func (x *RoutingRule) String() string {
 func (*RoutingRule) ProtoMessage() {}
 
 func (x *RoutingRule) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[4]
+	mi := &file_node_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +863,7 @@ func (x *RoutingRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutingRule.ProtoReflect.Descriptor instead.
 func (*RoutingRule) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{4}
+	return file_node_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RoutingRule) GetDomain() []string {
@@ -871,7 +942,7 @@ type DnsConfig struct {
 
 func (x *DnsConfig) Reset() {
 	*x = DnsConfig{}
-	mi := &file_node_service_proto_msgTypes[5]
+	mi := &file_node_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -883,7 +954,7 @@ func (x *DnsConfig) String() string {
 func (*DnsConfig) ProtoMessage() {}
 
 func (x *DnsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[5]
+	mi := &file_node_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -896,7 +967,7 @@ func (x *DnsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsConfig.ProtoReflect.Descriptor instead.
 func (*DnsConfig) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{5}
+	return file_node_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DnsConfig) GetServers() []*DnsServerConfig {
@@ -1005,7 +1076,7 @@ type DnsServerConfig struct {
 
 func (x *DnsServerConfig) Reset() {
 	*x = DnsServerConfig{}
-	mi := &file_node_service_proto_msgTypes[6]
+	mi := &file_node_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1017,7 +1088,7 @@ func (x *DnsServerConfig) String() string {
 func (*DnsServerConfig) ProtoMessage() {}
 
 func (x *DnsServerConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[6]
+	mi := &file_node_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1030,7 +1101,7 @@ func (x *DnsServerConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsServerConfig.ProtoReflect.Descriptor instead.
 func (*DnsServerConfig) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{6}
+	return file_node_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DnsServerConfig) GetAddress() string {
@@ -1141,7 +1212,7 @@ type DnsHostMapping struct {
 
 func (x *DnsHostMapping) Reset() {
 	*x = DnsHostMapping{}
-	mi := &file_node_service_proto_msgTypes[7]
+	mi := &file_node_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1153,7 +1224,7 @@ func (x *DnsHostMapping) String() string {
 func (*DnsHostMapping) ProtoMessage() {}
 
 func (x *DnsHostMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[7]
+	mi := &file_node_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1166,7 +1237,7 @@ func (x *DnsHostMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsHostMapping.ProtoReflect.Descriptor instead.
 func (*DnsHostMapping) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{7}
+	return file_node_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DnsHostMapping) GetDomain() string {
@@ -1193,7 +1264,7 @@ type UpdateResponse struct {
 
 func (x *UpdateResponse) Reset() {
 	*x = UpdateResponse{}
-	mi := &file_node_service_proto_msgTypes[8]
+	mi := &file_node_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1205,7 +1276,7 @@ func (x *UpdateResponse) String() string {
 func (*UpdateResponse) ProtoMessage() {}
 
 func (x *UpdateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[8]
+	mi := &file_node_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1218,7 +1289,7 @@ func (x *UpdateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateResponse.ProtoReflect.Descriptor instead.
 func (*UpdateResponse) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{8}
+	return file_node_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateResponse) GetSuccess() bool {
@@ -1244,7 +1315,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_node_service_proto_msgTypes[9]
+	mi := &file_node_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1256,7 +1327,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[9]
+	mi := &file_node_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1269,7 +1340,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{9}
+	return file_node_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StatusRequest) GetMasterKey() string {
@@ -1295,7 +1366,7 @@ type AcmeIssueRequest struct {
 
 func (x *AcmeIssueRequest) Reset() {
 	*x = AcmeIssueRequest{}
-	mi := &file_node_service_proto_msgTypes[10]
+	mi := &file_node_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1307,7 +1378,7 @@ func (x *AcmeIssueRequest) String() string {
 func (*AcmeIssueRequest) ProtoMessage() {}
 
 func (x *AcmeIssueRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[10]
+	mi := &file_node_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1320,7 +1391,7 @@ func (x *AcmeIssueRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcmeIssueRequest.ProtoReflect.Descriptor instead.
 func (*AcmeIssueRequest) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{10}
+	return file_node_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AcmeIssueRequest) GetMasterKey() string {
@@ -1391,7 +1462,7 @@ type AcmeIssueResponse struct {
 
 func (x *AcmeIssueResponse) Reset() {
 	*x = AcmeIssueResponse{}
-	mi := &file_node_service_proto_msgTypes[11]
+	mi := &file_node_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +1474,7 @@ func (x *AcmeIssueResponse) String() string {
 func (*AcmeIssueResponse) ProtoMessage() {}
 
 func (x *AcmeIssueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[11]
+	mi := &file_node_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +1487,7 @@ func (x *AcmeIssueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcmeIssueResponse.ProtoReflect.Descriptor instead.
 func (*AcmeIssueResponse) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{11}
+	return file_node_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AcmeIssueResponse) GetSuccess() bool {
@@ -1457,7 +1528,7 @@ type WarpRegisterRequest struct {
 
 func (x *WarpRegisterRequest) Reset() {
 	*x = WarpRegisterRequest{}
-	mi := &file_node_service_proto_msgTypes[12]
+	mi := &file_node_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1469,7 +1540,7 @@ func (x *WarpRegisterRequest) String() string {
 func (*WarpRegisterRequest) ProtoMessage() {}
 
 func (x *WarpRegisterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[12]
+	mi := &file_node_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1482,7 +1553,7 @@ func (x *WarpRegisterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WarpRegisterRequest.ProtoReflect.Descriptor instead.
 func (*WarpRegisterRequest) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{12}
+	return file_node_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *WarpRegisterRequest) GetMasterKey() string {
@@ -1514,7 +1585,7 @@ type WarpRegistration struct {
 
 func (x *WarpRegistration) Reset() {
 	*x = WarpRegistration{}
-	mi := &file_node_service_proto_msgTypes[13]
+	mi := &file_node_service_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1526,7 +1597,7 @@ func (x *WarpRegistration) String() string {
 func (*WarpRegistration) ProtoMessage() {}
 
 func (x *WarpRegistration) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[13]
+	mi := &file_node_service_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1539,7 +1610,7 @@ func (x *WarpRegistration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WarpRegistration.ProtoReflect.Descriptor instead.
 func (*WarpRegistration) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{13}
+	return file_node_service_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *WarpRegistration) GetId() string {
@@ -1602,7 +1673,7 @@ type WarpRegisterResponse struct {
 
 func (x *WarpRegisterResponse) Reset() {
 	*x = WarpRegisterResponse{}
-	mi := &file_node_service_proto_msgTypes[14]
+	mi := &file_node_service_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1614,7 +1685,7 @@ func (x *WarpRegisterResponse) String() string {
 func (*WarpRegisterResponse) ProtoMessage() {}
 
 func (x *WarpRegisterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[14]
+	mi := &file_node_service_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1627,7 +1698,7 @@ func (x *WarpRegisterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WarpRegisterResponse.ProtoReflect.Descriptor instead.
 func (*WarpRegisterResponse) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{14}
+	return file_node_service_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *WarpRegisterResponse) GetSuccess() bool {
@@ -1663,7 +1734,7 @@ type WarpLicenseUpdateRequest struct {
 
 func (x *WarpLicenseUpdateRequest) Reset() {
 	*x = WarpLicenseUpdateRequest{}
-	mi := &file_node_service_proto_msgTypes[15]
+	mi := &file_node_service_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1675,7 +1746,7 @@ func (x *WarpLicenseUpdateRequest) String() string {
 func (*WarpLicenseUpdateRequest) ProtoMessage() {}
 
 func (x *WarpLicenseUpdateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[15]
+	mi := &file_node_service_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1688,7 +1759,7 @@ func (x *WarpLicenseUpdateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WarpLicenseUpdateRequest.ProtoReflect.Descriptor instead.
 func (*WarpLicenseUpdateRequest) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{15}
+	return file_node_service_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *WarpLicenseUpdateRequest) GetMasterKey() string {
@@ -1730,7 +1801,7 @@ type WarpLicenseUpdateResponse struct {
 
 func (x *WarpLicenseUpdateResponse) Reset() {
 	*x = WarpLicenseUpdateResponse{}
-	mi := &file_node_service_proto_msgTypes[16]
+	mi := &file_node_service_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1742,7 +1813,7 @@ func (x *WarpLicenseUpdateResponse) String() string {
 func (*WarpLicenseUpdateResponse) ProtoMessage() {}
 
 func (x *WarpLicenseUpdateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_node_service_proto_msgTypes[16]
+	mi := &file_node_service_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1755,7 +1826,7 @@ func (x *WarpLicenseUpdateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WarpLicenseUpdateResponse.ProtoReflect.Descriptor instead.
 func (*WarpLicenseUpdateResponse) Descriptor() ([]byte, []int) {
-	return file_node_service_proto_rawDescGZIP(), []int{16}
+	return file_node_service_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *WarpLicenseUpdateResponse) GetSuccess() bool {
@@ -1818,7 +1889,7 @@ const file_node_service_proto_rawDesc = "" +
 	"\x06trojan\x18\x10 \x01(\v2\x1f.proxyswarm.TrojanInboundConfigH\x00R\x06trojan\x122\n" +
 	"\x06tunnel\x18\x11 \x01(\v2\x18.proxyswarm.TunnelConfigH\x00R\x06tunnelB\n" +
 	"\n" +
-	"\bprotocol\"\xd8\x03\n" +
+	"\bprotocol\"\x94\x04\n" +
 	"\x0eOutboundConfig\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12,\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x18.proxyswarm.OutboundTypeR\x04type\x127\n" +
@@ -1827,9 +1898,14 @@ const file_node_service_proto_rawDesc = "" +
 	"\twireguard\x18\x05 \x01(\v2\x1b.proxyswarm.WireGuardConfigH\x00R\twireguard\x12:\n" +
 	"\x06socks5\x18\x06 \x01(\v2 .proxyswarm.Socks5OutboundConfigH\x00R\x06socks5\x12I\n" +
 	"\vshadowsocks\x18\a \x01(\v2%.proxyswarm.ShadowsocksOutboundConfigH\x00R\vshadowsocks\x12:\n" +
-	"\x06trojan\x18\b \x01(\v2 .proxyswarm.TrojanOutboundConfigH\x00R\x06trojanB\n" +
+	"\x06trojan\x18\b \x01(\v2 .proxyswarm.TrojanOutboundConfigH\x00R\x06trojan\x12:\n" +
+	"\x06custom\x18\t \x01(\v2 .proxyswarm.CustomOutboundConfigH\x00R\x06customB\n" +
 	"\n" +
-	"\bsettings\"\xc3\x01\n" +
+	"\bsettings\"Z\n" +
+	"\x14CustomOutboundConfig\x12!\n" +
+	"\fhandler_name\x18\x01 \x01(\tR\vhandlerName\x12\x1f\n" +
+	"\vconfig_json\x18\x02 \x01(\tR\n" +
+	"configJson\"\xc3\x01\n" +
 	"\x13VlessOutboundConfig\x12\x16\n" +
 	"\x06server\x18\x01 \x01(\tR\x06server\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x12\n" +
@@ -1939,7 +2015,7 @@ const file_node_service_proto_rawDesc = "" +
 	"\alicense\x18\x03 \x01(\tR\alicense*\"\n" +
 	"\bCoreType\x12\f\n" +
 	"\bSING_BOX\x10\x00\x12\b\n" +
-	"\x04XRAY\x10\x01*y\n" +
+	"\x04XRAY\x10\x01*\x85\x01\n" +
 	"\fOutboundType\x12\n" +
 	"\n" +
 	"\x06DIRECT\x10\x00\x12\t\n" +
@@ -1951,7 +2027,9 @@ const file_node_service_proto_rawDesc = "" +
 	"\x06SOCKS5\x10\x05\x12\x0f\n" +
 	"\vSHADOWSOCKS\x10\x06\x12\n" +
 	"\n" +
-	"\x06TROJAN\x10\a2\x9b\x03\n" +
+	"\x06TROJAN\x10\a\x12\n" +
+	"\n" +
+	"\x06CUSTOM\x10\b2\x9b\x03\n" +
 	"\vNodeService\x12B\n" +
 	"\fUpdateConfig\x12\x16.proxyswarm.FullConfig\x1a\x1a.proxyswarm.UpdateResponse\x12>\n" +
 	"\tGetStatus\x12\x19.proxyswarm.StatusRequest\x1a\x16.proxyswarm.NodeStatus\x12S\n" +
@@ -1972,92 +2050,94 @@ func file_node_service_proto_rawDescGZIP() []byte {
 }
 
 var file_node_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_node_service_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_node_service_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_node_service_proto_goTypes = []any{
 	(CoreType)(0),                     // 0: proxyswarm.CoreType
 	(OutboundType)(0),                 // 1: proxyswarm.OutboundType
 	(*FullConfig)(nil),                // 2: proxyswarm.FullConfig
 	(*InboundConfig)(nil),             // 3: proxyswarm.InboundConfig
 	(*OutboundConfig)(nil),            // 4: proxyswarm.OutboundConfig
-	(*VlessOutboundConfig)(nil),       // 5: proxyswarm.VlessOutboundConfig
-	(*RoutingRule)(nil),               // 6: proxyswarm.RoutingRule
-	(*DnsConfig)(nil),                 // 7: proxyswarm.DnsConfig
-	(*DnsServerConfig)(nil),           // 8: proxyswarm.DnsServerConfig
-	(*DnsHostMapping)(nil),            // 9: proxyswarm.DnsHostMapping
-	(*UpdateResponse)(nil),            // 10: proxyswarm.UpdateResponse
-	(*StatusRequest)(nil),             // 11: proxyswarm.StatusRequest
-	(*AcmeIssueRequest)(nil),          // 12: proxyswarm.AcmeIssueRequest
-	(*AcmeIssueResponse)(nil),         // 13: proxyswarm.AcmeIssueResponse
-	(*WarpRegisterRequest)(nil),       // 14: proxyswarm.WarpRegisterRequest
-	(*WarpRegistration)(nil),          // 15: proxyswarm.WarpRegistration
-	(*WarpRegisterResponse)(nil),      // 16: proxyswarm.WarpRegisterResponse
-	(*WarpLicenseUpdateRequest)(nil),  // 17: proxyswarm.WarpLicenseUpdateRequest
-	(*WarpLicenseUpdateResponse)(nil), // 18: proxyswarm.WarpLicenseUpdateResponse
-	(*Account)(nil),                   // 19: proxyswarm.Account
-	(*CertificateConfig)(nil),         // 20: proxyswarm.CertificateConfig
-	(*VlessConfig)(nil),               // 21: proxyswarm.VlessConfig
-	(*Hysteria2Config)(nil),           // 22: proxyswarm.Hysteria2Config
-	(*TrustTunnelConfig)(nil),         // 23: proxyswarm.TrustTunnelConfig
-	(*NaiveProxyConfig)(nil),          // 24: proxyswarm.NaiveProxyConfig
-	(*WireGuardConfig)(nil),           // 25: proxyswarm.WireGuardConfig
-	(*Socks5InboundConfig)(nil),       // 26: proxyswarm.Socks5InboundConfig
-	(*ShadowsocksInboundConfig)(nil),  // 27: proxyswarm.ShadowsocksInboundConfig
-	(*VlessReverseProxyConfig)(nil),   // 28: proxyswarm.VlessReverseProxyConfig
-	(*TProxyConfig)(nil),              // 29: proxyswarm.TProxyConfig
-	(*TrojanInboundConfig)(nil),       // 30: proxyswarm.TrojanInboundConfig
-	(*TunnelConfig)(nil),              // 31: proxyswarm.TunnelConfig
-	(*Socks5OutboundConfig)(nil),      // 32: proxyswarm.Socks5OutboundConfig
-	(*ShadowsocksOutboundConfig)(nil), // 33: proxyswarm.ShadowsocksOutboundConfig
-	(*TrojanOutboundConfig)(nil),      // 34: proxyswarm.TrojanOutboundConfig
-	(SecurityMode)(0),                 // 35: proxyswarm.SecurityMode
-	(*NodeStatus)(nil),                // 36: proxyswarm.NodeStatus
+	(*CustomOutboundConfig)(nil),      // 5: proxyswarm.CustomOutboundConfig
+	(*VlessOutboundConfig)(nil),       // 6: proxyswarm.VlessOutboundConfig
+	(*RoutingRule)(nil),               // 7: proxyswarm.RoutingRule
+	(*DnsConfig)(nil),                 // 8: proxyswarm.DnsConfig
+	(*DnsServerConfig)(nil),           // 9: proxyswarm.DnsServerConfig
+	(*DnsHostMapping)(nil),            // 10: proxyswarm.DnsHostMapping
+	(*UpdateResponse)(nil),            // 11: proxyswarm.UpdateResponse
+	(*StatusRequest)(nil),             // 12: proxyswarm.StatusRequest
+	(*AcmeIssueRequest)(nil),          // 13: proxyswarm.AcmeIssueRequest
+	(*AcmeIssueResponse)(nil),         // 14: proxyswarm.AcmeIssueResponse
+	(*WarpRegisterRequest)(nil),       // 15: proxyswarm.WarpRegisterRequest
+	(*WarpRegistration)(nil),          // 16: proxyswarm.WarpRegistration
+	(*WarpRegisterResponse)(nil),      // 17: proxyswarm.WarpRegisterResponse
+	(*WarpLicenseUpdateRequest)(nil),  // 18: proxyswarm.WarpLicenseUpdateRequest
+	(*WarpLicenseUpdateResponse)(nil), // 19: proxyswarm.WarpLicenseUpdateResponse
+	(*Account)(nil),                   // 20: proxyswarm.Account
+	(*CertificateConfig)(nil),         // 21: proxyswarm.CertificateConfig
+	(*VlessConfig)(nil),               // 22: proxyswarm.VlessConfig
+	(*Hysteria2Config)(nil),           // 23: proxyswarm.Hysteria2Config
+	(*TrustTunnelConfig)(nil),         // 24: proxyswarm.TrustTunnelConfig
+	(*NaiveProxyConfig)(nil),          // 25: proxyswarm.NaiveProxyConfig
+	(*WireGuardConfig)(nil),           // 26: proxyswarm.WireGuardConfig
+	(*Socks5InboundConfig)(nil),       // 27: proxyswarm.Socks5InboundConfig
+	(*ShadowsocksInboundConfig)(nil),  // 28: proxyswarm.ShadowsocksInboundConfig
+	(*VlessReverseProxyConfig)(nil),   // 29: proxyswarm.VlessReverseProxyConfig
+	(*TProxyConfig)(nil),              // 30: proxyswarm.TProxyConfig
+	(*TrojanInboundConfig)(nil),       // 31: proxyswarm.TrojanInboundConfig
+	(*TunnelConfig)(nil),              // 32: proxyswarm.TunnelConfig
+	(*Socks5OutboundConfig)(nil),      // 33: proxyswarm.Socks5OutboundConfig
+	(*ShadowsocksOutboundConfig)(nil), // 34: proxyswarm.ShadowsocksOutboundConfig
+	(*TrojanOutboundConfig)(nil),      // 35: proxyswarm.TrojanOutboundConfig
+	(SecurityMode)(0),                 // 36: proxyswarm.SecurityMode
+	(*NodeStatus)(nil),                // 37: proxyswarm.NodeStatus
 }
 var file_node_service_proto_depIdxs = []int32{
 	3,  // 0: proxyswarm.FullConfig.inbounds:type_name -> proxyswarm.InboundConfig
-	19, // 1: proxyswarm.FullConfig.accounts:type_name -> proxyswarm.Account
+	20, // 1: proxyswarm.FullConfig.accounts:type_name -> proxyswarm.Account
 	4,  // 2: proxyswarm.FullConfig.outbounds:type_name -> proxyswarm.OutboundConfig
-	6,  // 3: proxyswarm.FullConfig.routing_rules:type_name -> proxyswarm.RoutingRule
-	20, // 4: proxyswarm.FullConfig.certificates:type_name -> proxyswarm.CertificateConfig
-	7,  // 5: proxyswarm.FullConfig.dns:type_name -> proxyswarm.DnsConfig
+	7,  // 3: proxyswarm.FullConfig.routing_rules:type_name -> proxyswarm.RoutingRule
+	21, // 4: proxyswarm.FullConfig.certificates:type_name -> proxyswarm.CertificateConfig
+	8,  // 5: proxyswarm.FullConfig.dns:type_name -> proxyswarm.DnsConfig
 	0,  // 6: proxyswarm.InboundConfig.core:type_name -> proxyswarm.CoreType
-	19, // 7: proxyswarm.InboundConfig.accounts:type_name -> proxyswarm.Account
-	21, // 8: proxyswarm.InboundConfig.vless:type_name -> proxyswarm.VlessConfig
-	22, // 9: proxyswarm.InboundConfig.hysteria2:type_name -> proxyswarm.Hysteria2Config
-	23, // 10: proxyswarm.InboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
-	24, // 11: proxyswarm.InboundConfig.naiveproxy:type_name -> proxyswarm.NaiveProxyConfig
-	25, // 12: proxyswarm.InboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
-	26, // 13: proxyswarm.InboundConfig.socks5:type_name -> proxyswarm.Socks5InboundConfig
-	27, // 14: proxyswarm.InboundConfig.shadowsocks:type_name -> proxyswarm.ShadowsocksInboundConfig
-	28, // 15: proxyswarm.InboundConfig.vless_reverse_proxy:type_name -> proxyswarm.VlessReverseProxyConfig
-	29, // 16: proxyswarm.InboundConfig.tproxy:type_name -> proxyswarm.TProxyConfig
-	30, // 17: proxyswarm.InboundConfig.trojan:type_name -> proxyswarm.TrojanInboundConfig
-	31, // 18: proxyswarm.InboundConfig.tunnel:type_name -> proxyswarm.TunnelConfig
+	20, // 7: proxyswarm.InboundConfig.accounts:type_name -> proxyswarm.Account
+	22, // 8: proxyswarm.InboundConfig.vless:type_name -> proxyswarm.VlessConfig
+	23, // 9: proxyswarm.InboundConfig.hysteria2:type_name -> proxyswarm.Hysteria2Config
+	24, // 10: proxyswarm.InboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
+	25, // 11: proxyswarm.InboundConfig.naiveproxy:type_name -> proxyswarm.NaiveProxyConfig
+	26, // 12: proxyswarm.InboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
+	27, // 13: proxyswarm.InboundConfig.socks5:type_name -> proxyswarm.Socks5InboundConfig
+	28, // 14: proxyswarm.InboundConfig.shadowsocks:type_name -> proxyswarm.ShadowsocksInboundConfig
+	29, // 15: proxyswarm.InboundConfig.vless_reverse_proxy:type_name -> proxyswarm.VlessReverseProxyConfig
+	30, // 16: proxyswarm.InboundConfig.tproxy:type_name -> proxyswarm.TProxyConfig
+	31, // 17: proxyswarm.InboundConfig.trojan:type_name -> proxyswarm.TrojanInboundConfig
+	32, // 18: proxyswarm.InboundConfig.tunnel:type_name -> proxyswarm.TunnelConfig
 	1,  // 19: proxyswarm.OutboundConfig.type:type_name -> proxyswarm.OutboundType
-	5,  // 20: proxyswarm.OutboundConfig.vless:type_name -> proxyswarm.VlessOutboundConfig
-	23, // 21: proxyswarm.OutboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
-	25, // 22: proxyswarm.OutboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
-	32, // 23: proxyswarm.OutboundConfig.socks5:type_name -> proxyswarm.Socks5OutboundConfig
-	33, // 24: proxyswarm.OutboundConfig.shadowsocks:type_name -> proxyswarm.ShadowsocksOutboundConfig
-	34, // 25: proxyswarm.OutboundConfig.trojan:type_name -> proxyswarm.TrojanOutboundConfig
-	35, // 26: proxyswarm.VlessOutboundConfig.security:type_name -> proxyswarm.SecurityMode
-	8,  // 27: proxyswarm.DnsConfig.servers:type_name -> proxyswarm.DnsServerConfig
-	9,  // 28: proxyswarm.DnsConfig.hosts:type_name -> proxyswarm.DnsHostMapping
-	15, // 29: proxyswarm.WarpRegisterResponse.registration:type_name -> proxyswarm.WarpRegistration
-	2,  // 30: proxyswarm.NodeService.UpdateConfig:input_type -> proxyswarm.FullConfig
-	11, // 31: proxyswarm.NodeService.GetStatus:input_type -> proxyswarm.StatusRequest
-	12, // 32: proxyswarm.NodeService.IssueAcmeCertificate:input_type -> proxyswarm.AcmeIssueRequest
-	14, // 33: proxyswarm.NodeService.RegisterWarp:input_type -> proxyswarm.WarpRegisterRequest
-	17, // 34: proxyswarm.NodeService.UpdateWarpLicense:input_type -> proxyswarm.WarpLicenseUpdateRequest
-	10, // 35: proxyswarm.NodeService.UpdateConfig:output_type -> proxyswarm.UpdateResponse
-	36, // 36: proxyswarm.NodeService.GetStatus:output_type -> proxyswarm.NodeStatus
-	13, // 37: proxyswarm.NodeService.IssueAcmeCertificate:output_type -> proxyswarm.AcmeIssueResponse
-	16, // 38: proxyswarm.NodeService.RegisterWarp:output_type -> proxyswarm.WarpRegisterResponse
-	18, // 39: proxyswarm.NodeService.UpdateWarpLicense:output_type -> proxyswarm.WarpLicenseUpdateResponse
-	35, // [35:40] is the sub-list for method output_type
-	30, // [30:35] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	6,  // 20: proxyswarm.OutboundConfig.vless:type_name -> proxyswarm.VlessOutboundConfig
+	24, // 21: proxyswarm.OutboundConfig.trusttunnel:type_name -> proxyswarm.TrustTunnelConfig
+	26, // 22: proxyswarm.OutboundConfig.wireguard:type_name -> proxyswarm.WireGuardConfig
+	33, // 23: proxyswarm.OutboundConfig.socks5:type_name -> proxyswarm.Socks5OutboundConfig
+	34, // 24: proxyswarm.OutboundConfig.shadowsocks:type_name -> proxyswarm.ShadowsocksOutboundConfig
+	35, // 25: proxyswarm.OutboundConfig.trojan:type_name -> proxyswarm.TrojanOutboundConfig
+	5,  // 26: proxyswarm.OutboundConfig.custom:type_name -> proxyswarm.CustomOutboundConfig
+	36, // 27: proxyswarm.VlessOutboundConfig.security:type_name -> proxyswarm.SecurityMode
+	9,  // 28: proxyswarm.DnsConfig.servers:type_name -> proxyswarm.DnsServerConfig
+	10, // 29: proxyswarm.DnsConfig.hosts:type_name -> proxyswarm.DnsHostMapping
+	16, // 30: proxyswarm.WarpRegisterResponse.registration:type_name -> proxyswarm.WarpRegistration
+	2,  // 31: proxyswarm.NodeService.UpdateConfig:input_type -> proxyswarm.FullConfig
+	12, // 32: proxyswarm.NodeService.GetStatus:input_type -> proxyswarm.StatusRequest
+	13, // 33: proxyswarm.NodeService.IssueAcmeCertificate:input_type -> proxyswarm.AcmeIssueRequest
+	15, // 34: proxyswarm.NodeService.RegisterWarp:input_type -> proxyswarm.WarpRegisterRequest
+	18, // 35: proxyswarm.NodeService.UpdateWarpLicense:input_type -> proxyswarm.WarpLicenseUpdateRequest
+	11, // 36: proxyswarm.NodeService.UpdateConfig:output_type -> proxyswarm.UpdateResponse
+	37, // 37: proxyswarm.NodeService.GetStatus:output_type -> proxyswarm.NodeStatus
+	14, // 38: proxyswarm.NodeService.IssueAcmeCertificate:output_type -> proxyswarm.AcmeIssueResponse
+	17, // 39: proxyswarm.NodeService.RegisterWarp:output_type -> proxyswarm.WarpRegisterResponse
+	19, // 40: proxyswarm.NodeService.UpdateWarpLicense:output_type -> proxyswarm.WarpLicenseUpdateResponse
+	36, // [36:41] is the sub-list for method output_type
+	31, // [31:36] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_node_service_proto_init() }
@@ -2098,15 +2178,16 @@ func file_node_service_proto_init() {
 		(*OutboundConfig_Socks5)(nil),
 		(*OutboundConfig_Shadowsocks)(nil),
 		(*OutboundConfig_Trojan)(nil),
+		(*OutboundConfig_Custom)(nil),
 	}
-	file_node_service_proto_msgTypes[6].OneofWrappers = []any{}
+	file_node_service_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_node_service_proto_rawDesc), len(file_node_service_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

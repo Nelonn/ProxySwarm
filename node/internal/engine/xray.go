@@ -68,10 +68,10 @@ type WireGuardDeviceConfig struct {
 
 func NewXrayEngine(name string) *XrayEngine {
 	return &XrayEngine{
-		name:          name,
-		lastAccounts:  make(map[string]map[string]string),
+		name:             name,
+		lastAccounts:     make(map[string]map[string]string),
 		lastAccountNames: make(map[string]string),
-		lastOutbounds: make(map[string]*pb.OutboundStatus),
+		lastOutbounds:    make(map[string]*pb.OutboundStatus),
 	}
 }
 
@@ -160,6 +160,9 @@ func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.Outbo
 	instance, err := core.New(coreConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create xray instance: %w", err)
+	}
+	if err := registerXrayCustomOutbounds(instance, outbounds, rules); err != nil {
+		return fmt.Errorf("failed to register custom xray outbounds: %w", err)
 	}
 
 	if err := instance.Start(); err != nil {
@@ -1124,6 +1127,13 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 		if out == nil || strings.TrimSpace(out.Tag) == "" {
 			continue
 		}
+		if out.Type == pb.OutboundType_CUSTOM {
+			if out.GetCustom() == nil || strings.TrimSpace(out.GetCustom().HandlerName) == "" {
+				continue
+			}
+			allowedOutboundTags[strings.TrimSpace(out.Tag)] = struct{}{}
+			continue
+		}
 		o := conf.OutboundDetourConfig{
 			Tag: strings.TrimSpace(out.Tag),
 		}
@@ -1389,55 +1399,55 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 			if displayName == "" {
 				displayName = accountName
 			}
-		account := &pb.AccountStatus{
-			Name: displayName,
-			Traffic: querySingleStatPair(
-				ctx,
-				client,
-				fmt.Sprintf("user>>>%s>>>traffic>>>downlink", accountName),
-                    fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountName),
-                ),
-            }
-            if _, ok := onlineUsers[accountName]; ok {
-                account.Online = 1
-                if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-                    Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-                    Reset_: false,
-                }); err == nil {
-                    for ip := range onlineIps.GetIps() {
-                        account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
-                            Ip:        ip,
-                            UserAgent: "Unknown",
-                        })
-                    }
-                    slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
-                        return strings.Compare(a.GetIp(), b.GetIp())
-                    })
-                    if len(account.Sessions) > 0 {
-                        account.Online = uint32(len(account.Sessions))
-                    }
-                }
-            } else if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-                Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-                Reset_: false,
-            }); err == nil {
-                for ip := range onlineIps.GetIps() {
-                    account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
-                        Ip:        ip,
-                        UserAgent: "Unknown",
-                    })
-                }
-                slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
-                    return strings.Compare(a.GetIp(), b.GetIp())
-                })
-                account.Online = uint32(len(account.Sessions))
-            } else if online, err := client.GetStatsOnline(ctx, &statsService.GetStatsRequest{
-                Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
-                Reset_: false,
-            }); err == nil && online.GetStat() != nil && online.Stat.Value > 0 {
-                account.Online = uint32(online.Stat.Value)
-            }
-		metrics.Accounts = append(metrics.Accounts, account)
+			account := &pb.AccountStatus{
+				Name: displayName,
+				Traffic: querySingleStatPair(
+					ctx,
+					client,
+					fmt.Sprintf("user>>>%s>>>traffic>>>downlink", accountName),
+					fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountName),
+				),
+			}
+			if _, ok := onlineUsers[accountName]; ok {
+				account.Online = 1
+				if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
+					Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+					Reset_: false,
+				}); err == nil {
+					for ip := range onlineIps.GetIps() {
+						account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
+							Ip:        ip,
+							UserAgent: "Unknown",
+						})
+					}
+					slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
+						return strings.Compare(a.GetIp(), b.GetIp())
+					})
+					if len(account.Sessions) > 0 {
+						account.Online = uint32(len(account.Sessions))
+					}
+				}
+			} else if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
+				Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+				Reset_: false,
+			}); err == nil {
+				for ip := range onlineIps.GetIps() {
+					account.Sessions = append(account.Sessions, &pb.UserSessionStatus{
+						Ip:        ip,
+						UserAgent: "Unknown",
+					})
+				}
+				slices.SortFunc(account.Sessions, func(a, b *pb.UserSessionStatus) int {
+					return strings.Compare(a.GetIp(), b.GetIp())
+				})
+				account.Online = uint32(len(account.Sessions))
+			} else if online, err := client.GetStatsOnline(ctx, &statsService.GetStatsRequest{
+				Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+				Reset_: false,
+			}); err == nil && online.GetStat() != nil && online.Stat.Value > 0 {
+				account.Online = uint32(online.Stat.Value)
+			}
+			metrics.Accounts = append(metrics.Accounts, account)
 		}
 	}
 

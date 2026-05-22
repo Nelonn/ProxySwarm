@@ -389,6 +389,9 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 
 	convertedOutbounds := make([]map[string]any, 0, len(outbounds))
 	for _, out := range outbounds {
+		if out.Type == pb.OutboundType_CUSTOM {
+			return nil, fmt.Errorf("custom outbound %q requires Xray engine", out.Tag)
+		}
 		o := map[string]any{
 			"tag": out.Tag,
 		}

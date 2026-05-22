@@ -431,6 +431,16 @@ pub(super) fn build_full_config(
                     )),
                 })
             }
+            "CUSTOM" if !outbound.custom.tag.trim().is_empty() => {
+                outbounds.push(OutboundConfig {
+                    tag: outbound.custom.tag.clone(),
+                    r#type: OutboundType::Custom as i32,
+                    settings: Some(outbound_config::Settings::Custom(CustomOutboundConfig {
+                        handler_name: outbound.custom.handler_name.clone(),
+                        config_json: outbound.custom.config_json.clone(),
+                    })),
+                })
+            }
             _ => {}
         }
     }

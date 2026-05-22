@@ -423,6 +423,12 @@ func (m *Manager) accountStatusesLocked() []*pb.AccountStatus {
 			if account == nil {
 				continue
 			}
+			stateAccount := ensureAccountMetric(m.metricsState, account.Id)
+			displayName := strings.TrimSpace(account.Name)
+			if displayName == "" {
+				displayName = strings.TrimSpace(account.Id)
+			}
+			stateAccount.Name = displayName
 			names = append(names, account.Id)
 		}
 	} else {

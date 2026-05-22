@@ -172,6 +172,11 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
                             review_row("Addresses", optional_label(&data.wireguard.addresses)),
                             review_row("Peers", data.wireguard.peers.len().to_string()),
                         ]),
+                        "CUSTOM" => review_section("Custom Plugin", vec![
+                            review_row("Tag", optional_label(&data.custom.tag)),
+                            review_row("Handler", optional_label(&data.custom.handler_name)),
+                            review_row("Config JSON", optional_label(&data.custom.config_json)),
+                        ]),
                         "SOCKS5" => review_section("SOCKS5", vec![
                             review_row("Tag", optional_label(&data.socks5.tag)),
                             review_row("Server", optional_label(&data.socks5.server)),

@@ -503,7 +503,7 @@ pub struct OutboundConfig {
     pub tag: ::prost::alloc::string::String,
     #[prost(enumeration = "OutboundType", tag = "2")]
     pub r#type: i32,
-    #[prost(oneof = "outbound_config::Settings", tags = "3, 4, 5, 6, 7, 8")]
+    #[prost(oneof = "outbound_config::Settings", tags = "3, 4, 5, 6, 7, 8, 9")]
     pub settings: ::core::option::Option<outbound_config::Settings>,
 }
 /// Nested message and enum types in `OutboundConfig`.
@@ -523,7 +523,17 @@ pub mod outbound_config {
         Shadowsocks(super::ShadowsocksOutboundConfig),
         #[prost(message, tag = "8")]
         Trojan(super::TrojanOutboundConfig),
+        #[prost(message, tag = "9")]
+        Custom(super::CustomOutboundConfig),
     }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CustomOutboundConfig {
+    #[prost(string, tag = "1")]
+    pub handler_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub config_json: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -772,6 +782,7 @@ pub enum OutboundType {
     Socks5 = 5,
     Shadowsocks = 6,
     Trojan = 7,
+    Custom = 8,
 }
 impl OutboundType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -788,6 +799,7 @@ impl OutboundType {
             Self::Socks5 => "SOCKS5",
             Self::Shadowsocks => "SHADOWSOCKS",
             Self::Trojan => "TROJAN",
+            Self::Custom => "CUSTOM",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -801,6 +813,7 @@ impl OutboundType {
             "SOCKS5" => Some(Self::Socks5),
             "SHADOWSOCKS" => Some(Self::Shadowsocks),
             "TROJAN" => Some(Self::Trojan),
+            "CUSTOM" => Some(Self::Custom),
             _ => None,
         }
     }

@@ -18,7 +18,7 @@ use crate::components::{
 };
 use crate::pb::proxyswarm::{
     outbound_config, Account, AccountStatus, AcmeCertificateConfig, CertificateConfig, CoreType,
-    CustomCertificateConfig, DnsConfig, DnsHostMapping, DnsServerConfig, FullConfig,
+    CustomCertificateConfig, CustomOutboundConfig, DnsConfig, DnsHostMapping, DnsServerConfig, FullConfig,
     Hysteria2Config, InboundConfig, InboundStatus, NaiveProxyConfig, NodeStatus, OutboundConfig,
     OutboundStatus, OutboundType, RoutingRule, SecurityMode, ShadowsocksInboundConfig,
     ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, TunnelConfig, VlessConfig,
@@ -36,7 +36,7 @@ use crate::state::{
     NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision, OutboundEntryDraft, ProxyNode,
     RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State, TlsDraft, TrustTunnelDraft, TunnelDraft,
     TrustTunnelOutboundDraft, VlessInboundDraft, VlessOutboundDraft, WarpRegistrationDraft,
-    WireGuardDraft, WireGuardPeerItem, TrojanDraft, ReverseProxyDraft, TProxyDraft,
+    WireGuardDraft, WireGuardPeerItem, TrojanDraft, ReverseProxyDraft, TProxyDraft, CustomOutboundDraft,
 };
 use crate::storage;
 use crate::Route;
