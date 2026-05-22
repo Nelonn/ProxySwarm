@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"proxyswarm/node/internal/logging"
 	"proxyswarm/node/internal/pb"
 	"slices"
@@ -137,6 +138,9 @@ func (e *XrayEngine) needsRestart(configs []*pb.InboundConfig, outbounds []*pb.O
 func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	if len(inbounds) == 0 {
 		return fmt.Errorf("xray engine requires at least one inbound")
+	}
+	if assetDir := defaultXrayAssetRoot(); assetDir != "" {
+		_ = os.Setenv("xray.location.asset", assetDir)
 	}
 	if e.instance != nil {
 		e.instance.Close()

@@ -61,6 +61,7 @@ type ResolvedCertificate struct {
 const sharedXrayEngineKey = "xray"
 
 var defaultDataDir = "./data"
+var defaultXrayAssetDir = ""
 
 func NewManager() *Manager {
 	dataRoot := defaultDataRoot()
@@ -109,6 +110,16 @@ func defaultDataRoot() string {
 		return buildDir
 	}
 	return ""
+}
+
+func defaultXrayAssetRoot() string {
+	if envDir := strings.TrimSpace(os.Getenv("xray.location.asset")); envDir != "" {
+		return envDir
+	}
+	if envDir := strings.TrimSpace(os.Getenv("XRAY_LOCATION_ASSET")); envDir != "" {
+		return envDir
+	}
+	return strings.TrimSpace(defaultXrayAssetDir)
 }
 
 func inboundTLSConfig(inbound *pb.InboundConfig) *pb.TLSConfig {

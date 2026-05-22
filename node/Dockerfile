@@ -21,6 +21,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags "\
     -X 'proxyswarm/node/internal/engine.defaultDataDir=/data' \
+    -X 'proxyswarm/node/internal/engine.defaultXrayAssetDir=/usr/local/bin' \
     -X 'proxyswarm/node/internal/engine.TrustTunnelBinary=/usr/local/bin/trusttunnel_endpoint' \
     -X 'proxyswarm/node/internal/engine.SingBoxBinary=/usr/local/bin/sing-box'" \
     -o /out/proxy-node ./cmd/node
@@ -49,7 +50,13 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 RUN install -Dm755 /go/bin/sing-box /out/sing-box
 
-# Stage 4: Final runtime image
+# Stage 4: Download Xray geodata
+FROM scratch AS geodata-downloader
+
+ADD https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/geoip.dat /out/geoip.dat
+ADD https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/geosite.dat /out/geosite.dat
+
+# Stage 5: Final runtime image
 FROM alpine:${ALPINE_VERSION}
 
 RUN apk add --no-cache ca-certificates
@@ -57,6 +64,8 @@ RUN apk add --no-cache ca-certificates
 COPY --from=node-builder /out/proxy-node /usr/local/bin/proxy-node
 COPY --from=trusttunnel-downloader /out/trusttunnel_endpoint /usr/local/bin/trusttunnel_endpoint
 COPY --from=singbox-builder /out/sing-box /usr/local/bin/sing-box
+COPY --from=geodata-downloader /out/geoip.dat /usr/local/bin/geoip.dat
+COPY --from=geodata-downloader /out/geosite.dat /usr/local/bin/geosite.dat
 
 ENTRYPOINT ["proxy-node"]
 ENV GRPC_LISTEN=:9090
