@@ -806,6 +806,7 @@ fn render_duplicate_outbound_popup(ctx: &PopupHostContext<'_>) -> Html {
                             "VLESS" => duplicated.vless.tag = name,
                             "TRUSTTUNNEL" => duplicated.trust_tunnel.tag = name,
                             "WIREGUARD" => duplicated.wireguard.tag = name,
+                            "CUSTOM" => duplicated.custom.tag = name,
                             "SOCKS5" => duplicated.socks5.tag = name,
                             "SHADOWSOCKS" => duplicated.shadowsocks.tag = name,
                             "TROJAN" => duplicated.trojan.tag = name,

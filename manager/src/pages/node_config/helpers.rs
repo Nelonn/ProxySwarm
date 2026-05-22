@@ -318,6 +318,10 @@ pub(super) fn default_builtin_outbound(tag: &str, outbound_type: &str) -> Outbou
             tag: tag.to_string(),
             ..TrojanDraft::default()
         },
+        custom: CustomOutboundDraft {
+            tag: tag.to_string(),
+            ..CustomOutboundDraft::default()
+        },
     }
 }
 
@@ -347,6 +351,7 @@ pub(super) fn default_vless_outbound() -> OutboundEntryDraft {
         socks5: Socks5Draft::default(),
         shadowsocks: ShadowsocksDraft::default(),
         trojan: TrojanDraft::default(),
+        custom: CustomOutboundDraft::default(),
     }
 }
 
@@ -367,6 +372,7 @@ pub(super) fn default_warp_outbound() -> OutboundEntryDraft {
         socks5: Socks5Draft::default(),
         shadowsocks: ShadowsocksDraft::default(),
         trojan: TrojanDraft::default(),
+        custom: CustomOutboundDraft::default(),
     }
 }
 
@@ -389,6 +395,7 @@ pub(super) fn default_shadowsocks_outbound() -> OutboundEntryDraft {
             ..ShadowsocksDraft::default()
         },
         trojan: TrojanDraft::default(),
+        custom: CustomOutboundDraft::default(),
     }
 }
 
@@ -600,6 +607,14 @@ pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
             if outbound.name.trim().is_empty() {
                 outbound.name = outbound.outbound_type.trim().to_lowercase();
             }
+        } else if outbound.outbound_type.trim().eq_ignore_ascii_case("CUSTOM")
+            && outbound.custom.tag.trim().is_empty()
+        {
+            outbound.custom.tag = if outbound.name.trim().is_empty() {
+                "custom".to_string()
+            } else {
+                outbound.name.trim().to_string()
+            };
         }
     }
 
@@ -638,6 +653,7 @@ pub(super) fn outbound_tag_for_routing(outbound: &OutboundEntryDraft) -> String 
         "WIREGUARD" => outbound.name.clone(),
         "SOCKS5" => outbound.socks5.tag.clone(),
         "SHADOWSOCKS" => outbound.shadowsocks.tag.clone(),
+        "CUSTOM" => outbound.custom.tag.clone(),
         _ => outbound.vless.tag.clone(),
     }
 }

@@ -1,6 +1,7 @@
 use crate::country::flag_emoji;
 use crate::components::{
-    Button, ButtonType, DatePicker, DatePickerType, Popup, PopupSize, RichTable, TextBox,
+    Button, ButtonSize, ButtonType, DatePicker, DatePickerType, Popup, PopupSize, RichTable,
+    TextBox,
 };
 use crate::services::registry_deploy::collect_account_proxy_links;
 use crate::state::{normalize_groups, AccountInfo, State};
@@ -19,6 +20,9 @@ pub fn accounts() -> Html {
     let pending_delete = use_state(|| Option::<AccountInfo>::None);
     let show_groups_popup = use_state(|| false);
     let proxies_account = use_state(|| Option::<AccountInfo>::None);
+    let search_query = use_state(String::new);
+    let current_page = use_state(|| 0usize);
+    let page_size = 20usize;
 
     let on_add = {
         let show_modal = show_modal.clone();
@@ -29,25 +33,81 @@ pub fn accounts() -> Html {
         })
     };
 
+    let filtered_accounts = {
+        let query = search_query.trim().to_lowercase();
+        state
+            .accounts
+            .iter()
+            .filter(|account| {
+                if query.is_empty() {
+                    return true;
+                }
+                account.id.to_lowercase().contains(&query)
+                    || account.name.to_lowercase().contains(&query)
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    let filtered_count = filtered_accounts.len();
+    let total_count = state.accounts.len();
+    let total_pages = filtered_count.max(1).div_ceil(page_size);
+    let page_index = (*current_page).min(total_pages.saturating_sub(1));
+    let start = page_index * page_size;
+    let end = (start + page_size).min(filtered_count);
+    let paged_accounts = filtered_accounts[start..end].to_vec();
+
+    {
+        let current_page = current_page.clone();
+        let query = (*search_query).clone();
+        use_effect_with(query, move |_| {
+            current_page.set(0);
+            || ()
+        });
+    }
+    {
+        let current_page = current_page.clone();
+        use_effect_with(filtered_count, move |count| {
+            let total_pages = (*count).max(1).div_ceil(page_size);
+            let max_page = total_pages.saturating_sub(1);
+            if *current_page > max_page {
+                current_page.set(max_page);
+            }
+            || ()
+        });
+    }
+
     html! {
         <div class="p-6 space-y-6">
-            <div class="flex justify-between" style="align-items: baseline;">
-                <h1 class="text-3xl font-bold">{ "Accounts" }</h1>
+            <div class="flex justify-between flex-wrap" style="align-items: center; gap: 1rem;">
+                <div class="flex items-center flex-wrap" style="gap: 1rem;">
+                    <h1 class="text-3xl font-bold">{ "Accounts" }</h1>
+                    <div style="flex: 0 1 500px; width: 500px; max-width: 100%; min-width: 320px;">
+                        <TextBox
+                            label=""
+                            value={(*search_query).clone()}
+                            onchange={Callback::from({
+                                let search_query = search_query.clone();
+                                move |value: String| search_query.set(value)
+                            })}
+                            placeholder="Search by account ID or name"
+                        />
+                    </div>
+                </div>
                 <div class="flex items-center" style="gap: 0.5rem;">
-                    <Button
-                        label="Groups"
-                        button_type={ButtonType::Outlined}
-                        onclick={{
-                            let show_groups_popup = show_groups_popup.clone();
-                            move |_| show_groups_popup.set(true)
-                        }}
-                    />
-                    <Button
-                        label="Add Account"
-                        icon={Some("icon-add".to_string())}
-                        button_type={ButtonType::Filled}
-                        onclick={move |_| on_add.emit(())}
-                    />
+                <Button
+                    label="Groups"
+                    button_type={ButtonType::Outlined}
+                    onclick={{
+                        let show_groups_popup = show_groups_popup.clone();
+                        move |_| show_groups_popup.set(true)
+                    }}
+                />
+                <Button
+                    label="Add Account"
+                    icon={Some("icon-add".to_string())}
+                    button_type={ButtonType::Filled}
+                    onclick={move |_| on_add.emit(())}
+                />
                 </div>
             </div>
 
@@ -59,53 +119,100 @@ pub fn accounts() -> Html {
                         <p class="text-sm opacity-50 mt-2">{ "Add your first account to get started" }</p>
                     </div>
                 }
+            } else if filtered_count == 0 {
+                html! {
+                    <div class="md3-card p-12 text-center">
+                        <p class="text-xl opacity-70">{ "No accounts match your search" }</p>
+                        <p class="text-sm opacity-50 mt-2">{ "Try a different account ID or name" }</p>
+                    </div>
+                }
             } else {
                 html! {
-                    <RichTable columns={vec![
-                        "ID".to_string(),
-                        "Account".to_string(),
-                        "Token".to_string(),
-                        "Groups".to_string(),
-                        "Allowed IPs".to_string(),
-                        "Expires".to_string(),
-                        "Actions".to_string(),
-                    ]}>
-                        { for state.accounts.iter().map(|account| {
-                            let state = state.clone();
-                            let account_id = account.id.clone();
-                            let pending_delete_handle = pending_delete.clone();
+                    <div class="space-y-4">
+                        <RichTable columns={vec![
+                            "ID".to_string(),
+                            "Account".to_string(),
+                            "Token".to_string(),
+                            "Groups".to_string(),
+                            "Allowed IPs".to_string(),
+                            "Expires".to_string(),
+                            "Actions".to_string(),
+                        ]}>
+                            { for paged_accounts.iter().map(|account| {
+                                let state = state.clone();
+                                let account_id = account.id.clone();
+                                let pending_delete_handle = pending_delete.clone();
 
-                            let on_delete = Callback::from(move |_: MouseEvent| {
-                                if let Some(account) = state.accounts.iter().find(|a| a.id == account_id) {
-                                    pending_delete_handle.set(Some(account.clone()));
+                                let on_delete = Callback::from(move |_: MouseEvent| {
+                                    if let Some(account) = state.accounts.iter().find(|a| a.id == account_id) {
+                                        pending_delete_handle.set(Some(account.clone()));
+                                    }
+                                });
+
+                                html! {
+                                    <>
+                                        <AccountRow
+                                            account={account.clone()}
+                                            on_proxies={{
+                                                let proxies_account = proxies_account.clone();
+                                                let account_for_proxies = account.clone();
+                                                Callback::from(move |_| proxies_account.set(Some(account_for_proxies.clone())))
+                                            }}
+                                            on_edit={{
+                                                let show_modal = show_modal.clone();
+                                                let editing_account = editing_account.clone();
+                                                let account_for_edit = account.clone();
+                                                Callback::from(move |_| {
+                                                    editing_account.set(Some(account_for_edit.clone()));
+                                                    show_modal.set(true);
+                                                })
+                                            }}
+                                            on_delete={on_delete}
+                                        />
+                                        <div class="md3-divider"></div>
+                                    </>
                                 }
-                            });
-
-                            html! {
-                                <>
-                                    <AccountRow
-                                        account={account.clone()}
-                                        on_proxies={{
-                                            let proxies_account = proxies_account.clone();
-                                            let account_for_proxies = account.clone();
-                                            Callback::from(move |_| proxies_account.set(Some(account_for_proxies.clone())))
-                                        }}
-                                        on_edit={{
-                                            let show_modal = show_modal.clone();
-                                            let editing_account = editing_account.clone();
-                                            let account_for_edit = account.clone();
-                                            Callback::from(move |_| {
-                                                editing_account.set(Some(account_for_edit.clone()));
-                                                show_modal.set(true);
-                                            })
-                                        }}
-                                        on_delete={on_delete}
-                                    />
-                                    <div class="md3-divider"></div>
-                                </>
-                            }
-                        }) }
-                    </RichTable>
+                            }) }
+                        </RichTable>
+                        <div class="flex justify-between items-center flex-wrap" style="gap: 0.75rem;">
+                            <div class="text-sm opacity-70">
+                                {
+                                    if filtered_count == total_count {
+                                        format!("Showing {}-{} of {} accounts", start + 1, end, total_count)
+                                    } else {
+                                        format!("Showing {}-{} of {} matching accounts ({} total)", start + 1, end, filtered_count, total_count)
+                                    }
+                                }
+                            </div>
+                            <div class="flex items-center" style="gap: 0.75rem; align-items: center;">
+                                <div class="text-sm opacity-70">{ format!("Page {} of {}", page_index + 1, total_pages) }</div>
+                                <Button
+                                    label="Previous"
+                                    button_type={ButtonType::Outlined}
+                                    size={ButtonSize::XSmall}
+                                    onclick={Callback::from({
+                                        let current_page = current_page.clone();
+                                        move |_| {
+                                            if *current_page > 0 {
+                                                current_page.set(*current_page - 1);
+                                            }
+                                        }
+                                    })}
+                                    disabled={page_index == 0}
+                                />
+                                <Button
+                                    label="Next"
+                                    button_type={ButtonType::Outlined}
+                                    size={ButtonSize::XSmall}
+                                    onclick={Callback::from({
+                                        let current_page = current_page.clone();
+                                        move |_| current_page.set(*current_page + 1)
+                                    })}
+                                    disabled={page_index + 1 >= total_pages}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 }
             } }
 

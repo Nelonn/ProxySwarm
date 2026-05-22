@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/xtls/xray-core/common/net"
 	"proxyswarm/node/internal/pb"
 )
 
@@ -262,5 +263,42 @@ func TestBuildXrayReverseConfigPortalUsesUserReverse(t *testing.T) {
 	}
 	if got := portalUserTags["ac40ca0f"]; got != "r-outbound" {
 		t.Fatalf("expected portal user tag mapping, got %q", got)
+	}
+}
+
+func TestRedirectCustomOutboundResolveDestinationUsesRequestDefaults(t *testing.T) {
+	outbound := &redirectCustomOutbound{
+		tag:    "redirect-test",
+		config: redirectCustomOutboundConfig{},
+	}
+	destination, err := outbound.resolveDestination(net.Destination{
+		Network: net.Network_UDP,
+		Address: net.DomainAddress("example.com"),
+		Port:    5353,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if destination.Network != net.Network_UDP {
+		t.Fatalf("expected udp network, got %v", destination.Network)
+	}
+	if destination.Address.String() != "example.com" {
+		t.Fatalf("expected example.com address, got %q", destination.Address.String())
+	}
+	if destination.Port != 5353 {
+		t.Fatalf("expected port 5353, got %d", destination.Port)
+	}
+}
+
+func TestNewRedirectCustomOutboundRejectsInvalidNetwork(t *testing.T) {
+	_, err := newRedirectCustomOutbound(XrayCustomOutboundSpec{
+		Tag: "bad-redirect",
+		Config: &pb.CustomOutboundConfig{
+			HandlerName: "redirect",
+			ConfigJson:  `{"network":"icmp"}`,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected invalid network error")
 	}
 }

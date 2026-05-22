@@ -311,6 +311,7 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                         value={data.outbound_type.clone()}
                                         options={vec![
                                             DropdownOption { value: "VLESS".to_string(), label: "VLESS".to_string() },
+                                            DropdownOption { value: "CUSTOM".to_string(), label: "Custom Plugin".to_string() },
                                             DropdownOption { value: "TRUSTTUNNEL".to_string(), label: "TrustTunnel".to_string() },
                                             DropdownOption { value: "WIREGUARD".to_string(), label: "WireGuard".to_string() },
                                             DropdownOption { value: "SOCKS5".to_string(), label: "SOCKS5".to_string() },
@@ -334,6 +335,13 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                 <>
                                     {
                                         match data.outbound_type.trim().to_uppercase().as_str() {
+                                            "CUSTOM" => html! {
+                                                <div class="grid grid-cols-1 gap-6">
+                                                    <TextBox label="Tag" value={data.custom.tag.clone()} onchange={update_text(|outbound, value| outbound.custom.tag = value)} />
+                                                    <TextBox label="Handler Name" value={data.custom.handler_name.clone()} onchange={update_text(|outbound, value| outbound.custom.handler_name = value)} placeholder="redirect" />
+                                                    <TextBox label="Config JSON" value={data.custom.config_json.clone()} onchange={update_text(|outbound, value| outbound.custom.config_json = value)} is_textarea={true} placeholder={"{\n  \"address\": \"127.0.0.1\",\n  \"port\": 8080\n}"} />
+                                                </div>
+                                            },
                                             "TRUSTTUNNEL" => html! {
                                                 <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
                                                     <TextBox label="Tag" value={data.trust_tunnel.tag.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.tag = value)} />

@@ -266,6 +266,8 @@ pub struct OutboundEntryDraft {
     pub shadowsocks: ShadowsocksDraft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub trojan: TrojanDraft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub custom: CustomOutboundDraft,
 
 }
 
@@ -641,6 +643,13 @@ pub struct TrojanDraft {
     pub fallback: String,
     pub tls_enabled: bool,
     pub sni: String,
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CustomOutboundDraft {
+    pub tag: String,
+    pub handler_name: String,
+    pub config_json: String,
 }
 
 
