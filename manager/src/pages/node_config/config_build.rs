@@ -267,6 +267,12 @@ pub(super) fn build_full_config(
         sync_draft(&mut copy);
         copy.reverse_proxies
     };
+    let enabled_reverse_tags: std::collections::HashSet<String> = normalized_reverse_proxies
+        .iter()
+        .filter(|reverse_proxy| reverse_proxy.enabled)
+        .map(|reverse_proxy| reverse_proxy.tag.clone())
+        .filter(|tag| !tag.trim().is_empty())
+        .collect();
     for reverse_proxy in normalized_reverse_proxies {
         if !reverse_proxy.enabled {
             continue;
@@ -432,6 +438,7 @@ pub(super) fn build_full_config(
     let outbound_tags: std::collections::HashSet<String> = outbounds
         .iter()
         .map(|outbound| outbound.tag.clone())
+        .chain(enabled_reverse_tags)
         .collect();
 
     FullConfig {
@@ -466,6 +473,7 @@ pub(super) fn build_full_config(
         outbounds,
         routing_rules: normalized_routing_rules(draft)
             .into_iter()
+            .filter(|rule| rule.enabled)
             .filter(|rule| !rule.outbound_tag.trim().is_empty())
             .map(|rule| RoutingRule {
                 domain: split_lines_csv(&rule.domain),

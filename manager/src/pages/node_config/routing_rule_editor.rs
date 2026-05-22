@@ -206,6 +206,19 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
             on_close={props.on_close.clone()}
         >
             <div class="space-y-4">
+                <SwitchField
+                    label="Enabled"
+                    checked={rule.enabled}
+                    onchange={Callback::from({
+                        let rule = rule.clone();
+                        move |e: Event| {
+                            let input = e.target_unchecked_into::<web_sys::HtmlInputElement>();
+                            let mut next = (*rule).clone();
+                            next.enabled = input.checked();
+                            rule.set(next);
+                        }
+                    })}
+                />
                 <TextBox
                     label="Remark"
                     value={rule.remark.clone()}

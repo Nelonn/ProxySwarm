@@ -281,6 +281,7 @@ pub(super) fn certmagic_certificate_paths(ca: &str, domain: &str) -> (String, St
 
 pub(super) fn default_routing_rule_entry() -> RoutingRuleDraft {
     RoutingRuleDraft {
+        enabled: true,
         outbound_tag: "direct".to_string(),
         ..RoutingRuleDraft::default()
     }

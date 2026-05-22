@@ -78,9 +78,10 @@ const BUTTON_CSS: &str = r#"
     display: block;
 }
 .md3-icon-btn.md3-btn-xsmall {
-    width: auto;
-    aspect-ratio: auto;
-    padding: 6px 12px;
+    width: 32px;
+    height: 32px;
+    aspect-ratio: 1 / 1;
+    padding: 0;
 }
 .md3-icon-btn.md3-btn-xsmall svg {
     width: 20px;

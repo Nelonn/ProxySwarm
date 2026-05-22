@@ -320,6 +320,10 @@ fn default_outbound_enabled() -> bool {
     true
 }
 
+fn default_routing_rule_enabled() -> bool {
+    true
+}
+
 fn default_certificate_type() -> String {
     "ACME".to_string()
 }
@@ -682,6 +686,8 @@ pub struct TProxyDraft {
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RoutingRuleDraft {
+    #[serde(default = "default_routing_rule_enabled")]
+    pub enabled: bool,
     #[serde(default)]
     pub remark: String,
     pub domain: String,

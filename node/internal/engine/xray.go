@@ -820,7 +820,6 @@ func buildXrayRoutingRules(rules []*pb.RoutingRule) []json.RawMessage {
 }
 
 func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, []json.RawMessage, map[string]struct{}, map[string]string, error) {
-	rules := []json.RawMessage{}
 	reverseTags := map[string]struct{}{}
 	portalUserTags := map[string]string{}
 
@@ -840,10 +839,6 @@ func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, [
 			return nil, nil, nil, nil, fmt.Errorf("reverse proxy requires tag")
 		}
 		reverseTags[tag] = struct{}{}
-		portalInboundTag := strings.TrimSpace(r.PortalInboundTag)
-		if portalInboundTag == "" {
-			return nil, nil, nil, nil, fmt.Errorf("vless reverse proxy %q requires portal_inbound_tag", tag)
-		}
 		portalUserID := strings.TrimSpace(r.PortalUserId)
 		if portalUserID == "" {
 			return nil, nil, nil, nil, fmt.Errorf("vless reverse proxy %q requires portal_user_id", tag)
@@ -852,15 +847,8 @@ func buildXrayReverseConfig(configs []*pb.InboundConfig) (*conf.ReverseConfig, [
 			return nil, nil, nil, nil, fmt.Errorf("vless reverse proxy user %q already assigned to tag %q", portalUserID, existingTag)
 		}
 		portalUserTags[portalUserID] = tag
-		rules = append(rules,
-			toRaw(map[string]any{
-				"type":        "field",
-				"inboundTag":  []string{portalInboundTag},
-				"outboundTag": tag,
-			}),
-		)
 	}
-	return nil, rules, reverseTags, portalUserTags, nil
+	return nil, nil, reverseTags, portalUserTags, nil
 }
 
 func xrayVlessNetwork(transmission string) *conf.TransportProtocol {

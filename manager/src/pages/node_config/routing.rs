@@ -57,11 +57,31 @@ pub(super) fn render_routing_tab(
                                                     move_down_active.then_some("md3-routing-rule-card-move-down")
                                                 )} style="padding: 0.875rem 1rem;">
                                                     <div class="flex justify-between items-center" style="gap: 0.75rem;">
-                                                        <div class="font-semibold">{ format!("Rule #{}", idx + 1) }</div>
+                                                        <div class="flex items-center" style="gap: 0.5rem;">
+                                                            <div class="font-semibold">{ format!("Rule #{}", idx + 1) }</div>
+                                                            <span class="text-xs opacity-70">{ if rule.enabled { "Enabled" } else { "Disabled" } }</span>
+                                                        </div>
                                                         <div class="md3-list-actions">
-                                                            <button
-                                                                type="button"
-                                                                class="md3-btn md3-btn-outlined md3-btn-xsmall"
+                                                            <Switch
+                                                                checked={rule.enabled}
+                                                                onchange={Callback::from({
+                                                                    let draft = draft.clone();
+                                                                    move |e: Event| {
+                                                                        let input = e.target_unchecked_into::<web_sys::HtmlInputElement>();
+                                                                        let mut next = (*draft).clone();
+                                                                        sync_draft(&mut next);
+                                                                        if let Some(item) = next.routing_rules.get_mut(idx) {
+                                                                            item.enabled = input.checked();
+                                                                        }
+                                                                        sync_draft(&mut next);
+                                                                        draft.set(next);
+                                                                    }
+                                                                })}
+                                                            />
+                                                            <IconButton
+                                                                label="Move up"
+                                                                button_type={ButtonType::Outlined}
+                                                                size={ButtonSize::XSmall}
                                                                 disabled={idx_up == 0}
                                                                 onclick={Callback::from({
                                                                     let draft = draft.clone();
@@ -81,14 +101,12 @@ pub(super) fn render_routing_tab(
                                                                     }
                                                                 })}
                                                             >
-                                                                <span class="mr-2" style="display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; line-height: 0;">
-                                                                    <SvgIcon name="icon-arrow-upward" size={20} />
-                                                                </span>
-                                                                { "Move up" }
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                class="md3-btn md3-btn-outlined md3-btn-xsmall"
+                                                                <SvgIcon name="icon-arrow-upward" size={20} />
+                                                            </IconButton>
+                                                            <IconButton
+                                                                label="Move down"
+                                                                button_type={ButtonType::Outlined}
+                                                                size={ButtonSize::XSmall}
                                                                 disabled={idx_down + 1 >= routing_rules.len()}
                                                                 onclick={Callback::from({
                                                                     let draft = draft.clone();
@@ -108,11 +126,8 @@ pub(super) fn render_routing_tab(
                                                                     }
                                                                 })}
                                                             >
-                                                                <span class="mr-2" style="display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; line-height: 0;">
-                                                                    <SvgIcon name="icon-arrow-downward" size={20} />
-                                                                </span>
-                                                                { "Move down" }
-                                                            </button>
+                                                                <SvgIcon name="icon-arrow-downward" size={20} />
+                                                            </IconButton>
                                                             <Button
                                                                 label="Action"
                                                                 button_type={ButtonType::Outlined}
@@ -129,6 +144,10 @@ pub(super) fn render_routing_tab(
                                                         </div>
                                                     </div>
                                                     <div class="grid gap-3 text-sm" style="line-height: 1.3; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                                                        <div>
+                                                            <div class="opacity-70">{ "Status" }</div>
+                                                            <div>{ if rule.enabled { "Enabled" } else { "Disabled" } }</div>
+                                                        </div>
                                                         <div>
                                                             <div class="opacity-70">{ "Remark" }</div>
                                                             <div>{ if rule.remark.trim().is_empty() { "-" } else { rule.remark.as_str() } }</div>

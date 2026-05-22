@@ -254,8 +254,8 @@ func TestBuildXrayReverseConfigPortalUsesUserReverse(t *testing.T) {
 	if reverseConfig != nil {
 		t.Fatalf("expected no top-level reverse config for portal mode, got %#v", reverseConfig)
 	}
-	if len(rules) != 1 {
-		t.Fatalf("expected 1 portal routing rule, got %d", len(rules))
+	if len(rules) != 0 {
+		t.Fatalf("expected no auto-generated routing rules, got %d", len(rules))
 	}
 	if _, ok := reverseTags["r-outbound"]; !ok {
 		t.Fatal("expected reverse tag to be allowed")
