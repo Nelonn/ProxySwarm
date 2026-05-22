@@ -581,7 +581,7 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 			}
 			stream.Security = "reality"
 			stream.REALITYSettings = &conf.REALITYConfig{
-				Show:        true,
+				Show:        false,
 				Target:      toRaw(realityCfg.Dest),
 				Dest:        toRaw(realityCfg.Dest),
 				Xver:        0,
