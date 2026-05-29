@@ -55,7 +55,7 @@ type telemetryStore struct {
 }
 
 type subscriptionTelemetryEntry struct {
-	Time  int64  `json:"time_unix"`
+	Time  int64  `json:"time"`
 	UserAgent string `json:"user_agent"`
 	UserId    string `json:"user_id"`
 	Ip        string `json:"ip"`
