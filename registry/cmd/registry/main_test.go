@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -67,7 +68,7 @@ func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
 		TemplateLinks: []*pb.RegistryTemplateLink{
 			{Template: "vless://{{token}}@host:443"},
 		},
-	}))
+	}), nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/subscription?token=wrong", nil)
@@ -95,7 +96,7 @@ func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 			{Template: "vless://{{token}}@host-a:443#{{name}}"},
 			{Template: "trojan://{token}@host-b:443#{id}"},
 		},
-	}))
+	}), nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/subscription?token=tok-1", nil)
@@ -126,8 +127,45 @@ func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	}
 }
 
+func TestSubscriptionEndpointRecordsTelemetry(t *testing.T) {
+	telemetry := &telemetryStore{path: filepath.Join(t.TempDir(), "telemetry.json")}
+	handler := makeUserAPIHandler(testStore(&pb.RegistryServiceConfig{
+		Accounts: []*pb.Account{
+			{Id: "a1", Name: "Alice", Token: "tok-1"},
+		},
+		TemplateLinks: []*pb.RegistryTemplateLink{
+			{Template: "vless://{{token}}@host:443"},
+		},
+	}), telemetry)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/subscription?token=tok-1", nil)
+	req.Header.Set("User-Agent", "test-client/1.0")
+	req.Header.Set("X-Forwarded-For", "203.0.113.8, 10.0.0.1")
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	data, err := os.ReadFile(telemetry.path)
+	if err != nil {
+		t.Fatalf("failed to read telemetry: %v", err)
+	}
+	var entries []subscriptionTelemetryEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		t.Fatalf("failed to decode telemetry: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one telemetry entry, got %d", len(entries))
+	}
+	entry := entries[0]
+	if entry.UserId != "a1" || entry.UserAgent != "test-client/1.0" || entry.Ip != "203.0.113.8" || entry.Time == 0 {
+		t.Fatalf("unexpected telemetry entry: %#v", entry)
+	}
+}
+
 func TestOnlySubscriptionEndpointExposed(t *testing.T) {
-	handler := makeUserAPIHandler(testStore(nil))
+	handler := makeUserAPIHandler(testStore(nil), nil)
 
 	for _, path := range []string{"/healthz", "/v1/subscriptions"} {
 		rec := httptest.NewRecorder()

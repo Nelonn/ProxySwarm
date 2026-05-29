@@ -49,6 +49,18 @@ type registryStore struct {
 	updatedAt int64
 }
 
+type telemetryStore struct {
+	mu   sync.Mutex
+	path string
+}
+
+type subscriptionTelemetryEntry struct {
+	Time  int64  `json:"time_unix"`
+	UserAgent string `json:"user_agent"`
+	UserId    string `json:"user_id"`
+	Ip        string `json:"ip"`
+}
+
 type persistedRegistryState struct {
 	Config        *pb.RegistryServiceConfig `json:"config"`
 	UpdatedAtUnix int64                     `json:"updated_at_unix"`
@@ -95,6 +107,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize store: %v", err)
 	}
+	telemetry := newTelemetryStore()
 
 	server := grpc.NewServer(
 		grpc.MaxRecvMsgSize(32*1024*1024),
@@ -109,7 +122,7 @@ func main() {
 		server,
 		grpcweb.WithOriginFunc(func(origin string) bool { return true }),
 	)
-	userHandler := makeUserAPIHandler(store)
+	userHandler := makeUserAPIHandler(store, telemetry)
 	manageHandler := makeManageAPIHandler(wrappedServer)
 
 	if mode == modeSharedPort {
@@ -215,7 +228,7 @@ func withRequestLogging(next http.Handler) http.Handler {
 	})
 }
 
-func makeUserAPIHandler(store *registryStore) http.Handler {
+func makeUserAPIHandler(store *registryStore, telemetry *telemetryStore) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/subscription", func(res http.ResponseWriter, req *http.Request) {
 		setUserCORSHeaders(res)
@@ -227,6 +240,10 @@ func makeUserAPIHandler(store *registryStore) http.Handler {
 			writeErrorJSON(res, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
+		var telemetryAccount *pb.Account
+		defer func() {
+			recordSubscriptionTelemetry(telemetry, req, telemetryAccount)
+		}()
 		token := strings.TrimSpace(req.URL.Query().Get("token"))
 		if token == "" {
 			writeErrorJSON(res, http.StatusForbidden, "invalid token")
@@ -238,6 +255,7 @@ func makeUserAPIHandler(store *registryStore) http.Handler {
 			return
 		}
 		account, ok := findAccountByToken(config, token)
+		telemetryAccount = account
 		if !ok {
 			writeErrorJSON(res, http.StatusForbidden, "invalid token")
 			return
@@ -377,6 +395,100 @@ func buildProfileTitle(account *pb.Account) string {
 		}
 	}
 	return "base64:" + base64.StdEncoding.EncodeToString([]byte(title))
+}
+
+func newTelemetryStore() *telemetryStore {
+	return &telemetryStore{path: defaultTelemetryPath()}
+}
+
+func defaultTelemetryPath() string {
+	if dataDir := defaultDataRoot(); dataDir != "" {
+		return filepath.Join(dataDir, "telemetry.json")
+	}
+	return "telemetry.json"
+}
+
+func recordSubscriptionTelemetry(store *telemetryStore, req *http.Request, account *pb.Account) {
+	if store == nil || req == nil {
+		return
+	}
+	now := time.Now().UTC()
+	entry := subscriptionTelemetryEntry{
+		Time:  now.Unix(),
+		UserAgent: req.UserAgent(),
+		Ip:        forwardedClientIP(req),
+	}
+	if account != nil {
+		entry.UserId = strings.TrimSpace(account.GetId())
+	}
+	if err := store.append(entry); err != nil {
+		logInfof("failed to record subscription telemetry: %v", err)
+	}
+}
+
+func forwardedClientIP(req *http.Request) string {
+	for _, header := range []string{"CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"} {
+		value := strings.TrimSpace(req.Header.Get(header))
+		if value == "" {
+			continue
+		}
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				return strings.Trim(part, "\"")
+			}
+		}
+	}
+	if forwarded := strings.TrimSpace(req.Header.Get("Forwarded")); forwarded != "" {
+		for _, item := range strings.Split(forwarded, ";") {
+			key, value, ok := strings.Cut(strings.TrimSpace(item), "=")
+			if !ok || !strings.EqualFold(strings.TrimSpace(key), "for") {
+				continue
+			}
+			value = strings.Trim(strings.TrimSpace(value), "\"")
+			if value != "" {
+				return strings.Trim(value, "[]")
+			}
+		}
+	}
+	remote := strings.TrimSpace(req.RemoteAddr)
+	if host, _, err := net.SplitHostPort(remote); err == nil {
+		return host
+	}
+	return remote
+}
+
+func (s *telemetryStore) append(entry subscriptionTelemetryEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entries := make([]subscriptionTelemetryEntry, 0)
+	data, err := os.ReadFile(s.path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &entries); err != nil {
+			return err
+		}
+	}
+	entries = append(entries, entry)
+
+	data, err = json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		return err
+	}
+	dir := filepath.Dir(s.path)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	tmpPath := s.path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, s.path)
 }
 
 func makeManageAPIHandler(wrappedServer *grpcweb.WrappedGrpcServer) http.Handler {
