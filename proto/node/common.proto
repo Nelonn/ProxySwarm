@@ -34,7 +34,7 @@ message InboundStatus {
 }
 
 message AccountStatus {
-    string name = 1;
+    string id = 1;
     TrafficStats traffic = 2;
     uint32 online = 3;
     repeated UserSessionStatus sessions = 4;

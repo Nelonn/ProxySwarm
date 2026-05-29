@@ -541,6 +541,7 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                                 DropdownOption { value: "mKCP".to_string(), label: "mKCP".to_string() },
                                                                 DropdownOption { value: "HttpUpgrade".to_string(), label: "HttpUpgrade".to_string() },
                                                                 DropdownOption { value: "SplitHTTP".to_string(), label: "SplitHTTP".to_string() },
+                                                                DropdownOption { value: "XHTTP".to_string(), label: "XHTTP".to_string() },
                                                             ]}
                                                             onchange={update_text(|outbound, value| outbound.vless.transmission = value)}
                                                         />
@@ -883,6 +884,7 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                         DropdownOption { value: "mKCP".to_string(), label: "mKCP".to_string() },
                                         DropdownOption { value: "HttpUpgrade".to_string(), label: "HttpUpgrade".to_string() },
                                         DropdownOption { value: "SplitHTTP".to_string(), label: "SplitHTTP".to_string() },
+                                        DropdownOption { value: "XHTTP".to_string(), label: "XHTTP".to_string() },
                                     ]}
                                     onchange={update_text(|outbound, value| outbound.vless.transmission = value)}
                                 />

@@ -331,7 +331,7 @@ func (x *InboundStatus) GetConnections() *ConnectionStats {
 
 type AccountStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Traffic       *TrafficStats          `protobuf:"bytes,2,opt,name=traffic,proto3" json:"traffic,omitempty"`
 	Online        uint32                 `protobuf:"varint,3,opt,name=online,proto3" json:"online,omitempty"`
 	Sessions      []*UserSessionStatus   `protobuf:"bytes,4,rep,name=sessions,proto3" json:"sessions,omitempty"`
@@ -369,9 +369,9 @@ func (*AccountStatus) Descriptor() ([]byte, []int) {
 	return file_node_common_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *AccountStatus) GetName() string {
+func (x *AccountStatus) GetId() string {
 	if x != nil {
-		return x.Name
+		return x.Id
 	}
 	return ""
 }
@@ -878,9 +878,9 @@ const file_node_common_proto_rawDesc = "" +
 	"\rInboundStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x122\n" +
 	"\atraffic\x18\x02 \x01(\v2\x18.proxyswarm.TrafficStatsR\atraffic\x12=\n" +
-	"\vconnections\x18\x03 \x01(\v2\x1b.proxyswarm.ConnectionStatsR\vconnections\"\xaa\x01\n" +
-	"\rAccountStatus\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x122\n" +
+	"\vconnections\x18\x03 \x01(\v2\x1b.proxyswarm.ConnectionStatsR\vconnections\"\xa6\x01\n" +
+	"\rAccountStatus\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\atraffic\x18\x02 \x01(\v2\x18.proxyswarm.TrafficStatsR\atraffic\x12\x16\n" +
 	"\x06online\x18\x03 \x01(\rR\x06online\x129\n" +
 	"\bsessions\x18\x04 \x03(\v2\x1d.proxyswarm.UserSessionStatusR\bsessions\"\x9e\x01\n" +

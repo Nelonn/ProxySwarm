@@ -168,7 +168,11 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
             .user_options
             .iter()
             .filter(|option| !option.value.trim().is_empty())
-            .filter(|option| !selected_users.iter().any(|existing| existing == &option.value))
+            .filter(|option| {
+                !selected_users
+                    .iter()
+                    .any(|existing| existing == &option.value)
+            })
             .cloned()
             .collect::<Vec<_>>();
 
@@ -768,5 +772,3 @@ pub(super) fn routing_rule_editor_popup(props: &RoutingRuleEditorPopupProps) -> 
         </Popup>
     }
 }
-
-

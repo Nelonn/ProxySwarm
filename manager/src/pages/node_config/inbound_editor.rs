@@ -143,6 +143,11 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                                     next.protocol.clear();
                                                 }
                                                 next.protocol = normalize_protocol_for_core(&value, &next.protocol);
+                                                if next.core_type.trim().eq_ignore_ascii_case("SING_BOX")
+                                                    && next.vless.transmission.trim().eq_ignore_ascii_case("XHTTP")
+                                                {
+                                                    next.vless.transmission = "TCP".to_string();
+                                                }
                                                 inbound.set(next);
                                             }
                                         })}
@@ -161,6 +166,11 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                                     next.core_type = "XRAY".to_string();
                                                 }
                                                 next.protocol = normalize_protocol_for_core(&next.core_type, &next.protocol);
+                                                if next.core_type.trim().eq_ignore_ascii_case("SING_BOX")
+                                                    && next.vless.transmission.trim().eq_ignore_ascii_case("XHTTP")
+                                                {
+                                                    next.vless.transmission = "TCP".to_string();
+                                                }
                                                 inbound.set(next);
                                             }
                                         })}
@@ -213,6 +223,15 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                             },
                                             "TRUSTTUNNEL" => html! {
                                                 <ConfigSection title="TrustTunnel">
+                                                    <Dropdown
+                                                        label="Link Type"
+                                                        value={data.trust_tunnel.link_type.clone()}
+                                                        options={vec![
+                                                            DropdownOption { value: "DeepLink".to_string(), label: "DeepLink".to_string() },
+                                                            DropdownOption { value: "Simple".to_string(), label: "Simple".to_string() },
+                                                        ]}
+                                                        onchange={update_text(|inbound, value| inbound.trust_tunnel.link_type = value)}
+                                                    />
                                                     <TextBox label="[listen_protocols.http1] upload_buffer_size" value={data.trust_tunnel.http1_upload_buffer_size.to_string()} onchange={update_text(|inbound, value| inbound.trust_tunnel.http1_upload_buffer_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] initial_connection_window_size" value={data.trust_tunnel.http2_initial_connection_window_size.to_string()} onchange={update_text(|inbound, value| inbound.trust_tunnel.http2_initial_connection_window_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] initial_stream_window_size" value={data.trust_tunnel.http2_initial_stream_window_size.to_string()} onchange={update_text(|inbound, value| inbound.trust_tunnel.http2_initial_stream_window_size = value.parse().unwrap_or(0))} input_type="number" />
@@ -323,15 +342,7 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                                     <Dropdown
                                                         label="Transmission"
                                                         value={vless_transmission_from(&data.vless.transmission)}
-                                                        options={vec![
-                                                            DropdownOption { value: "TCP".to_string(), label: "TCP (RAW)".to_string() },
-                                                            DropdownOption { value: "HTTP".to_string(), label: "HTTP".to_string() },
-                                                            DropdownOption { value: "gRPC".to_string(), label: "gRPC".to_string() },
-                                                            DropdownOption { value: "WebSocket".to_string(), label: "WebSocket".to_string() },
-                                                            DropdownOption { value: "mKCP".to_string(), label: "mKCP".to_string() },
-                                                            DropdownOption { value: "HttpUpgrade".to_string(), label: "HttpUpgrade".to_string() },
-                                                            DropdownOption { value: "SplitHTTP".to_string(), label: "SplitHTTP".to_string() },
-                                                        ]}
+                                                        options={vless_transmission_options_for_core(&data.core_type)}
                                                         onchange={update_text(|inbound, value| inbound.vless.transmission = value)}
                                                     />
                                                 </ConfigSection>
@@ -679,6 +690,15 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                         },
                         "TRUSTTUNNEL" => html! {
                             <ConfigSection title="TrustTunnel">
+                                <Dropdown
+                                    label="Link Type"
+                                    value={data.trust_tunnel.link_type.clone()}
+                                    options={vec![
+                                        DropdownOption { value: "DeepLink".to_string(), label: "DeepLink".to_string() },
+                                        DropdownOption { value: "Simple".to_string(), label: "Simple".to_string() },
+                                    ]}
+                                    onchange={update_text(|inbound, value| inbound.trust_tunnel.link_type = value)}
+                                />
                                 <TextBox label="[listen_protocols.http1] upload_buffer_size" value={data.trust_tunnel.http1_upload_buffer_size.to_string()} onchange={update_text(|inbound, value| inbound.trust_tunnel.http1_upload_buffer_size = value.parse().unwrap_or(0))} input_type="number" />
                                 <TextBox label="[listen_protocols.http2] initial_connection_window_size" value={data.trust_tunnel.http2_initial_connection_window_size.to_string()} onchange={update_text(|inbound, value| inbound.trust_tunnel.http2_initial_connection_window_size = value.parse().unwrap_or(0))} input_type="number" />
                                 <TextBox label="[listen_protocols.http2] initial_stream_window_size" value={data.trust_tunnel.http2_initial_stream_window_size.to_string()} onchange={update_text(|inbound, value| inbound.trust_tunnel.http2_initial_stream_window_size = value.parse().unwrap_or(0))} input_type="number" />
@@ -775,15 +795,7 @@ pub(super) fn inbound_editor_popup(props: &InboundEditorPopupProps) -> Html {
                                 <Dropdown
                                     label="Transmission"
                                     value={vless_transmission_from(&data.vless.transmission)}
-                                    options={vec![
-                                        DropdownOption { value: "TCP".to_string(), label: "TCP (RAW)".to_string() },
-                                        DropdownOption { value: "HTTP".to_string(), label: "HTTP".to_string() },
-                                        DropdownOption { value: "gRPC".to_string(), label: "gRPC".to_string() },
-                                        DropdownOption { value: "WebSocket".to_string(), label: "WebSocket".to_string() },
-                                        DropdownOption { value: "mKCP".to_string(), label: "mKCP".to_string() },
-                                        DropdownOption { value: "HttpUpgrade".to_string(), label: "HttpUpgrade".to_string() },
-                                        DropdownOption { value: "SplitHTTP".to_string(), label: "SplitHTTP".to_string() },
-                                    ]}
+                                    options={vless_transmission_options_for_core(&data.core_type)}
                                     onchange={update_text(|inbound, value| inbound.vless.transmission = value)}
                                 />
                             </ConfigSection>

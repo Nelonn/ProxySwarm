@@ -260,5 +260,3 @@ pub(super) fn dns_host_editor_popup(props: &DnsHostEditorPopupProps) -> Html {
         </Popup>
     }
 }
-
-

@@ -42,7 +42,6 @@ type XrayEngine struct {
 	lastDnsConfig         *pb.DnsConfig
 	lastRules             []*pb.RoutingRule
 	lastAccounts          map[string]map[string]string // inbound tag -> email -> token
-	lastAccountNames      map[string]string            // account id -> public remark
 	lastOutboundsSnapshot []*pb.OutboundConfig
 	lastOutbounds         map[string]*pb.OutboundStatus
 }
@@ -68,10 +67,9 @@ type WireGuardDeviceConfig struct {
 
 func NewXrayEngine(name string) *XrayEngine {
 	return &XrayEngine{
-		name:             name,
-		lastAccounts:     make(map[string]map[string]string),
-		lastAccountNames: make(map[string]string),
-		lastOutbounds:    make(map[string]*pb.OutboundStatus),
+		name:          name,
+		lastAccounts:  make(map[string]map[string]string),
+		lastOutbounds: make(map[string]*pb.OutboundStatus),
 	}
 }
 
@@ -80,17 +78,6 @@ func accountRuntimeID(acc *pb.Account) string {
 		return ""
 	}
 	return strings.TrimSpace(acc.Id)
-}
-
-func accountDisplayName(acc *pb.Account) string {
-	if acc == nil {
-		return ""
-	}
-	name := strings.TrimSpace(acc.Name)
-	if name == "" {
-		return accountRuntimeID(acc)
-	}
-	return name
 }
 
 func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
@@ -175,7 +162,6 @@ func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.Outbo
 	e.lastOutboundsSnapshot = cloneProtoSlice(outbounds)
 	e.lastRules = cloneProtoSlice(rules)
 	e.lastAccounts = make(map[string]map[string]string)
-	e.lastAccountNames = make(map[string]string)
 	e.lastOutbounds = make(map[string]*pb.OutboundStatus)
 	for _, inbound := range inbounds {
 		if inbound == nil || strings.TrimSpace(inbound.Name) == "" {
@@ -188,7 +174,6 @@ func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.Outbo
 				continue
 			}
 			accounts[id] = acc.Token
-			e.lastAccountNames[id] = accountDisplayName(acc)
 		}
 		if len(accounts) > 0 {
 			e.lastAccounts[inbound.Name] = accounts
@@ -305,7 +290,6 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 			credential = strings.TrimSpace(hy2Cfg.Password)
 		}
 		newAccounts[id] = credential
-		e.lastAccountNames[id] = accountDisplayName(acc)
 	}
 	oldAccounts := e.lastAccounts[tag]
 	if oldAccounts == nil {
@@ -371,18 +355,6 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 		delete(e.lastAccounts, tag)
 	} else {
 		e.lastAccounts[tag] = newAccounts
-	}
-	for id := range e.lastAccountNames {
-		stillUsed := false
-		for _, inboundAccounts := range e.lastAccounts {
-			if _, ok := inboundAccounts[id]; ok {
-				stillUsed = true
-				break
-			}
-		}
-		if !stillUsed {
-			delete(e.lastAccountNames, id)
-		}
 	}
 	return nil
 }
@@ -869,6 +841,8 @@ func xrayVlessNetwork(transmission string) *conf.TransportProtocol {
 		network = "httpupgrade"
 	case "SplitHTTP":
 		network = "splithttp"
+	case "XHTTP":
+		network = "xhttp"
 	default:
 		network = "tcp"
 	}
@@ -1416,28 +1390,24 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 
 	seenAccounts := make(map[string]struct{})
 	for _, accounts := range e.lastAccounts {
-		for accountName := range accounts {
-			if _, ok := seenAccounts[accountName]; ok {
+		for accountID := range accounts {
+			if _, ok := seenAccounts[accountID]; ok {
 				continue
 			}
-			seenAccounts[accountName] = struct{}{}
-			displayName := strings.TrimSpace(e.lastAccountNames[accountName])
-			if displayName == "" {
-				displayName = accountName
-			}
+			seenAccounts[accountID] = struct{}{}
 			account := &pb.AccountStatus{
-				Name: displayName,
+				Id: accountID,
 				Traffic: querySingleStatPair(
 					ctx,
 					client,
-					fmt.Sprintf("user>>>%s>>>traffic>>>downlink", accountName),
-					fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountName),
+					fmt.Sprintf("user>>>%s>>>traffic>>>downlink", accountID),
+					fmt.Sprintf("user>>>%s>>>traffic>>>uplink", accountID),
 				),
 			}
-			if _, ok := onlineUsers[accountName]; ok {
+			if _, ok := onlineUsers[accountID]; ok {
 				account.Online = 1
 				if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-					Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+					Name:   fmt.Sprintf("user>>>%s>>>online", accountID),
 					Reset_: false,
 				}); err == nil {
 					for ip := range onlineIps.GetIps() {
@@ -1454,7 +1424,7 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 					}
 				}
 			} else if onlineIps, err := client.GetStatsOnlineIpList(ctx, &statsService.GetStatsRequest{
-				Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+				Name:   fmt.Sprintf("user>>>%s>>>online", accountID),
 				Reset_: false,
 			}); err == nil {
 				for ip := range onlineIps.GetIps() {
@@ -1468,7 +1438,7 @@ func (e *XrayEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
 				})
 				account.Online = uint32(len(account.Sessions))
 			} else if online, err := client.GetStatsOnline(ctx, &statsService.GetStatsRequest{
-				Name:   fmt.Sprintf("user>>>%s>>>online", accountName),
+				Name:   fmt.Sprintf("user>>>%s>>>online", accountID),
 				Reset_: false,
 			}); err == nil && online.GetStat() != nil && online.Stat.Value > 0 {
 				account.Online = uint32(online.Stat.Value)

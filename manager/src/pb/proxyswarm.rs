@@ -73,7 +73,7 @@ pub struct InboundStatus {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AccountStatus {
     #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
+    pub id: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
     pub traffic: ::core::option::Option<TrafficStats>,
     #[prost(uint32, tag = "3")]

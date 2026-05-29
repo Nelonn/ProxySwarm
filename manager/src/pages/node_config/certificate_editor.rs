@@ -197,5 +197,3 @@ pub(super) fn certificate_editor_popup(props: &CertificateEditorPopupProps) -> H
         </Popup>
     }
 }
-
-

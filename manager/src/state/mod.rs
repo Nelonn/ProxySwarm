@@ -410,6 +410,8 @@ pub struct Hysteria2Draft {
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrustTunnelDraft {
+    #[serde(default = "default_trusttunnel_link_type")]
+    pub link_type: String,
     #[serde(default = "default_http1_upload_buffer_size")]
     pub http1_upload_buffer_size: u32,
     #[serde(default = "default_http2_initial_connection_window_size")]
@@ -427,6 +429,7 @@ pub struct TrustTunnelDraft {
 impl Default for TrustTunnelDraft {
     fn default() -> Self {
         Self {
+            link_type: default_trusttunnel_link_type(),
             http1_upload_buffer_size: default_http1_upload_buffer_size(),
             http2_initial_connection_window_size: default_http2_initial_connection_window_size(),
             http2_initial_stream_window_size: default_http2_initial_stream_window_size(),
@@ -435,6 +438,10 @@ impl Default for TrustTunnelDraft {
             http2_header_table_size: default_http2_header_table_size(),
         }
     }
+}
+
+fn default_trusttunnel_link_type() -> String {
+    "DeepLink".to_string()
 }
 
 fn default_http1_upload_buffer_size() -> u32 {

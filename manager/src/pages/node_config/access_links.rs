@@ -80,7 +80,7 @@ pub(super) fn build_vless_access_link(
     }
 
     match transmission.as_str() {
-        "ws" | "httpupgrade" | "splithttp" | "http" => {
+        "ws" | "httpupgrade" | "splithttp" | "xhttp" | "http" => {
             query.push(("path".to_string(), "/".to_string()));
             query.push(("host".to_string(), default_sni.clone()));
         }
@@ -196,6 +196,38 @@ pub(super) fn build_trusttunnel_access_link(
     let custom_sni = inbound.tls.server_name.trim().to_string();
     let config_name = rendered_link_remark(draft, node, inbound, account);
 
+    if inbound
+        .trust_tunnel
+        .link_type
+        .trim()
+        .eq_ignore_ascii_case("Simple")
+    {
+        let mut link_host = host.clone();
+        if link_host.contains(':') && !link_host.starts_with('[') && !link_host.contains('.') {
+            link_host = format!("[{}]", link_host);
+        }
+        let sni = if custom_sni.is_empty() {
+            host.clone()
+        } else {
+            custom_sni
+        };
+        let query_string = vec![("security", "tls".to_string()), ("sni", sni)]
+            .into_iter()
+            .map(|(key, value)| format!("{}={}", key, js_sys::encode_uri_component(&value)))
+            .collect::<Vec<_>>()
+            .join("&");
+
+        return Ok(format!(
+            "tt://{}:{}@{}:{}?{}#{}",
+            js_sys::encode_uri_component(&username),
+            js_sys::encode_uri_component(&password),
+            link_host,
+            inbound.port,
+            query_string,
+            js_sys::encode_uri_component(&config_name)
+        ));
+    }
+
     let config = DeepLinkConfig::builder()
         .hostname(host.clone())
         .addresses(vec![format!("{}:{}", host, inbound.port)])
@@ -275,6 +307,57 @@ pub(super) fn build_hysteria2_access_link(
     ))
 }
 
+pub(super) fn build_naiveproxy_access_link(
+    draft: &NodeConfigDraft,
+    node: &ProxyNode,
+    inbound: &InboundEntryDraft,
+    account: &AccountInfo,
+) -> Result<String, String> {
+    if inbound.protocol.trim().to_uppercase() != "NAIVEPROXY" {
+        return Err("Selected inbound is not NaiveProxy".to_string());
+    }
+
+    let mut host = normalized_node_host(node)?;
+    if host.contains(':') && !host.starts_with('[') && !host.contains('.') {
+        host = format!("[{}]", host);
+    }
+
+    let username = account.id.trim();
+    if username.is_empty() {
+        return Err("User id is empty".to_string());
+    }
+
+    let password = if !account.token.trim().is_empty() {
+        account.token.trim()
+    } else {
+        account.id.trim()
+    };
+    if password.is_empty() {
+        return Err("User token is empty".to_string());
+    }
+
+    let sni = if inbound.tls.server_name.trim().is_empty() {
+        host.trim_matches(&['[', ']'][..]).to_string()
+    } else {
+        inbound.tls.server_name.trim().to_string()
+    };
+    let query_string = vec![("security", "tls".to_string()), ("sni", sni)]
+        .into_iter()
+        .map(|(key, value)| format!("{}={}", key, js_sys::encode_uri_component(&value)))
+        .collect::<Vec<_>>()
+        .join("&");
+
+    Ok(format!(
+        "naive+https://{}:{}@{}:{}?{}#{}",
+        js_sys::encode_uri_component(username),
+        js_sys::encode_uri_component(password),
+        host,
+        inbound.port,
+        query_string,
+        js_sys::encode_uri_component(&rendered_link_remark(draft, node, inbound, account))
+    ))
+}
+
 pub(super) fn build_access_link(
     draft: &NodeConfigDraft,
     node: &ProxyNode,
@@ -285,7 +368,11 @@ pub(super) fn build_access_link(
         "VLESS" => build_vless_access_link(draft, node, inbound, account),
         "TRUSTTUNNEL" => build_trusttunnel_access_link(draft, node, inbound, account),
         "HYSTERIA2" => build_hysteria2_access_link(draft, node, inbound, account),
-        _ => Err("Access link is available only for VLESS, Hysteria2, and TrustTunnel inbounds".to_string()),
+        "NAIVEPROXY" => build_naiveproxy_access_link(draft, node, inbound, account),
+        _ => Err(
+            "Access link is available only for VLESS, Hysteria2, TrustTunnel, and NaiveProxy inbounds"
+                .to_string(),
+        ),
     }
 }
 
@@ -335,5 +422,3 @@ pub(super) fn qr_svg(value: &str) -> Option<String> {
         total, path
     ))
 }
-
-

@@ -829,6 +829,7 @@ pub(super) fn vless_transmission_from(value: &str) -> String {
         "MKCP" => "mKCP".to_string(),
         "HTTPUPGRADE" => "HttpUpgrade".to_string(),
         "SPLITHTTP" => "SplitHTTP".to_string(),
+        "XHTTP" => "XHTTP".to_string(),
         _ => "TCP".to_string(),
     }
 }
@@ -841,8 +842,49 @@ pub(super) fn vless_link_type(value: &str) -> &'static str {
         "mKCP" => "kcp",
         "HttpUpgrade" => "httpupgrade",
         "SplitHTTP" => "splithttp",
+        "XHTTP" => "xhttp",
         _ => "tcp",
     }
+}
+
+pub(super) fn vless_transmission_options_for_core(core_type: &str) -> Vec<DropdownOption> {
+    let mut options = vec![
+        DropdownOption {
+            value: "TCP".to_string(),
+            label: "TCP (RAW)".to_string(),
+        },
+        DropdownOption {
+            value: "HTTP".to_string(),
+            label: "HTTP".to_string(),
+        },
+        DropdownOption {
+            value: "gRPC".to_string(),
+            label: "gRPC".to_string(),
+        },
+        DropdownOption {
+            value: "WebSocket".to_string(),
+            label: "WebSocket".to_string(),
+        },
+        DropdownOption {
+            value: "mKCP".to_string(),
+            label: "mKCP".to_string(),
+        },
+        DropdownOption {
+            value: "HttpUpgrade".to_string(),
+            label: "HttpUpgrade".to_string(),
+        },
+        DropdownOption {
+            value: "SplitHTTP".to_string(),
+            label: "SplitHTTP".to_string(),
+        },
+    ];
+    if core_type.trim().eq_ignore_ascii_case("XRAY") {
+        options.push(DropdownOption {
+            value: "XHTTP".to_string(),
+            label: "XHTTP".to_string(),
+        });
+    }
+    options
 }
 
 pub(super) fn shadowsocks_method_options() -> Vec<DropdownOption> {

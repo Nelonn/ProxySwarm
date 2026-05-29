@@ -12,18 +12,19 @@ use yew::prelude::*;
 use yew_router::prelude::use_navigator;
 
 use crate::components::{
-    ActionMenuPopup, Button, ButtonSize, ButtonType, Chip, ChipMode, Dropdown, DropdownOption, IconButton,
-    Popup, PopupSize, RichTable, SnackbarBus, SvgIcon, Switch, SwitchField, TextBox,
+    ActionMenuPopup, Button, ButtonSize, ButtonType, Chip, ChipMode, Dropdown, DropdownOption,
+    IconButton, Popup, PopupSize, RichTable, SnackbarBus, SvgIcon, Switch, SwitchField, TextBox,
     WideNavigationBar, WideNavigationBarItem,
 };
 use crate::pb::proxyswarm::{
     outbound_config, Account, AccountStatus, AcmeCertificateConfig, CertificateConfig, CoreType,
-    CustomCertificateConfig, CustomOutboundConfig, DnsConfig, DnsHostMapping, DnsServerConfig, FullConfig,
-    Hysteria2Config, InboundConfig, InboundStatus, NaiveProxyConfig, NodeStatus, OutboundConfig,
-    OutboundStatus, OutboundType, RoutingRule, SecurityMode, ShadowsocksInboundConfig,
-    ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig, TlsConfig, TrafficStats, TrustTunnelConfig, TunnelConfig, VlessConfig,
-    VlessOutboundConfig, VlessRealityConfig, WireGuardConfig, WireGuardPeer,
-    TrojanInboundConfig, TrojanOutboundConfig, VlessReverseProxyConfig, TProxyConfig,
+    CustomCertificateConfig, CustomOutboundConfig, DnsConfig, DnsHostMapping, DnsServerConfig,
+    FullConfig, Hysteria2Config, InboundConfig, InboundStatus, NaiveProxyConfig, NodeStatus,
+    OutboundConfig, OutboundStatus, OutboundType, RoutingRule, SecurityMode,
+    ShadowsocksInboundConfig, ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig,
+    TProxyConfig, TlsConfig, TrafficStats, TrojanInboundConfig, TrojanOutboundConfig,
+    TrustTunnelConfig, TunnelConfig, VlessConfig, VlessOutboundConfig, VlessRealityConfig,
+    VlessReverseProxyConfig, WireGuardConfig, WireGuardPeer,
 };
 use crate::services::node_api::{AcmeIssueRequest, AcmeIssueResponse};
 use crate::services::warp::{
@@ -31,12 +32,13 @@ use crate::services::warp::{
 };
 use crate::services::ApiService;
 use crate::state::{
-    default_link_remark_template, effective_inbound_groups, format_link_remark, normalize_groups, AccountInfo,
-    CertificateDraft, DnsDraft, DnsHostDraft, DnsServerDraft, Hysteria2Draft, InboundEntryDraft,
-    NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision, OutboundEntryDraft, ProxyNode,
-    RoutingRuleDraft, ShadowsocksDraft, Socks5Draft, State, TlsDraft, TrustTunnelDraft, TunnelDraft,
-    TrustTunnelOutboundDraft, VlessInboundDraft, VlessOutboundDraft, WarpRegistrationDraft,
-    WireGuardDraft, WireGuardPeerItem, TrojanDraft, ReverseProxyDraft, TProxyDraft, CustomOutboundDraft,
+    default_link_remark_template, effective_inbound_groups, format_link_remark, normalize_groups,
+    AccountInfo, CertificateDraft, CustomOutboundDraft, DnsDraft, DnsHostDraft, DnsServerDraft,
+    Hysteria2Draft, InboundEntryDraft, NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision,
+    OutboundEntryDraft, ProxyNode, ReverseProxyDraft, RoutingRuleDraft, ShadowsocksDraft,
+    Socks5Draft, State, TProxyDraft, TlsDraft, TrojanDraft, TrustTunnelDraft,
+    TrustTunnelOutboundDraft, TunnelDraft, VlessInboundDraft, VlessOutboundDraft,
+    WarpRegistrationDraft, WireGuardDraft, WireGuardPeerItem,
 };
 use crate::storage;
 use crate::Route;
@@ -55,24 +57,24 @@ enum ConfigTab {
     Status,
 }
 
-mod inbounds;
-mod outbounds;
-mod routing;
-mod settings;
-mod status;
-mod helpers;
-mod status_widgets;
-mod config_build;
+mod access_link_popup;
 mod access_links;
+mod certificate_editor;
+mod config_build;
 mod dns_editors;
+mod helpers;
+mod inbound_editor;
+mod inbounds;
+mod outbound_editor;
+mod outbounds;
+mod popup_host;
 mod popups;
 mod review;
-mod certificate_editor;
-mod inbound_editor;
-mod outbound_editor;
-mod access_link_popup;
+mod routing;
 mod routing_rule_editor;
-mod popup_host;
+mod settings;
+mod status;
+mod status_widgets;
 
 use access_link_popup::*;
 use access_links::*;
@@ -130,7 +132,6 @@ fn nav_items() -> Vec<WideNavigationBarItem> {
         },
     ]
 }
-
 
 fn persist_revision(
     state: &UseStateHandle<State>,

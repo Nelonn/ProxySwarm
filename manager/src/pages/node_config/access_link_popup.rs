@@ -186,6 +186,3 @@ pub(super) fn access_link_popup(props: &AccessLinkPopupProps) -> Html {
         </Popup>
     }
 }
-
-
-

@@ -385,4 +385,3 @@ pub(super) fn render_settings_tab(
         </div>
     }
 }
-

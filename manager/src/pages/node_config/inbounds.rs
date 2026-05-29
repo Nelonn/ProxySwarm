@@ -93,4 +93,3 @@ pub(super) fn render_inbounds_tab(
                         </div>
     }
 }
-

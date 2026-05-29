@@ -78,6 +78,7 @@ pub(super) fn render_inbound_review(data: &InboundEntryDraft) -> Html {
                             review_row("TLS certificate", optional_label(&data.tls.certificate_name)),
                         ]),
                         "TRUSTTUNNEL" => review_section("TrustTunnel", vec![
+                            review_row("Link type", optional_label(&data.trust_tunnel.link_type)),
                             review_row("HTTP/1 upload buffer", data.trust_tunnel.http1_upload_buffer_size.to_string()),
                             review_row("HTTP/2 initial connection window", data.trust_tunnel.http2_initial_connection_window_size.to_string()),
                             review_row("HTTP/2 initial stream window", data.trust_tunnel.http2_initial_stream_window_size.to_string()),

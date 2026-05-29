@@ -66,99 +66,147 @@ struct OutboundEditorPopupSlot;
 struct AccessLinkPopupSlot;
 
 impl NodeConfigPopup for RoutingRuleEditorPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_routing_rule_editor_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_routing_rule_editor_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for RoutingRuleActionMenuPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_routing_rule_action_menu_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_routing_rule_action_menu_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for ReverseProxyEditorPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_reverse_proxy_editor_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_reverse_proxy_editor_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for ReverseProxyActionMenuPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_reverse_proxy_action_menu_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_reverse_proxy_action_menu_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DeleteReverseProxyPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_delete_reverse_proxy_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_delete_reverse_proxy_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DuplicateReverseProxyPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_duplicate_reverse_proxy_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_duplicate_reverse_proxy_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DeployConfirmPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_deploy_confirm_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_deploy_confirm_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DeployPreviewPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_deploy_preview_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_deploy_preview_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DeleteInboundPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_delete_inbound_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_delete_inbound_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for InboundActionMenuPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_inbound_action_menu_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_inbound_action_menu_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DuplicateInboundPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_duplicate_inbound_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_duplicate_inbound_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for OutboundActionMenuPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_outbound_action_menu_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_outbound_action_menu_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DeleteOutboundPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_delete_outbound_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_delete_outbound_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DuplicateOutboundPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_duplicate_outbound_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_duplicate_outbound_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DeleteRoutingRulePopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_delete_routing_rule_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_delete_routing_rule_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for WarpCreatePopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_warp_create_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_warp_create_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for AcmeConfirmPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_acme_confirm_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_acme_confirm_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for AcmeLogsPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_acme_logs_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_acme_logs_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DnsServerEditorPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_dns_server_editor_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_dns_server_editor_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for DnsHostEditorPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_dns_host_editor_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_dns_host_editor_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for CertificateEditorPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_certificate_editor_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_certificate_editor_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for InboundEditorPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_inbound_editor_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_inbound_editor_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for OutboundEditorPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_outbound_editor_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_outbound_editor_popup(ctx)
+    }
 }
 
 impl NodeConfigPopup for AccessLinkPopupSlot {
-    fn render(&self, ctx: &PopupHostContext<'_>) -> Html { render_access_link_popup(ctx) }
+    fn render(&self, ctx: &PopupHostContext<'_>) -> Html {
+        render_access_link_popup(ctx)
+    }
 }
 
 fn popup_slots() -> Vec<Box<dyn NodeConfigPopup>> {
@@ -199,7 +247,11 @@ fn routing_outbound_options(draft: &NodeConfigDraft) -> Vec<DropdownOption> {
     let mut options = Vec::new();
     for outbound in &draft.outbounds {
         let tag = outbound_tag_for_routing(outbound);
-        if tag.trim().is_empty() || options.iter().any(|option: &DropdownOption| option.value == tag) {
+        if tag.trim().is_empty()
+            || options
+                .iter()
+                .any(|option: &DropdownOption| option.value == tag)
+        {
             continue;
         }
         options.push(DropdownOption {
@@ -209,12 +261,19 @@ fn routing_outbound_options(draft: &NodeConfigDraft) -> Vec<DropdownOption> {
     }
     for (index, reverse_proxy) in draft.reverse_proxies.iter().enumerate() {
         let tag = reverse_proxy.tag.trim().to_string();
-        if tag.is_empty() || options.iter().any(|option: &DropdownOption| option.value == tag) {
+        if tag.is_empty()
+            || options
+                .iter()
+                .any(|option: &DropdownOption| option.value == tag)
+        {
             continue;
         }
         options.push(DropdownOption {
             value: tag.clone(),
-            label: format!("{} (VLESS Reverse)", reverse_proxy_display_name(reverse_proxy, index)),
+            label: format!(
+                "{} (VLESS Reverse)",
+                reverse_proxy_display_name(reverse_proxy, index)
+            ),
         });
     }
     options
@@ -384,10 +443,16 @@ fn render_reverse_proxy_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
 }
 
 fn render_reverse_proxy_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
-    let Some((reverse_proxy_index, (left, top, width))) = (**ctx.action_reverse_proxy).clone() else {
+    let Some((reverse_proxy_index, (left, top, width))) = (**ctx.action_reverse_proxy).clone()
+    else {
         return html! {};
     };
-    let Some(reverse_proxy) = ctx.draft_value.reverse_proxies.get(reverse_proxy_index).cloned() else {
+    let Some(reverse_proxy) = ctx
+        .draft_value
+        .reverse_proxies
+        .get(reverse_proxy_index)
+        .cloned()
+    else {
         return html! {};
     };
 
@@ -432,7 +497,9 @@ fn render_reverse_proxy_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
 }
 
 fn render_delete_reverse_proxy_popup(ctx: &PopupHostContext<'_>) -> Html {
-    if let Some((reverse_proxy_index, reverse_proxy_name)) = (**ctx.pending_reverse_proxy_delete).clone() {
+    if let Some((reverse_proxy_index, reverse_proxy_name)) =
+        (**ctx.pending_reverse_proxy_delete).clone()
+    {
         html! {
             <ConfirmPopup
                 title="Delete VLESS Reverse"
@@ -620,7 +687,13 @@ fn render_inbound_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
     let Some((inbound_id, (left, top, width))) = (**ctx.action_inbound).clone() else {
         return html! {};
     };
-    let Some(inbound) = ctx.draft_value.inbounds.iter().find(|item| item.id == inbound_id).cloned() else {
+    let Some(inbound) = ctx
+        .draft_value
+        .inbounds
+        .iter()
+        .find(|item| item.id == inbound_id)
+        .cloned()
+    else {
         return html! {};
     };
 
@@ -700,7 +773,13 @@ fn render_outbound_action_menu_popup(ctx: &PopupHostContext<'_>) -> Html {
     let Some((outbound_id, (left, top, width))) = (**ctx.action_outbound).clone() else {
         return html! {};
     };
-    let Some(outbound) = ctx.draft_value.outbounds.iter().find(|item| item.id == outbound_id).cloned() else {
+    let Some(outbound) = ctx
+        .draft_value
+        .outbounds
+        .iter()
+        .find(|item| item.id == outbound_id)
+        .cloned()
+    else {
         return html! {};
     };
 
@@ -1213,9 +1292,13 @@ fn render_outbound_editor_popup(ctx: &PopupHostContext<'_>) -> Html {
 }
 
 fn render_access_link_popup(ctx: &PopupHostContext<'_>) -> Html {
-    let selected_access_inbound = (**ctx.access_link_inbound_id)
-        .clone()
-        .and_then(|id| ctx.draft_value.inbounds.iter().find(|inbound| inbound.id == id).cloned());
+    let selected_access_inbound = (**ctx.access_link_inbound_id).clone().and_then(|id| {
+        ctx.draft_value
+            .inbounds
+            .iter()
+            .find(|inbound| inbound.id == id)
+            .cloned()
+    });
 
     if let Some(inbound) = selected_access_inbound {
         html! {

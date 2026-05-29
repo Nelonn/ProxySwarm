@@ -5,8 +5,8 @@ use web_sys::{window, HtmlInputElement};
 use yew::prelude::*;
 
 use crate::components::{
-    ActionMenuPopup, Button, ButtonType, Dropdown, DropdownOption, Popup, PopupSize, RichTable,
-    SnackbarBus, Switch, TextBox, menu_anchor_from_mouse_event,
+    menu_anchor_from_mouse_event, ActionMenuPopup, Button, ButtonType, Dropdown, DropdownOption,
+    Popup, PopupSize, RichTable, SnackbarBus, Switch, TextBox,
 };
 use crate::pb::proxyswarm::RegistryStatusResponse;
 use crate::services::registry_api::RegistryApiService;
@@ -440,7 +440,10 @@ pub fn registries() -> Html {
     }
 }
 
-fn build_registry_access_link(registry: &RegistryInfo, account: &AccountInfo) -> Result<String, String> {
+fn build_registry_access_link(
+    registry: &RegistryInfo,
+    account: &AccountInfo,
+) -> Result<String, String> {
     let mut endpoint = registry.public_endpoint.trim().to_string();
     if endpoint.is_empty() {
         return Err("Registry public endpoint is empty".to_string());
@@ -529,7 +532,11 @@ fn registry_access_link_popup(props: &RegistryAccessLinkPopupProps) -> Html {
         let generated_link = generated_link.clone();
         let copy_status = copy_status.clone();
         use_effect_with(
-            ((*selected_account_id).clone(), props.registry.id.clone(), props.accounts.clone()),
+            (
+                (*selected_account_id).clone(),
+                props.registry.id.clone(),
+                props.accounts.clone(),
+            ),
             move |_| {
                 copy_status.set(None);
                 match selected_account

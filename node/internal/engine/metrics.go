@@ -106,13 +106,13 @@ func (s *persistedMetricsState) ensure() {
 			inbound.Connections = &pb.ConnectionStats{}
 		}
 	}
-	for name, account := range s.Accounts {
+	for id, account := range s.Accounts {
 		if account == nil {
-			account = &pb.AccountStatus{Name: name}
-			s.Accounts[name] = account
+			account = &pb.AccountStatus{Id: id}
+			s.Accounts[id] = account
 		}
-		if account.Name == "" {
-			account.Name = name
+		if account.Id == "" {
+			account.Id = id
 		}
 		if account.Traffic == nil {
 			account.Traffic = &pb.TrafficStats{}
@@ -198,10 +198,14 @@ func (m *Manager) sampleMetrics() {
 			if account == nil {
 				continue
 			}
-			stateAccount := ensureAccountMetric(m.metricsState, account.Name)
+			id := strings.TrimSpace(account.Id)
+			if id == "" {
+				continue
+			}
+			stateAccount := ensureAccountMetric(m.metricsState, id)
 			stateAccount.Online += account.Online
 			stateAccount.Sessions = cloneUserSessions(account.Sessions)
-			sourceKey := "account:" + snapshot.name + ":" + account.Name
+			sourceKey := "account:" + snapshot.name + ":" + id
 			seenRaw[sourceKey] = struct{}{}
 			delta := applyTrafficDelta(m.lastRaw, sourceKey, account.Traffic, stateAccount.Traffic, windowSeconds)
 			if stateAccount.Online == 0 && (delta.Rx > 0 || delta.Tx > 0) {
@@ -337,15 +341,18 @@ func ensureInboundMetric(state *persistedMetricsState, name string) *pb.InboundS
 	return inbound
 }
 
-func ensureAccountMetric(state *persistedMetricsState, name string) *pb.AccountStatus {
+func ensureAccountMetric(state *persistedMetricsState, id string) *pb.AccountStatus {
 	state.ensure()
-	account := state.Accounts[name]
+	account := state.Accounts[id]
 	if account == nil {
 		account = &pb.AccountStatus{
-			Name:    name,
+			Id:      id,
 			Traffic: &pb.TrafficStats{},
 		}
-		state.Accounts[name] = account
+		state.Accounts[id] = account
+	}
+	if account.Id == "" {
+		account.Id = id
 	}
 	if account.Traffic == nil {
 		account.Traffic = &pb.TrafficStats{}
@@ -417,31 +424,30 @@ func (m *Manager) inboundStatusesLocked() []*pb.InboundStatus {
 
 func (m *Manager) accountStatusesLocked() []*pb.AccountStatus {
 	m.metricsState.ensure()
-	names := make([]string, 0)
+	ids := make([]string, 0)
 	if m.currentConfig != nil {
 		for _, account := range m.currentConfig.Accounts {
 			if account == nil {
 				continue
 			}
-			stateAccount := ensureAccountMetric(m.metricsState, account.Id)
-			displayName := strings.TrimSpace(account.Name)
-			if displayName == "" {
-				displayName = strings.TrimSpace(account.Id)
+			id := strings.TrimSpace(account.Id)
+			if id == "" {
+				continue
 			}
-			stateAccount.Name = displayName
-			names = append(names, account.Id)
+			ensureAccountMetric(m.metricsState, id)
+			ids = append(ids, id)
 		}
 	} else {
-		for name := range m.metricsState.Accounts {
-			names = append(names, name)
+		for id := range m.metricsState.Accounts {
+			ids = append(ids, id)
 		}
-		sort.Strings(names)
+		sort.Strings(ids)
 	}
-	result := make([]*pb.AccountStatus, 0, len(names))
-	for _, name := range names {
-		if account := m.metricsState.Accounts[name]; account != nil {
+	result := make([]*pb.AccountStatus, 0, len(ids))
+	for _, id := range ids {
+		if account := m.metricsState.Accounts[id]; account != nil {
 			result = append(result, &pb.AccountStatus{
-				Name:     account.Name,
+				Id:       account.Id,
 				Traffic:  cloneTrafficStats(account.Traffic),
 				Online:   account.Online,
 				Sessions: cloneUserSessions(account.Sessions),

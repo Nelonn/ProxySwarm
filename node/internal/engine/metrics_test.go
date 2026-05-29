@@ -21,11 +21,11 @@ func TestAccountStatusesLockedIncludesConfiguredAccountsWithoutSamples(t *testin
 	if len(accounts) != 2 {
 		t.Fatalf("expected 2 account statuses, got %d", len(accounts))
 	}
-	if accounts[0].GetName() != "Alice" {
-		t.Fatalf("expected first account name Alice, got %q", accounts[0].GetName())
+	if accounts[0].GetId() != "ac40ca0f" {
+		t.Fatalf("expected first account id ac40ca0f, got %q", accounts[0].GetId())
 	}
-	if accounts[1].GetName() != "082bb867" {
-		t.Fatalf("expected second account fallback to id, got %q", accounts[1].GetName())
+	if accounts[1].GetId() != "082bb867" {
+		t.Fatalf("expected second account id 082bb867, got %q", accounts[1].GetId())
 	}
 	if accounts[0].GetTraffic() == nil || accounts[1].GetTraffic() == nil {
 		t.Fatal("expected zeroed traffic stats for configured accounts")

@@ -1,8 +1,8 @@
-use crate::country::flag_emoji;
 use crate::components::{
     Button, ButtonSize, ButtonType, DatePicker, DatePickerType, Popup, PopupSize, RichTable,
     TextBox,
 };
+use crate::country::flag_emoji;
 use crate::services::registry_deploy::collect_account_proxy_links;
 use crate::state::{normalize_groups, AccountInfo, State};
 use uuid::Uuid;
@@ -706,7 +706,12 @@ fn account_modal(props: &AccountModalProps) -> Html {
                 }
             } else {
                 new_state.accounts.push(AccountInfo {
-                    id: Uuid::new_v4().simple().to_string().chars().take(8).collect(),
+                    id: Uuid::new_v4()
+                        .simple()
+                        .to_string()
+                        .chars()
+                        .take(8)
+                        .collect(),
                     name: (*name_for_submit).clone(),
                     token: if token_for_submit.trim().is_empty() {
                         Uuid::new_v4().to_string()

@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[derive(Properties, PartialEq)]
 pub(super) struct SectionProps {
     pub(super) title: AttrValue,
@@ -45,9 +44,10 @@ pub(super) fn confirm_popup(props: &ConfirmPopupProps) -> Html {
         let on_close = props.on_close.clone();
         Callback::from(move |_| on_close.emit(()))
     };
-    let on_extra = props.on_extra.clone().map(|on_extra| {
-        Callback::from(move |_| on_extra.emit(()))
-    });
+    let on_extra = props
+        .on_extra
+        .clone()
+        .map(|on_extra| Callback::from(move |_| on_extra.emit(())));
 
     html! {
         <Popup title={props.title.clone()} size={PopupSize::Md} on_close={props.on_close.clone()}>

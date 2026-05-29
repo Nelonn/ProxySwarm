@@ -1,21 +1,7 @@
 use super::*;
 
-fn format_account_status_name(account: &AccountStatus, known_accounts: &[AccountInfo]) -> String {
-    let runtime_id = account.name.trim();
-    if runtime_id.is_empty() {
-        return String::new();
-    }
-    let Some(known_account) = known_accounts
-        .iter()
-        .find(|known_account| known_account.id.trim() == runtime_id)
-    else {
-        return runtime_id.to_string();
-    };
-    let display_name = known_account.name.trim();
-    if display_name.is_empty() || display_name == runtime_id {
-        return runtime_id.to_string();
-    }
-    format!("{} ({})", runtime_id, display_name)
+fn format_account_status_id(account: &AccountStatus) -> String {
+    account.id.trim().to_string()
 }
 
 pub(super) fn format_status_bytes(bytes: u64) -> String {
@@ -517,7 +503,7 @@ pub(super) fn node_status_panel(props: &NodeStatusPanelProps) -> Html {
                 <div class="font-semibold uppercase opacity-70" style="font-size: 13px; line-height: 18px;">{ "Users" }</div>
                 { for props.status.accounts.iter().map(|account: &AccountStatus| {
                     let is_online = account.online > 0;
-                    let account_label = format_account_status_name(account, &props.accounts);
+                    let account_label = format_account_status_id(account);
                     html! {
                         <div class="bg-surface-container p-3 rounded-lg space-y-2">
                             <div class="flex justify-between" style="align-items: center; gap: 16px;">
@@ -720,5 +706,3 @@ pub(super) fn status_skeleton_panel() -> Html {
         </div>
     }
 }
-
-

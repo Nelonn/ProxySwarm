@@ -42,8 +42,12 @@ pub fn menu_anchor_from_mouse_event(event: &MouseEvent) -> Option<(f64, f64, f64
     let rect_fn = rect_fn.dyn_into::<js_sys::Function>().ok()?;
     let rect = rect_fn.call0(&target).ok()?;
     let left = js_sys::Reflect::get(&rect, &"left".into()).ok()?.as_f64()?;
-    let bottom = js_sys::Reflect::get(&rect, &"bottom".into()).ok()?.as_f64()?;
-    let width = js_sys::Reflect::get(&rect, &"width".into()).ok()?.as_f64()?;
+    let bottom = js_sys::Reflect::get(&rect, &"bottom".into())
+        .ok()?
+        .as_f64()?;
+    let width = js_sys::Reflect::get(&rect, &"width".into())
+        .ok()?
+        .as_f64()?;
     Some((left, bottom + 4.0, width))
 }
 
@@ -84,10 +88,12 @@ pub fn action_menu_popup(props: &ActionMenuPopupProps) -> Html {
         let menu_size = menu_size.clone();
         use_effect(move || {
             if let Some(element) = menu_ref.cast::<Element>() {
-                let rect_fn =
-                    js_sys::Reflect::get(element.as_ref(), &JsValue::from_str("getBoundingClientRect"))
-                        .ok()
-                        .and_then(|value| value.dyn_into::<js_sys::Function>().ok());
+                let rect_fn = js_sys::Reflect::get(
+                    element.as_ref(),
+                    &JsValue::from_str("getBoundingClientRect"),
+                )
+                .ok()
+                .and_then(|value| value.dyn_into::<js_sys::Function>().ok());
                 if let Some(rect_fn) = rect_fn {
                     if let Ok(rect) = rect_fn.call0(element.as_ref()) {
                         let width = js_sys::Reflect::get(&rect, &JsValue::from_str("width"))

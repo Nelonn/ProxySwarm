@@ -6,8 +6,8 @@ use yew::prelude::*;
 use yew_router::prelude::use_navigator;
 
 use crate::components::{
-    ActionMenuPopup, Button, ButtonType, FixedHeightText, Popup, PopupSize, RichTable, TextBox,
-    menu_anchor_from_mouse_event,
+    menu_anchor_from_mouse_event, ActionMenuPopup, Button, ButtonType, FixedHeightText, Popup,
+    PopupSize, RichTable, TextBox,
 };
 use crate::country::{
     country_display, find_country_by_query, flag_emoji, normalize_country_code, search_countries,

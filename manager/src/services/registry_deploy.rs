@@ -2,11 +2,11 @@ use trusttunnel_deeplink::{encode, DeepLinkConfig};
 
 use crate::pb::proxyswarm::{Account, RegistryServiceConfig, RegistryTemplateLink};
 use crate::services::registry_api::RegistryApiService;
-use crate::storage;
 use crate::state::{
-    effective_inbound_groups, format_link_remark, normalize_groups, AccountInfo,
-    InboundEntryDraft, NodeConfigDraft, ProxyNode, RegistryInfo, State,
+    effective_inbound_groups, format_link_remark, normalize_groups, AccountInfo, InboundEntryDraft,
+    NodeConfigDraft, ProxyNode, RegistryInfo, State,
 };
+use crate::storage;
 
 #[derive(Default, Clone)]
 pub struct DeployAllSummary {
@@ -63,7 +63,10 @@ pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
     summary
 }
 
-pub async fn deploy_registry_by_id(state: &State, registry_id: &str) -> Result<DeployAllSummary, String> {
+pub async fn deploy_registry_by_id(
+    state: &State,
+    registry_id: &str,
+) -> Result<DeployAllSummary, String> {
     let registry = state
         .registries
         .iter()
@@ -94,7 +97,10 @@ pub async fn deploy_registry_by_id(state: &State, registry_id: &str) -> Result<D
     }
 }
 
-pub fn collect_account_proxy_links(state: &State, account: &AccountInfo) -> AccountProxyLinksResult {
+pub fn collect_account_proxy_links(
+    state: &State,
+    account: &AccountInfo,
+) -> AccountProxyLinksResult {
     let mut result = AccountProxyLinksResult::default();
     let mut seen = std::collections::HashSet::new();
 
@@ -353,7 +359,7 @@ fn build_vless_template(
     }
 
     match transmission.as_str() {
-        "ws" | "httpupgrade" | "splithttp" | "http" => {
+        "ws" | "httpupgrade" | "splithttp" | "xhttp" | "http" => {
             query.push(("path".to_string(), "/".to_string()));
             query.push(("host".to_string(), default_sni));
         }
@@ -385,6 +391,38 @@ fn build_trusttunnel_template(
     let username = "{id}".to_string();
     let password = "{{token}}".to_string();
     let custom_sni = inbound.tls.server_name.trim().to_string();
+
+    if inbound
+        .trust_tunnel
+        .link_type
+        .trim()
+        .eq_ignore_ascii_case("Simple")
+    {
+        let mut link_host = host.clone();
+        if link_host.contains(':') && !link_host.starts_with('[') && !link_host.contains('.') {
+            link_host = format!("[{}]", link_host);
+        }
+        let sni = if custom_sni.is_empty() {
+            host.clone()
+        } else {
+            custom_sni
+        };
+        let query_string = vec![("security", "tls".to_string()), ("sni", sni)]
+            .into_iter()
+            .map(|(key, value)| format!("{}={}", key, js_sys::encode_uri_component(&value)))
+            .collect::<Vec<_>>()
+            .join("&");
+
+        return Ok(format!(
+            "tt://{}:{}@{}:{}?{}#{}",
+            username,
+            password,
+            link_host,
+            inbound.port,
+            query_string,
+            template_label(node, config, inbound)
+        ));
+    }
 
     let config = DeepLinkConfig::builder()
         .hostname(host.clone())
@@ -459,15 +497,26 @@ fn build_naiveproxy_template(
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
     let host = normalized_node_host(node)?;
-    let username = "{{name}}";
+    let username = "{id}";
     let password = "{{token}}";
+    let sni = if inbound.tls.server_name.trim().is_empty() {
+        host.trim_matches(&['[', ']'][..]).to_string()
+    } else {
+        inbound.tls.server_name.trim().to_string()
+    };
+    let query_string = vec![("security", "tls".to_string()), ("sni", sni)]
+        .into_iter()
+        .map(|(key, value)| format!("{}={}", key, js_sys::encode_uri_component(&value)))
+        .collect::<Vec<_>>()
+        .join("&");
 
     Ok(format!(
-        "naive+https://{}:{}@{}:{}#{}",
+        "naive+https://{}:{}@{}:{}?{}#{}",
         js_sys::encode_uri_component(username),
         js_sys::encode_uri_component(password),
         host,
         inbound.port,
+        query_string,
         template_label(node, config, inbound)
     ))
 }
