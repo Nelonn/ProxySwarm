@@ -313,6 +313,7 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                         value={data.outbound_type.clone()}
                                         options={vec![
                                             DropdownOption { value: "VLESS".to_string(), label: "VLESS".to_string() },
+                                            DropdownOption { value: "USQUE_MASQUE".to_string(), label: "MASQUE (usque)".to_string() },
                                             DropdownOption { value: "CUSTOM".to_string(), label: "Custom Plugin".to_string() },
                                             DropdownOption { value: "TRUSTTUNNEL".to_string(), label: "TrustTunnel".to_string() },
                                             DropdownOption { value: "WIREGUARD".to_string(), label: "WireGuard".to_string() },
@@ -326,6 +327,13 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                 next.outbound_type = value.clone();
                                                 if next.name.trim().is_empty() {
                                                     next.name = value.clone();
+                                                }
+                                                if value == "USQUE_MASQUE" && next.usque_masque.tag.trim().is_empty() {
+                                                    next.usque_masque.tag = if next.name.trim().is_empty() {
+                                                        "masque".to_string()
+                                                    } else {
+                                                        next.name.trim().to_string()
+                                                    };
                                                 }
                                                 outbound.set(next);
                                             }
@@ -342,6 +350,40 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                     <TextBox label="Tag" value={data.custom.tag.clone()} onchange={update_text(|outbound, value| outbound.custom.tag = value)} />
                                                     <TextBox label="Handler Name" value={data.custom.handler_name.clone()} onchange={update_text(|outbound, value| outbound.custom.handler_name = value)} placeholder="redirect" />
                                                     <TextBox label="Config JSON" value={data.custom.config_json.clone()} onchange={update_text(|outbound, value| outbound.custom.config_json = value)} is_textarea={true} placeholder={"{\n  \"address\": \"127.0.0.1\",\n  \"port\": 8080\n}"} />
+                                                </div>
+                                            },
+                                            "USQUE_MASQUE" => html! {
+                                                <div class="space-y-4">
+                                                    <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                        <TextBox label="Tag" value={data.usque_masque.tag.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.tag = value)} />
+                                                        <Dropdown
+                                                            label="HTTP Version"
+                                                            value={data.usque_masque.http_version.clone()}
+                                                            options={vec![
+                                                                DropdownOption { value: "HTTP/3".to_string(), label: "HTTP/3".to_string() },
+                                                                DropdownOption { value: "HTTP/2".to_string(), label: "HTTP/2".to_string() },
+                                                            ]}
+                                                            onchange={update_text(|outbound, value| outbound.usque_masque.http_version = value)}
+                                                        />
+                                                        <TextBox label="Endpoint IP" value={data.usque_masque.endpoint.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.endpoint = value)} placeholder="162.159.198.2" />
+                                                        <TextBox label="Endpoint Port" value={data.usque_masque.endpoint_v4_port.to_string()} onchange={update_text(|outbound, value| outbound.usque_masque.endpoint_v4_port = value.parse().unwrap_or(443))} input_type="number" />
+                                                        <TextBox label="SNI" value={data.usque_masque.sni.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.sni = value)} placeholder="consumer-masque.cloudflareclient.com" />
+                                                        <TextBox label="Connect URI" value={data.usque_masque.connect_uri.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.connect_uri = value)} placeholder="https://cloudflareaccess.com" />
+                                                        <TextBox label="IPv4" value={data.usque_masque.ipv4.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.ipv4 = value)} placeholder="172.16.0.2" />
+                                                        <TextBox label="IPv6" value={data.usque_masque.ipv6.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.ipv6 = value)} placeholder="2606:4700:110:..." />
+                                                        <TextBox label="MTU" value={data.usque_masque.mtu.to_string()} onchange={update_text(|outbound, value| outbound.usque_masque.mtu = value.parse().unwrap_or(1280))} input_type="number" />
+                                                    </div>
+                                                    <div class="grid grid-cols-1 gap-6">
+                                                        <TextBox label="Private Key" value={data.usque_masque.private_key.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.private_key = value)} is_textarea={true} />
+                                                        <TextBox label="Endpoint Public Key" value={data.usque_masque.endpoint_pub_key.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.endpoint_pub_key = value)} is_textarea={true} />
+                                                    </div>
+                                                    <ConfigSection title="Optional Account Metadata">
+                                                        <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                            <TextBox label="Access Token" value={data.usque_masque.access_token.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.access_token = value)} />
+                                                            <TextBox label="Device ID" value={data.usque_masque.id.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.id = value)} />
+                                                            <TextBox label="License" value={data.usque_masque.license.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.license = value)} />
+                                                        </div>
+                                                    </ConfigSection>
                                                 </div>
                                             },
                                             "TRUSTTUNNEL" => html! {

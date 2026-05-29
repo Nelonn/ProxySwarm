@@ -447,6 +447,37 @@ pub(super) fn build_full_config(
                     sni: outbound.trojan.sni.clone(),
                 })),
             }),
+            "USQUE_MASQUE" if !outbound.usque_masque.tag.trim().is_empty() => {
+                let masque = &outbound.usque_masque;
+                let config_json = serde_json::json!({
+                    "private_key": masque.private_key,
+                    "endpoint_pub_key": masque.endpoint_pub_key,
+                    "endpoint": masque.endpoint,
+                    "endpoint_v4": masque.endpoint,
+                    "endpoint_h2_v4": masque.endpoint,
+                    "endpoint_v4_port": masque.endpoint_v4_port,
+                    "http_version": masque.http_version,
+                    "use_http2": masque.http_version.trim().eq_ignore_ascii_case("HTTP/2"),
+                    "sni": masque.sni,
+                    "connect_uri": masque.connect_uri,
+                    "ipv4": masque.ipv4,
+                    "ipv6": masque.ipv6,
+                    "mtu": masque.mtu,
+                    "insecure": masque.insecure,
+                    "access_token": masque.access_token,
+                    "id": masque.id,
+                    "license": masque.license,
+                })
+                .to_string();
+                outbounds.push(OutboundConfig {
+                    tag: outbound.usque_masque.tag.clone(),
+                    r#type: OutboundType::Custom as i32,
+                    settings: Some(outbound_config::Settings::Custom(CustomOutboundConfig {
+                        handler_name: "usque-masque".to_string(),
+                        config_json,
+                    })),
+                })
+            }
             "CUSTOM" if !outbound.custom.tag.trim().is_empty() => outbounds.push(OutboundConfig {
                 tag: outbound.custom.tag.clone(),
                 r#type: OutboundType::Custom as i32,

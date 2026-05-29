@@ -37,8 +37,8 @@ use crate::state::{
     Hysteria2Draft, InboundEntryDraft, NaiveProxyDraft, NodeConfigDraft, NodeConfigRevision,
     OutboundEntryDraft, ProxyNode, ReverseProxyDraft, RoutingRuleDraft, ShadowsocksDraft,
     Socks5Draft, State, TProxyDraft, TlsDraft, TrojanDraft, TrustTunnelDraft,
-    TrustTunnelOutboundDraft, TunnelDraft, VlessInboundDraft, VlessOutboundDraft,
-    WarpRegistrationDraft, WireGuardDraft, WireGuardPeerItem,
+    TrustTunnelOutboundDraft, TunnelDraft, UsqueMasqueOutboundDraft, VlessInboundDraft,
+    VlessOutboundDraft, WarpRegistrationDraft, WireGuardDraft, WireGuardPeerItem,
 };
 use crate::storage;
 use crate::Route;

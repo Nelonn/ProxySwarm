@@ -324,6 +324,10 @@ pub(super) fn default_builtin_outbound(tag: &str, outbound_type: &str) -> Outbou
             tag: tag.to_string(),
             ..CustomOutboundDraft::default()
         },
+        usque_masque: UsqueMasqueOutboundDraft {
+            tag: tag.to_string(),
+            ..UsqueMasqueOutboundDraft::default()
+        },
     }
 }
 
@@ -354,6 +358,28 @@ pub(super) fn default_vless_outbound() -> OutboundEntryDraft {
         shadowsocks: ShadowsocksDraft::default(),
         trojan: TrojanDraft::default(),
         custom: CustomOutboundDraft::default(),
+        usque_masque: UsqueMasqueOutboundDraft::default(),
+    }
+}
+
+pub(super) fn default_usque_masque_outbound() -> OutboundEntryDraft {
+    OutboundEntryDraft {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: "MASQUE".to_string(),
+        outbound_type: "USQUE_MASQUE".to_string(),
+        enabled: true,
+        builtin: false,
+        vless: VlessOutboundDraft::default(),
+        trust_tunnel: TrustTunnelOutboundDraft::default(),
+        wireguard: WireGuardDraft::default(),
+        socks5: Socks5Draft::default(),
+        shadowsocks: ShadowsocksDraft::default(),
+        trojan: TrojanDraft::default(),
+        custom: CustomOutboundDraft::default(),
+        usque_masque: UsqueMasqueOutboundDraft {
+            tag: "masque".to_string(),
+            ..UsqueMasqueOutboundDraft::default()
+        },
     }
 }
 
@@ -498,6 +524,7 @@ pub(super) fn default_warp_outbound() -> OutboundEntryDraft {
         shadowsocks: ShadowsocksDraft::default(),
         trojan: TrojanDraft::default(),
         custom: CustomOutboundDraft::default(),
+        usque_masque: UsqueMasqueOutboundDraft::default(),
     }
 }
 
@@ -521,6 +548,7 @@ pub(super) fn default_shadowsocks_outbound() -> OutboundEntryDraft {
         },
         trojan: TrojanDraft::default(),
         custom: CustomOutboundDraft::default(),
+        usque_masque: UsqueMasqueOutboundDraft::default(),
     }
 }
 
@@ -745,6 +773,17 @@ pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
             } else {
                 outbound.name.trim().to_string()
             };
+        } else if outbound
+            .outbound_type
+            .trim()
+            .eq_ignore_ascii_case("USQUE_MASQUE")
+        {
+            if outbound.name.trim().is_empty() {
+                outbound.name = "MASQUE".to_string();
+            }
+            if outbound.usque_masque.tag.trim().is_empty() {
+                outbound.usque_masque.tag = outbound.name.trim().to_string();
+            }
         }
     }
 
@@ -784,6 +823,7 @@ pub(super) fn outbound_tag_for_routing(outbound: &OutboundEntryDraft) -> String 
         "SOCKS5" => outbound.socks5.tag.clone(),
         "SHADOWSOCKS" => outbound.shadowsocks.tag.clone(),
         "CUSTOM" => outbound.custom.tag.clone(),
+        "USQUE_MASQUE" => outbound.usque_masque.tag.clone(),
         _ => outbound.vless.tag.clone(),
     }
 }

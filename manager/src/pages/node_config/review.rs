@@ -191,6 +191,17 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
                             review_row("Handler", optional_label(&data.custom.handler_name)),
                             review_row("Config JSON", optional_label(&data.custom.config_json)),
                         ]),
+                        "USQUE_MASQUE" => review_section("MASQUE (usque)", vec![
+                            review_row("Tag", optional_label(&data.usque_masque.tag)),
+                            review_row("HTTP version", optional_label(&data.usque_masque.http_version)),
+                            review_row("Endpoint", optional_label(&data.usque_masque.endpoint)),
+                            review_row("Endpoint port", data.usque_masque.endpoint_v4_port.to_string()),
+                            review_row("SNI", optional_label(&data.usque_masque.sni)),
+                            review_row("Connect URI", optional_label(&data.usque_masque.connect_uri)),
+                            review_row("IPv4", optional_label(&data.usque_masque.ipv4)),
+                            review_row("IPv6", optional_label(&data.usque_masque.ipv6)),
+                            review_row("MTU", data.usque_masque.mtu.to_string()),
+                        ]),
                         "SOCKS5" => review_section("SOCKS5", vec![
                             review_row("Tag", optional_label(&data.socks5.tag)),
                             review_row("Server", optional_label(&data.socks5.server)),

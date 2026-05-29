@@ -268,6 +268,8 @@ pub struct OutboundEntryDraft {
     pub trojan: TrojanDraft,
     #[serde(default, skip_serializing_if = "is_default")]
     pub custom: CustomOutboundDraft,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub usque_masque: UsqueMasqueOutboundDraft,
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -673,6 +675,76 @@ pub struct CustomOutboundDraft {
     pub tag: String,
     pub handler_name: String,
     pub config_json: String,
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsqueMasqueOutboundDraft {
+    pub tag: String,
+    #[serde(default = "default_usque_masque_http_version")]
+    pub http_version: String,
+    #[serde(default = "default_usque_masque_sni")]
+    pub sni: String,
+    #[serde(default = "default_usque_masque_connect_uri")]
+    pub connect_uri: String,
+    pub endpoint: String,
+    #[serde(default = "default_usque_masque_endpoint_port")]
+    pub endpoint_v4_port: i32,
+    pub endpoint_pub_key: String,
+    pub private_key: String,
+    pub ipv4: String,
+    pub ipv6: String,
+    #[serde(default = "default_usque_masque_mtu")]
+    pub mtu: i32,
+    #[serde(default)]
+    pub insecure: bool,
+    #[serde(default)]
+    pub access_token: String,
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub license: String,
+}
+
+impl Default for UsqueMasqueOutboundDraft {
+    fn default() -> Self {
+        Self {
+            tag: String::new(),
+            http_version: default_usque_masque_http_version(),
+            sni: default_usque_masque_sni(),
+            connect_uri: default_usque_masque_connect_uri(),
+            endpoint: String::new(),
+            endpoint_v4_port: default_usque_masque_endpoint_port(),
+            endpoint_pub_key: String::new(),
+            private_key: String::new(),
+            ipv4: String::new(),
+            ipv6: String::new(),
+            mtu: default_usque_masque_mtu(),
+            insecure: false,
+            access_token: String::new(),
+            id: String::new(),
+            license: String::new(),
+        }
+    }
+}
+
+fn default_usque_masque_http_version() -> String {
+    "HTTP/3".to_string()
+}
+
+fn default_usque_masque_sni() -> String {
+    "consumer-masque.cloudflareclient.com".to_string()
+}
+
+fn default_usque_masque_connect_uri() -> String {
+    "https://cloudflareaccess.com".to_string()
+}
+
+fn default_usque_masque_endpoint_port() -> i32 {
+    443
+}
+
+fn default_usque_masque_mtu() -> i32 {
+    1280
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]

@@ -17,19 +17,23 @@ pub(super) fn render_outbounds_tab(
                                     <div class="text-sm opacity-70">{ "Builtin Direct and Block stay fixed. Add VLESS, custom plugin, VLESS Reverse, TrustTunnel, WireGuard, SOCKS5, and Shadowsocks as reusable outbound entries." }</div>
                                 </div>
                                 <div class="flex" style="gap: 0.75rem;">
-                                    <Button
-                                        label="Add Outbound"
-                                        icon={Some("icon-add".to_string())}
-                                        button_type={ButtonType::Filled}
-                                        onclick={Callback::from({
+                                     <Button
+                                         label="Add Outbound"
+                                         icon={Some("icon-add".to_string())}
+                                         button_type={ButtonType::Filled}
+                                         onclick={Callback::from({
                                         let editing_outbound = editing_outbound.clone();
                                         move |_| editing_outbound.set(Some((default_vless_outbound(), true)))
-                                    })}
-                                    />
-                                    <Button label="WARP" button_type={ButtonType::Outlined} onclick={Callback::from({
-                                        let warp_popup_open = warp_popup_open.clone();
-                                        move |_| warp_popup_open.set(true)
-                                    })} />
+                                     })}
+                                     />
+                                     <Button label="MASQUE" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                         let editing_outbound = editing_outbound.clone();
+                                         move |_| editing_outbound.set(Some((default_usque_masque_outbound(), true)))
+                                     })} />
+                                     <Button label="WARP" button_type={ButtonType::Outlined} onclick={Callback::from({
+                                         let warp_popup_open = warp_popup_open.clone();
+                                         move |_| warp_popup_open.set(true)
+                                     })} />
                                     <Button
                                         label="Add VLESS Reverse"
                                         button_type={ButtonType::Outlined}
@@ -69,9 +73,17 @@ pub(super) fn render_outbounds_tab(
                                                 } else {
                                                     format!("{}:{}", server, outbound.vless.port)
                                                 }
-                                            }
-                                            "CUSTOM" => outbound.custom.tag.clone(),
-                                            "SOCKS5" => format!("{}:{}", outbound.socks5.server, outbound.socks5.port),
+                                             }
+                                             "CUSTOM" => outbound.custom.tag.clone(),
+                                             "USQUE_MASQUE" => {
+                                                 let endpoint = outbound.usque_masque.endpoint.trim();
+                                                 if endpoint.is_empty() {
+                                                     outbound.usque_masque.tag.clone()
+                                                 } else {
+                                                     format!("{} via {}", outbound.usque_masque.tag, endpoint)
+                                                 }
+                                             }
+                                             "SOCKS5" => format!("{}:{}", outbound.socks5.server, outbound.socks5.port),
                                             "SHADOWSOCKS" => format!("{}:{}", outbound.shadowsocks.server, outbound.shadowsocks.port),
                                             _ => outbound.vless.tag.clone(),
                                         };
