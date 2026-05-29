@@ -169,7 +169,6 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
                             review_row("Reality short IDs", optional_label(&data.vless.reality_short_ids)),
                         ]),
                         "TRUSTTUNNEL" => review_section("TrustTunnel", vec![
-                            review_row("Tag", optional_label(&data.trust_tunnel.tag)),
                             review_row("Endpoint hostname", optional_label(&data.trust_tunnel.endpoint_hostname)),
                             review_row("Endpoint addresses", optional_label(&data.trust_tunnel.endpoint_addresses)),
                             review_row("Username", optional_label(&data.trust_tunnel.username)),
@@ -194,12 +193,10 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
                             review_row("Peers", data.wireguard.peers.len().to_string()),
                         ]),
                         "CUSTOM" => review_section("Custom Plugin", vec![
-                            review_row("Tag", optional_label(&data.custom.tag)),
                             review_row("Handler", optional_label(&data.custom.handler_name)),
                             review_row("Config JSON", optional_label(&data.custom.config_json)),
                         ]),
                         "USQUE_MASQUE" => review_section("MASQUE (usque)", vec![
-                            review_row("Tag", optional_label(&data.usque_masque.tag)),
                             review_row("HTTP version", optional_label(&data.usque_masque.http_version)),
                             review_row("Endpoint", optional_label(&data.usque_masque.endpoint)),
                             review_row("Endpoint port", data.usque_masque.endpoint_v4_port.to_string()),
@@ -210,14 +207,12 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
                             review_row("MTU", data.usque_masque.mtu.to_string()),
                         ]),
                         "SOCKS5" => review_section("SOCKS5", vec![
-                            review_row("Tag", optional_label(&data.socks5.tag)),
                             review_row("Server", optional_label(&data.socks5.server)),
                             review_row("Port", data.socks5.port.to_string()),
                             review_row("Username", optional_label(&data.socks5.username)),
                             review_row("Password", optional_label(&data.socks5.password)),
                         ]),
                         "SHADOWSOCKS" => review_section("Shadowsocks", vec![
-                            review_row("Tag", optional_label(&data.shadowsocks.tag)),
                             review_row("Server", optional_label(&data.shadowsocks.server)),
                             review_row("Port", data.shadowsocks.port.to_string()),
                             review_row("Method", optional_label(&data.shadowsocks.method)),

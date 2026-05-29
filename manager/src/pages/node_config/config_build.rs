@@ -356,36 +356,34 @@ pub(super) fn build_full_config(
                     }),
                 })),
             }),
-            "TRUSTTUNNEL" if !outbound.trust_tunnel.tag.trim().is_empty() => {
-                outbounds.push(OutboundConfig {
-                    tag: outbound.trust_tunnel.tag.clone(),
-                    r#type: OutboundType::Trusttunnel as i32,
-                    settings: Some(outbound_config::Settings::Trusttunnel(TrustTunnelConfig {
-                        http1_upload_buffer_size: outbound.trust_tunnel.http1_upload_buffer_size,
-                        http2_initial_connection_window_size: outbound
-                            .trust_tunnel
-                            .http2_initial_connection_window_size,
-                        http2_initial_stream_window_size: outbound
-                            .trust_tunnel
-                            .http2_initial_stream_window_size,
-                        http2_max_concurrent_streams: outbound
-                            .trust_tunnel
-                            .http2_max_concurrent_streams,
-                        http2_max_frame_size: outbound.trust_tunnel.http2_max_frame_size,
-                        http2_header_table_size: outbound.trust_tunnel.http2_header_table_size,
-                        tls: None,
-                        endpoint_hostname: outbound.trust_tunnel.endpoint_hostname.clone(),
-                        endpoint_addresses: split_lines_csv(&outbound.trust_tunnel.endpoint_addresses),
-                        username: outbound.trust_tunnel.username.clone(),
-                        password: outbound.trust_tunnel.password.clone(),
-                        certificate_pem: outbound.trust_tunnel.certificate_pem.clone(),
-                        skip_verification: outbound.trust_tunnel.skip_verification,
-                        upstream_protocol: outbound.trust_tunnel.upstream_protocol.clone(),
-                        anti_dpi: outbound.trust_tunnel.anti_dpi,
-                        custom_sni: outbound.trust_tunnel.custom_sni.clone(),
-                    })),
-                })
-            }
+            "TRUSTTUNNEL" if !outbound.name.trim().is_empty() => outbounds.push(OutboundConfig {
+                tag: outbound.name.clone(),
+                r#type: OutboundType::Trusttunnel as i32,
+                settings: Some(outbound_config::Settings::Trusttunnel(TrustTunnelConfig {
+                    http1_upload_buffer_size: outbound.trust_tunnel.http1_upload_buffer_size,
+                    http2_initial_connection_window_size: outbound
+                        .trust_tunnel
+                        .http2_initial_connection_window_size,
+                    http2_initial_stream_window_size: outbound
+                        .trust_tunnel
+                        .http2_initial_stream_window_size,
+                    http2_max_concurrent_streams: outbound
+                        .trust_tunnel
+                        .http2_max_concurrent_streams,
+                    http2_max_frame_size: outbound.trust_tunnel.http2_max_frame_size,
+                    http2_header_table_size: outbound.trust_tunnel.http2_header_table_size,
+                    tls: None,
+                    endpoint_hostname: outbound.trust_tunnel.endpoint_hostname.clone(),
+                    endpoint_addresses: split_lines_csv(&outbound.trust_tunnel.endpoint_addresses),
+                    username: outbound.trust_tunnel.username.clone(),
+                    password: outbound.trust_tunnel.password.clone(),
+                    certificate_pem: outbound.trust_tunnel.certificate_pem.clone(),
+                    skip_verification: outbound.trust_tunnel.skip_verification,
+                    upstream_protocol: outbound.trust_tunnel.upstream_protocol.clone(),
+                    anti_dpi: outbound.trust_tunnel.anti_dpi,
+                    custom_sni: outbound.trust_tunnel.custom_sni.clone(),
+                })),
+            }),
             "WIREGUARD" if !outbound.name.trim().is_empty() => {
                 let peers: Vec<WireGuardPeer> = outbound
                     .wireguard
@@ -426,8 +424,8 @@ pub(super) fn build_full_config(
                     })),
                 })
             }
-            "SOCKS5" if !outbound.socks5.tag.trim().is_empty() => outbounds.push(OutboundConfig {
-                tag: outbound.socks5.tag.clone(),
+            "SOCKS5" if !outbound.name.trim().is_empty() => outbounds.push(OutboundConfig {
+                tag: outbound.name.clone(),
                 r#type: OutboundType::Socks5 as i32,
                 settings: Some(outbound_config::Settings::Socks5(Socks5OutboundConfig {
                     server: outbound.socks5.server.clone(),
@@ -436,26 +434,24 @@ pub(super) fn build_full_config(
                     password: outbound.socks5.password.clone(),
                 })),
             }),
-            "SHADOWSOCKS" if !outbound.shadowsocks.tag.trim().is_empty() => {
-                outbounds.push(OutboundConfig {
-                    tag: outbound.shadowsocks.tag.clone(),
-                    r#type: OutboundType::Shadowsocks as i32,
-                    settings: Some(outbound_config::Settings::Shadowsocks(
-                        ShadowsocksOutboundConfig {
-                            server: outbound.shadowsocks.server.clone(),
-                            port: outbound.shadowsocks.port,
-                            method: outbound.shadowsocks.method.clone(),
-                            password: outbound.shadowsocks.password.clone(),
-                            plugin: outbound.shadowsocks.plugin.clone(),
-                            plugin_opts: outbound.shadowsocks.plugin_opts.clone(),
-                            prefix: outbound.shadowsocks.prefix.clone(),
-                            udp_enabled: outbound.shadowsocks.udp_enabled,
-                        },
-                    )),
-                })
-            }
-            "TROJAN" if !outbound.trojan.tag.trim().is_empty() => outbounds.push(OutboundConfig {
-                tag: outbound.trojan.tag.clone(),
+            "SHADOWSOCKS" if !outbound.name.trim().is_empty() => outbounds.push(OutboundConfig {
+                tag: outbound.name.clone(),
+                r#type: OutboundType::Shadowsocks as i32,
+                settings: Some(outbound_config::Settings::Shadowsocks(
+                    ShadowsocksOutboundConfig {
+                        server: outbound.shadowsocks.server.clone(),
+                        port: outbound.shadowsocks.port,
+                        method: outbound.shadowsocks.method.clone(),
+                        password: outbound.shadowsocks.password.clone(),
+                        plugin: outbound.shadowsocks.plugin.clone(),
+                        plugin_opts: outbound.shadowsocks.plugin_opts.clone(),
+                        prefix: outbound.shadowsocks.prefix.clone(),
+                        udp_enabled: outbound.shadowsocks.udp_enabled,
+                    },
+                )),
+            }),
+            "TROJAN" if !outbound.name.trim().is_empty() => outbounds.push(OutboundConfig {
+                tag: outbound.name.clone(),
                 r#type: OutboundType::Trojan as i32,
                 settings: Some(outbound_config::Settings::Trojan(TrojanOutboundConfig {
                     server: outbound.trojan.server.clone(),
@@ -465,7 +461,7 @@ pub(super) fn build_full_config(
                     sni: outbound.trojan.sni.clone(),
                 })),
             }),
-            "USQUE_MASQUE" if !outbound.usque_masque.tag.trim().is_empty() => {
+            "USQUE_MASQUE" if !outbound.name.trim().is_empty() => {
                 let masque = &outbound.usque_masque;
                 let config_json = serde_json::json!({
                     "private_key": masque.private_key,
@@ -488,7 +484,7 @@ pub(super) fn build_full_config(
                 })
                 .to_string();
                 outbounds.push(OutboundConfig {
-                    tag: outbound.usque_masque.tag.clone(),
+                    tag: outbound.name.clone(),
                     r#type: OutboundType::Custom as i32,
                     settings: Some(outbound_config::Settings::Custom(CustomOutboundConfig {
                         handler_name: "usque-masque".to_string(),
@@ -496,8 +492,8 @@ pub(super) fn build_full_config(
                     })),
                 })
             }
-            "CUSTOM" if !outbound.custom.tag.trim().is_empty() => outbounds.push(OutboundConfig {
-                tag: outbound.custom.tag.clone(),
+            "CUSTOM" if !outbound.name.trim().is_empty() => outbounds.push(OutboundConfig {
+                tag: outbound.name.clone(),
                 r#type: OutboundType::Custom as i32,
                 settings: Some(outbound_config::Settings::Custom(CustomOutboundConfig {
                     handler_name: outbound.custom.handler_name.clone(),

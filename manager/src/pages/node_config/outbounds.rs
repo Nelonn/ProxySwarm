@@ -59,7 +59,7 @@ pub(super) fn render_outbounds_tab(
                                         let toggle_allowed = outbound.outbound_type.trim().to_uppercase() != "BLOCK";
                                         let target_label = match outbound.outbound_type.trim().to_uppercase().as_str() {
                                             "DIRECT" | "BLOCK" => outbound.name.clone(),
-                                            "TRUSTTUNNEL" => outbound.trust_tunnel.tag.clone(),
+                                            "TRUSTTUNNEL" => outbound.name.clone(),
                                             "WIREGUARD" => outbound
                                                 .wireguard
                                                 .peers
@@ -74,13 +74,13 @@ pub(super) fn render_outbounds_tab(
                                                     format!("{}:{}", server, outbound.vless.port)
                                                 }
                                              }
-                                             "CUSTOM" => outbound.custom.tag.clone(),
+                                             "CUSTOM" => outbound.name.clone(),
                                              "USQUE_MASQUE" => {
                                                  let endpoint = outbound.usque_masque.endpoint.trim();
                                                  if endpoint.is_empty() {
-                                                     outbound.usque_masque.tag.clone()
+                                                     outbound.name.clone()
                                                  } else {
-                                                     format!("{} via {}", outbound.usque_masque.tag, endpoint)
+                                                     format!("{} via {}", outbound.name, endpoint)
                                                  }
                                              }
                                              "SOCKS5" => format!("{}:{}", outbound.socks5.server, outbound.socks5.port),

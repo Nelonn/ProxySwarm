@@ -301,7 +301,6 @@ pub(super) fn default_builtin_outbound(tag: &str, outbound_type: &str) -> Outbou
             ..VlessOutboundDraft::default()
         },
         trust_tunnel: TrustTunnelOutboundDraft {
-            tag: tag.to_string(),
             ..TrustTunnelOutboundDraft::default()
         },
         wireguard: WireGuardDraft {
@@ -765,14 +764,6 @@ pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
                 outbound.name = "VLESS".to_string();
             }
             outbound.vless.tag = vless_outbound_tag_from_name(&outbound.name);
-        } else if outbound.outbound_type.trim().eq_ignore_ascii_case("CUSTOM")
-            && outbound.custom.tag.trim().is_empty()
-        {
-            outbound.custom.tag = if outbound.name.trim().is_empty() {
-                "custom".to_string()
-            } else {
-                outbound.name.trim().to_string()
-            };
         } else if outbound
             .outbound_type
             .trim()
@@ -780,9 +771,6 @@ pub(super) fn sync_draft(draft: &mut NodeConfigDraft) {
         {
             if outbound.name.trim().is_empty() {
                 outbound.name = "MASQUE".to_string();
-            }
-            if outbound.usque_masque.tag.trim().is_empty() {
-                outbound.usque_masque.tag = outbound.name.trim().to_string();
             }
         }
     }
@@ -818,12 +806,13 @@ pub(super) fn normalized_routing_rules(draft: &NodeConfigDraft) -> Vec<RoutingRu
 pub(super) fn outbound_tag_for_routing(outbound: &OutboundEntryDraft) -> String {
     match outbound.outbound_type.trim().to_uppercase().as_str() {
         "DIRECT" | "BLOCK" => outbound.name.clone(),
-        "TRUSTTUNNEL" => outbound.trust_tunnel.tag.clone(),
+        "TRUSTTUNNEL" => outbound.name.clone(),
         "WIREGUARD" => outbound.name.clone(),
-        "SOCKS5" => outbound.socks5.tag.clone(),
-        "SHADOWSOCKS" => outbound.shadowsocks.tag.clone(),
-        "CUSTOM" => outbound.custom.tag.clone(),
-        "USQUE_MASQUE" => outbound.usque_masque.tag.clone(),
+        "SOCKS5" => outbound.name.clone(),
+        "SHADOWSOCKS" => outbound.name.clone(),
+        "TROJAN" => outbound.name.clone(),
+        "CUSTOM" => outbound.name.clone(),
+        "USQUE_MASQUE" => outbound.name.clone(),
         _ => outbound.vless.tag.clone(),
     }
 }

@@ -507,7 +507,6 @@ fn default_vless_transmission() -> String {
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrustTunnelOutboundDraft {
-    pub tag: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub endpoint_hostname: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -543,7 +542,6 @@ pub struct TrustTunnelOutboundDraft {
 impl Default for TrustTunnelOutboundDraft {
     fn default() -> Self {
         Self {
-            tag: String::new(),
             endpoint_hostname: String::new(),
             endpoint_addresses: String::new(),
             username: String::new(),

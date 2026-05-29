@@ -328,13 +328,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                 if next.name.trim().is_empty() {
                                                     next.name = value.clone();
                                                 }
-                                                if value == "USQUE_MASQUE" && next.usque_masque.tag.trim().is_empty() {
-                                                    next.usque_masque.tag = if next.name.trim().is_empty() {
-                                                        "masque".to_string()
-                                                    } else {
-                                                        next.name.trim().to_string()
-                                                    };
-                                                }
                                                 outbound.set(next);
                                             }
                                         })}
@@ -347,7 +340,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                         match data.outbound_type.trim().to_uppercase().as_str() {
                                             "CUSTOM" => html! {
                                                 <div class="grid grid-cols-1 gap-6">
-                                                    <TextBox label="Tag" value={data.custom.tag.clone()} onchange={update_text(|outbound, value| outbound.custom.tag = value)} />
                                                     <TextBox label="Handler Name" value={data.custom.handler_name.clone()} onchange={update_text(|outbound, value| outbound.custom.handler_name = value)} placeholder="redirect" />
                                                     <TextBox label="Config JSON" value={data.custom.config_json.clone()} onchange={update_text(|outbound, value| outbound.custom.config_json = value)} is_textarea={true} placeholder={"{\n  \"address\": \"127.0.0.1\",\n  \"port\": 8080\n}"} />
                                                 </div>
@@ -355,7 +347,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                             "USQUE_MASQUE" => html! {
                                                 <div class="space-y-4">
                                                     <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                                        <TextBox label="Tag" value={data.usque_masque.tag.clone()} onchange={update_text(|outbound, value| outbound.usque_masque.tag = value)} />
                                                         <Dropdown
                                                             label="HTTP Version"
                                                             value={data.usque_masque.http_version.clone()}
@@ -386,26 +377,25 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                     </ConfigSection>
                                                 </div>
                                             },
-											"TRUSTTUNNEL" => html! {
-												<div class="space-y-4">
-													<div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-														<TextBox label="Tag" value={data.trust_tunnel.tag.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.tag = value)} />
-														<TextBox label="Endpoint Hostname" value={data.trust_tunnel.endpoint_hostname.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.endpoint_hostname = value)} placeholder="vpn.example.com" />
-														<TextBox label="Endpoint Addresses" value={data.trust_tunnel.endpoint_addresses.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.endpoint_addresses = value)} placeholder="1.2.3.4:443, [2001:db8::1]:443" is_textarea={true} />
-														<TextBox label="Username" value={data.trust_tunnel.username.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.username = value)} />
-														<TextBox label="Password" value={data.trust_tunnel.password.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.password = value)} />
-														<Dropdown
-															label="Upstream Protocol"
-															value={data.trust_tunnel.upstream_protocol.clone()}
-															options={vec![
-																DropdownOption { value: "http2".to_string(), label: "HTTP/2".to_string() },
-																DropdownOption { value: "http3".to_string(), label: "HTTP/3".to_string() },
-															]}
-															onchange={update_text(|outbound, value| outbound.trust_tunnel.upstream_protocol = value)}
-														/>
-														<TextBox label="Custom SNI" value={data.trust_tunnel.custom_sni.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.custom_sni = value)} placeholder="Optional" />
-													</div>
-													<TextBox label="Certificate PEM" value={data.trust_tunnel.certificate_pem.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.certificate_pem = value)} is_textarea={true} placeholder="Optional if system-verifiable or skip verification is enabled" />
+                                            "TRUSTTUNNEL" => html! {
+                                                <div class="space-y-4">
+                                                    <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                        <TextBox label="Endpoint Hostname" value={data.trust_tunnel.endpoint_hostname.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.endpoint_hostname = value)} placeholder="vpn.example.com" />
+                                                        <TextBox label="Endpoint Addresses" value={data.trust_tunnel.endpoint_addresses.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.endpoint_addresses = value)} placeholder="1.2.3.4:443, [2001:db8::1]:443" is_textarea={true} />
+                                                        <TextBox label="Username" value={data.trust_tunnel.username.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.username = value)} />
+                                                        <TextBox label="Password" value={data.trust_tunnel.password.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.password = value)} />
+                                                        <Dropdown
+                                                            label="Upstream Protocol"
+                                                            value={data.trust_tunnel.upstream_protocol.clone()}
+                                                            options={vec![
+                                                                DropdownOption { value: "http2".to_string(), label: "HTTP/2".to_string() },
+                                                                DropdownOption { value: "http3".to_string(), label: "HTTP/3".to_string() },
+                                                            ]}
+                                                            onchange={update_text(|outbound, value| outbound.trust_tunnel.upstream_protocol = value)}
+                                                        />
+                                                        <TextBox label="Custom SNI" value={data.trust_tunnel.custom_sni.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.custom_sni = value)} placeholder="Optional" />
+                                                    </div>
+                                                    <TextBox label="Certificate PEM" value={data.trust_tunnel.certificate_pem.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.certificate_pem = value)} is_textarea={true} placeholder="Optional if system-verifiable or skip verification is enabled" />
                                                     <SwitchField label="Skip Certificate Verification" checked={data.trust_tunnel.skip_verification} onchange={Callback::from({
                                                         let outbound = outbound.clone();
                                                         move |event: Event| {
@@ -424,16 +414,16 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                             outbound.set(next);
                                                         }
                                                     })} />
-													<div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-													<TextBox label="[listen_protocols.http1] upload_buffer_size" value={data.trust_tunnel.http1_upload_buffer_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http1_upload_buffer_size = value.parse().unwrap_or(0))} input_type="number" />
+                                                    <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+                                                    <TextBox label="[listen_protocols.http1] upload_buffer_size" value={data.trust_tunnel.http1_upload_buffer_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http1_upload_buffer_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] initial_connection_window_size" value={data.trust_tunnel.http2_initial_connection_window_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_initial_connection_window_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] initial_stream_window_size" value={data.trust_tunnel.http2_initial_stream_window_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_initial_stream_window_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] max_concurrent_streams" value={data.trust_tunnel.http2_max_concurrent_streams.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_max_concurrent_streams = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] max_frame_size" value={data.trust_tunnel.http2_max_frame_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_max_frame_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] header_table_size" value={data.trust_tunnel.http2_header_table_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_header_table_size = value.parse().unwrap_or(0))} input_type="number" />
-													</div>
-												</div>
-											},
+                                                    </div>
+                                                </div>
+                                            },
                                             "WIREGUARD" => html! {
                                                 <div class="space-y-4">
                                                     <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
@@ -536,7 +526,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                             },
                                             "SOCKS5" => html! {
                                                 <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                                    <TextBox label="Tag" value={data.socks5.tag.clone()} onchange={update_text(|outbound, value| outbound.socks5.tag = value)} />
                                                     <TextBox label="Server" value={data.socks5.server.clone()} onchange={update_text(|outbound, value| outbound.socks5.server = value)} />
                                                     <TextBox label="Port" value={data.socks5.port.to_string()} onchange={update_text(|outbound, value| outbound.socks5.port = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="Username" value={data.socks5.username.clone()} onchange={update_text(|outbound, value| outbound.socks5.username = value)} />
@@ -545,7 +534,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                             },
                                             "SHADOWSOCKS" => html! {
                                                 <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                                    <TextBox label="Tag" value={data.shadowsocks.tag.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.tag = value)} />
                                                     <TextBox label="Server" value={data.shadowsocks.server.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.server = value)} />
                                                     <TextBox label="Port" value={data.shadowsocks.port.to_string()} onchange={update_text(|outbound, value| outbound.shadowsocks.port = value.parse().unwrap_or(0))} input_type="number" />
                                                     <Dropdown
@@ -793,7 +781,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                     match data.outbound_type.trim().to_uppercase().as_str() {
                         "TRUSTTUNNEL" => html! {
                             <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                <TextBox label="Tag" value={data.trust_tunnel.tag.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.tag = value)} />
                                 <TextBox label="[listen_protocols.http1] upload_buffer_size" value={data.trust_tunnel.http1_upload_buffer_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http1_upload_buffer_size = value.parse().unwrap_or(0))} input_type="number" />
                                 <TextBox label="[listen_protocols.http2] initial_connection_window_size" value={data.trust_tunnel.http2_initial_connection_window_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_initial_connection_window_size = value.parse().unwrap_or(0))} input_type="number" />
                                 <TextBox label="[listen_protocols.http2] initial_stream_window_size" value={data.trust_tunnel.http2_initial_stream_window_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_initial_stream_window_size = value.parse().unwrap_or(0))} input_type="number" />
@@ -904,7 +891,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                         },
                         "SOCKS5" => html! {
                             <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                <TextBox label="Tag" value={data.socks5.tag.clone()} onchange={update_text(|outbound, value| outbound.socks5.tag = value)} />
                                 <TextBox label="Server" value={data.socks5.server.clone()} onchange={update_text(|outbound, value| outbound.socks5.server = value)} />
                                 <TextBox label="Port" value={data.socks5.port.to_string()} onchange={update_text(|outbound, value| outbound.socks5.port = value.parse().unwrap_or(0))} input_type="number" />
                                 <TextBox label="Username" value={data.socks5.username.clone()} onchange={update_text(|outbound, value| outbound.socks5.username = value)} />
@@ -913,7 +899,6 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                         },
                         "SHADOWSOCKS" => html! {
                             <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                <TextBox label="Tag" value={data.shadowsocks.tag.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.tag = value)} />
                                 <TextBox label="Server" value={data.shadowsocks.server.clone()} onchange={update_text(|outbound, value| outbound.shadowsocks.server = value)} />
                                 <TextBox label="Port" value={data.shadowsocks.port.to_string()} onchange={update_text(|outbound, value| outbound.shadowsocks.port = value.parse().unwrap_or(0))} input_type="number" />
                                 <Dropdown
