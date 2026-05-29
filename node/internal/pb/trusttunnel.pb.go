@@ -30,6 +30,15 @@ type TrustTunnelConfig struct {
 	Http2MaxFrameSize                uint32                 `protobuf:"varint,5,opt,name=http2_max_frame_size,json=http2MaxFrameSize,proto3" json:"http2_max_frame_size,omitempty"`
 	Http2HeaderTableSize             uint32                 `protobuf:"varint,6,opt,name=http2_header_table_size,json=http2HeaderTableSize,proto3" json:"http2_header_table_size,omitempty"`
 	Tls                              *TLSConfig             `protobuf:"bytes,7,opt,name=tls,proto3" json:"tls,omitempty"`
+	EndpointHostname                 string                 `protobuf:"bytes,8,opt,name=endpoint_hostname,json=endpointHostname,proto3" json:"endpoint_hostname,omitempty"`
+	EndpointAddresses                []string               `protobuf:"bytes,9,rep,name=endpoint_addresses,json=endpointAddresses,proto3" json:"endpoint_addresses,omitempty"`
+	Username                         string                 `protobuf:"bytes,10,opt,name=username,proto3" json:"username,omitempty"`
+	Password                         string                 `protobuf:"bytes,11,opt,name=password,proto3" json:"password,omitempty"`
+	CertificatePem                   string                 `protobuf:"bytes,12,opt,name=certificate_pem,json=certificatePem,proto3" json:"certificate_pem,omitempty"`
+	SkipVerification                 bool                   `protobuf:"varint,13,opt,name=skip_verification,json=skipVerification,proto3" json:"skip_verification,omitempty"`
+	UpstreamProtocol                 string                 `protobuf:"bytes,14,opt,name=upstream_protocol,json=upstreamProtocol,proto3" json:"upstream_protocol,omitempty"`
+	AntiDpi                          bool                   `protobuf:"varint,15,opt,name=anti_dpi,json=antiDpi,proto3" json:"anti_dpi,omitempty"`
+	CustomSni                        string                 `protobuf:"bytes,16,opt,name=custom_sni,json=customSni,proto3" json:"custom_sni,omitempty"`
 	unknownFields                    protoimpl.UnknownFields
 	sizeCache                        protoimpl.SizeCache
 }
@@ -113,12 +122,75 @@ func (x *TrustTunnelConfig) GetTls() *TLSConfig {
 	return nil
 }
 
+func (x *TrustTunnelConfig) GetEndpointHostname() string {
+	if x != nil {
+		return x.EndpointHostname
+	}
+	return ""
+}
+
+func (x *TrustTunnelConfig) GetEndpointAddresses() []string {
+	if x != nil {
+		return x.EndpointAddresses
+	}
+	return nil
+}
+
+func (x *TrustTunnelConfig) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *TrustTunnelConfig) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *TrustTunnelConfig) GetCertificatePem() string {
+	if x != nil {
+		return x.CertificatePem
+	}
+	return ""
+}
+
+func (x *TrustTunnelConfig) GetSkipVerification() bool {
+	if x != nil {
+		return x.SkipVerification
+	}
+	return false
+}
+
+func (x *TrustTunnelConfig) GetUpstreamProtocol() string {
+	if x != nil {
+		return x.UpstreamProtocol
+	}
+	return ""
+}
+
+func (x *TrustTunnelConfig) GetAntiDpi() bool {
+	if x != nil {
+		return x.AntiDpi
+	}
+	return false
+}
+
+func (x *TrustTunnelConfig) GetCustomSni() string {
+	if x != nil {
+		return x.CustomSni
+	}
+	return ""
+}
+
 var File_node_trusttunnel_proto protoreflect.FileDescriptor
 
 const file_node_trusttunnel_proto_rawDesc = "" +
 	"\n" +
 	"\x16node/trusttunnel.proto\x12\n" +
-	"proxyswarm\x1a\x11node/common.proto\"\xb6\x03\n" +
+	"proxyswarm\x1a\x11node/common.proto\"\x87\x06\n" +
 	"\x11TrustTunnelConfig\x127\n" +
 	"\x18http1_upload_buffer_size\x18\x01 \x01(\rR\x15http1UploadBufferSize\x12N\n" +
 	"$http2_initial_connection_window_size\x18\x02 \x01(\rR http2InitialConnectionWindowSize\x12F\n" +
@@ -126,7 +198,18 @@ const file_node_trusttunnel_proto_rawDesc = "" +
 	"\x1chttp2_max_concurrent_streams\x18\x04 \x01(\rR\x19http2MaxConcurrentStreams\x12/\n" +
 	"\x14http2_max_frame_size\x18\x05 \x01(\rR\x11http2MaxFrameSize\x125\n" +
 	"\x17http2_header_table_size\x18\x06 \x01(\rR\x14http2HeaderTableSize\x12'\n" +
-	"\x03tls\x18\a \x01(\v2\x15.proxyswarm.TLSConfigR\x03tlsB\x06Z\x04./pbb\x06proto3"
+	"\x03tls\x18\a \x01(\v2\x15.proxyswarm.TLSConfigR\x03tls\x12+\n" +
+	"\x11endpoint_hostname\x18\b \x01(\tR\x10endpointHostname\x12-\n" +
+	"\x12endpoint_addresses\x18\t \x03(\tR\x11endpointAddresses\x12\x1a\n" +
+	"\busername\x18\n" +
+	" \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\v \x01(\tR\bpassword\x12'\n" +
+	"\x0fcertificate_pem\x18\f \x01(\tR\x0ecertificatePem\x12+\n" +
+	"\x11skip_verification\x18\r \x01(\bR\x10skipVerification\x12+\n" +
+	"\x11upstream_protocol\x18\x0e \x01(\tR\x10upstreamProtocol\x12\x19\n" +
+	"\banti_dpi\x18\x0f \x01(\bR\aantiDpi\x12\x1d\n" +
+	"\n" +
+	"custom_sni\x18\x10 \x01(\tR\tcustomSniB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_node_trusttunnel_proto_rawDescOnce sync.Once

@@ -271,6 +271,24 @@ pub struct TrustTunnelConfig {
     pub http2_header_table_size: u32,
     #[prost(message, optional, tag = "7")]
     pub tls: ::core::option::Option<TlsConfig>,
+    #[prost(string, tag = "8")]
+    pub endpoint_hostname: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "9")]
+    pub endpoint_addresses: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "10")]
+    pub username: ::prost::alloc::string::String,
+    #[prost(string, tag = "11")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "12")]
+    pub certificate_pem: ::prost::alloc::string::String,
+    #[prost(bool, tag = "13")]
+    pub skip_verification: bool,
+    #[prost(string, tag = "14")]
+    pub upstream_protocol: ::prost::alloc::string::String,
+    #[prost(bool, tag = "15")]
+    pub anti_dpi: bool,
+    #[prost(string, tag = "16")]
+    pub custom_sni: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

@@ -12,4 +12,13 @@ message TrustTunnelConfig {
     uint32 http2_max_frame_size = 5;
     uint32 http2_header_table_size = 6;
     TLSConfig tls = 7;
+    string endpoint_hostname = 8;
+    repeated string endpoint_addresses = 9;
+    string username = 10;
+    string password = 11;
+    string certificate_pem = 12;
+    bool skip_verification = 13;
+    string upstream_protocol = 14;
+    bool anti_dpi = 15;
+    string custom_sni = 16;
 }

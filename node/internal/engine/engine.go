@@ -26,6 +26,7 @@ type Engine interface {
 type Manager struct {
 	mu            sync.Mutex
 	engines       map[string]Engine
+	ttOutbounds   *trustTunnelOutboundManager
 	acmeManager   *acme.Manager
 	certificates  *CertificatesManager
 	statePath     string
@@ -67,6 +68,7 @@ func NewManager() *Manager {
 	dataRoot := defaultDataRoot()
 	manager := &Manager{
 		engines:      make(map[string]Engine),
+		ttOutbounds:  newTrustTunnelOutboundManager(),
 		acmeManager:  acme.NewManager(dataRoot),
 		certificates: NewCertificatesManager(),
 		statePath:    defaultManagerStatePath(),
@@ -234,6 +236,9 @@ func (m *Manager) Update(ctx context.Context, config *pb.FullConfig) error {
 
 	if err := m.certificates.Sync(config.Certificates, m.acmeManager); err != nil {
 		return err
+	}
+	if err := m.ttOutbounds.sync(ctx, config.Outbounds); err != nil {
+		return fmt.Errorf("failed to sync trusttunnel outbounds: %w", err)
 	}
 
 	for engineKey, inbounds := range groupedInbounds {

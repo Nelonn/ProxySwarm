@@ -23,6 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -X 'proxyswarm/node/internal/engine.defaultDataDir=/data' \
     -X 'proxyswarm/node/internal/engine.defaultXrayAssetDir=/usr/local/bin' \
     -X 'proxyswarm/node/internal/engine.TrustTunnelBinary=/usr/local/bin/trusttunnel_endpoint' \
+    -X 'proxyswarm/node/internal/engine.TrustTunnelClientBinary=/usr/local/bin/trusttunnel_client' \
     -X 'proxyswarm/node/internal/engine.SingBoxBinary=/usr/local/bin/sing-box'" \
     -o /out/proxy-node ./cmd/node
 
@@ -34,7 +35,8 @@ RUN apk add --no-cache bash curl tar
 COPY node/scripts/download_trusttunnel.sh /download_trusttunnel.sh
 RUN chmod +x /download_trusttunnel.sh \
     && /download_trusttunnel.sh \
-    && install -Dm755 trusttunnel_endpoint /out/trusttunnel_endpoint
+    && install -Dm755 trusttunnel_endpoint /out/trusttunnel_endpoint \
+    && install -Dm755 trusttunnel_client /out/trusttunnel_client
 
 # Stage 3: Build sing-box
 FROM golang:${GO_VERSION}-alpine AS singbox-builder
@@ -63,6 +65,7 @@ RUN apk add --no-cache ca-certificates
 
 COPY --from=node-builder /out/proxy-node /usr/local/bin/proxy-node
 COPY --from=trusttunnel-downloader /out/trusttunnel_endpoint /usr/local/bin/trusttunnel_endpoint
+COPY --from=trusttunnel-downloader /out/trusttunnel_client /usr/local/bin/trusttunnel_client
 COPY --from=singbox-builder /out/sing-box /usr/local/bin/sing-box
 COPY --from=geodata-downloader /out/geoip.dat /usr/local/bin/geoip.dat
 COPY --from=geodata-downloader /out/geosite.dat /usr/local/bin/geosite.dat

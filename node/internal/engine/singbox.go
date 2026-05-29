@@ -514,6 +514,11 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 				o["username"] = s.Username
 				o["password"] = s.Password
 			}
+		case pb.OutboundType_TRUSTTUNNEL:
+			o["type"] = "socks"
+			o["server"] = "127.0.0.1"
+			o["server_port"] = trustTunnelOutboundSocksPort(strings.TrimSpace(out.Tag))
+			o["version"] = "5"
 		case pb.OutboundType_SHADOWSOCKS:
 			o["type"] = "shadowsocks"
 			s := out.GetShadowsocks()

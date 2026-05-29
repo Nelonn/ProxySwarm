@@ -13,6 +13,7 @@ import (
 )
 
 var TrustTunnelBinary = "trusttunnel_endpoint"
+var TrustTunnelClientBinary = "trusttunnel_client"
 
 type TrustTunnelEngine struct {
 	mu         sync.Mutex

@@ -1243,6 +1243,16 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 			o.Settings = toRawPtr(map[string]any{
 				"servers": []map[string]any{server},
 			})
+		case pb.OutboundType_TRUSTTUNNEL:
+			o.Protocol = "socks"
+			o.Settings = toRawPtr(map[string]any{
+				"servers": []map[string]any{
+					{
+						"address": "127.0.0.1",
+						"port":    trustTunnelOutboundSocksPort(strings.TrimSpace(out.Tag)),
+					},
+				},
+			})
 		case pb.OutboundType_SHADOWSOCKS:
 			o.Protocol = "shadowsocks"
 			s := out.GetShadowsocks()

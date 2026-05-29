@@ -386,17 +386,54 @@ pub(super) fn outbound_editor_popup(props: &OutboundEditorPopupProps) -> Html {
                                                     </ConfigSection>
                                                 </div>
                                             },
-                                            "TRUSTTUNNEL" => html! {
-                                                <div class="grid grid-cols-1 md-grid-cols-2 gap-6">
-                                                    <TextBox label="Tag" value={data.trust_tunnel.tag.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.tag = value)} />
-                                                    <TextBox label="[listen_protocols.http1] upload_buffer_size" value={data.trust_tunnel.http1_upload_buffer_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http1_upload_buffer_size = value.parse().unwrap_or(0))} input_type="number" />
+											"TRUSTTUNNEL" => html! {
+												<div class="space-y-4">
+													<div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+														<TextBox label="Tag" value={data.trust_tunnel.tag.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.tag = value)} />
+														<TextBox label="Endpoint Hostname" value={data.trust_tunnel.endpoint_hostname.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.endpoint_hostname = value)} placeholder="vpn.example.com" />
+														<TextBox label="Endpoint Addresses" value={data.trust_tunnel.endpoint_addresses.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.endpoint_addresses = value)} placeholder="1.2.3.4:443, [2001:db8::1]:443" is_textarea={true} />
+														<TextBox label="Username" value={data.trust_tunnel.username.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.username = value)} />
+														<TextBox label="Password" value={data.trust_tunnel.password.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.password = value)} />
+														<Dropdown
+															label="Upstream Protocol"
+															value={data.trust_tunnel.upstream_protocol.clone()}
+															options={vec![
+																DropdownOption { value: "http2".to_string(), label: "HTTP/2".to_string() },
+																DropdownOption { value: "http3".to_string(), label: "HTTP/3".to_string() },
+															]}
+															onchange={update_text(|outbound, value| outbound.trust_tunnel.upstream_protocol = value)}
+														/>
+														<TextBox label="Custom SNI" value={data.trust_tunnel.custom_sni.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.custom_sni = value)} placeholder="Optional" />
+													</div>
+													<TextBox label="Certificate PEM" value={data.trust_tunnel.certificate_pem.clone()} onchange={update_text(|outbound, value| outbound.trust_tunnel.certificate_pem = value)} is_textarea={true} placeholder="Optional if system-verifiable or skip verification is enabled" />
+                                                    <SwitchField label="Skip Certificate Verification" checked={data.trust_tunnel.skip_verification} onchange={Callback::from({
+                                                        let outbound = outbound.clone();
+                                                        move |event: Event| {
+                                                            let input = event.target_unchecked_into::<web_sys::HtmlInputElement>();
+                                                            let mut next = (*outbound).clone();
+                                                            next.trust_tunnel.skip_verification = input.checked();
+                                                            outbound.set(next);
+                                                        }
+                                                    })} />
+                                                    <SwitchField label="Anti-DPI" checked={data.trust_tunnel.anti_dpi} onchange={Callback::from({
+                                                        let outbound = outbound.clone();
+                                                        move |event: Event| {
+                                                            let input = event.target_unchecked_into::<web_sys::HtmlInputElement>();
+                                                            let mut next = (*outbound).clone();
+                                                            next.trust_tunnel.anti_dpi = input.checked();
+                                                            outbound.set(next);
+                                                        }
+                                                    })} />
+													<div class="grid grid-cols-1 md-grid-cols-2 gap-6">
+													<TextBox label="[listen_protocols.http1] upload_buffer_size" value={data.trust_tunnel.http1_upload_buffer_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http1_upload_buffer_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] initial_connection_window_size" value={data.trust_tunnel.http2_initial_connection_window_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_initial_connection_window_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] initial_stream_window_size" value={data.trust_tunnel.http2_initial_stream_window_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_initial_stream_window_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] max_concurrent_streams" value={data.trust_tunnel.http2_max_concurrent_streams.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_max_concurrent_streams = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] max_frame_size" value={data.trust_tunnel.http2_max_frame_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_max_frame_size = value.parse().unwrap_or(0))} input_type="number" />
                                                     <TextBox label="[listen_protocols.http2] header_table_size" value={data.trust_tunnel.http2_header_table_size.to_string()} onchange={update_text(|outbound, value| outbound.trust_tunnel.http2_header_table_size = value.parse().unwrap_or(0))} input_type="number" />
-                                                </div>
-                                            },
+													</div>
+												</div>
+											},
                                             "WIREGUARD" => html! {
                                                 <div class="space-y-4">
                                                     <div class="grid grid-cols-1 md-grid-cols-2 gap-6">

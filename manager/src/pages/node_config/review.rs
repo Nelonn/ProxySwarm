@@ -170,6 +170,13 @@ pub(super) fn render_outbound_review(data: &OutboundEntryDraft) -> Html {
                         ]),
                         "TRUSTTUNNEL" => review_section("TrustTunnel", vec![
                             review_row("Tag", optional_label(&data.trust_tunnel.tag)),
+                            review_row("Endpoint hostname", optional_label(&data.trust_tunnel.endpoint_hostname)),
+                            review_row("Endpoint addresses", optional_label(&data.trust_tunnel.endpoint_addresses)),
+                            review_row("Username", optional_label(&data.trust_tunnel.username)),
+                            review_row("Upstream protocol", optional_label(&data.trust_tunnel.upstream_protocol)),
+                            review_row("Custom SNI", optional_label(&data.trust_tunnel.custom_sni)),
+                            review_row("Skip verification", bool_label(data.trust_tunnel.skip_verification)),
+                            review_row("Anti-DPI", bool_label(data.trust_tunnel.anti_dpi)),
                             review_row("HTTP/1 upload buffer", data.trust_tunnel.http1_upload_buffer_size.to_string()),
                             review_row("HTTP/2 initial connection window", data.trust_tunnel.http2_initial_connection_window_size.to_string()),
                             review_row("HTTP/2 initial stream window", data.trust_tunnel.http2_initial_stream_window_size.to_string()),

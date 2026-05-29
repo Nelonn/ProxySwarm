@@ -508,6 +508,24 @@ fn default_vless_transmission() -> String {
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrustTunnelOutboundDraft {
     pub tag: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub endpoint_hostname: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub endpoint_addresses: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub username: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub password: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub certificate_pem: String,
+    #[serde(default)]
+    pub skip_verification: bool,
+    #[serde(default = "default_trusttunnel_upstream_protocol")]
+    pub upstream_protocol: String,
+    #[serde(default)]
+    pub anti_dpi: bool,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub custom_sni: String,
     #[serde(default = "default_http1_upload_buffer_size")]
     pub http1_upload_buffer_size: u32,
     #[serde(default = "default_http2_initial_connection_window_size")]
@@ -526,6 +544,15 @@ impl Default for TrustTunnelOutboundDraft {
     fn default() -> Self {
         Self {
             tag: String::new(),
+            endpoint_hostname: String::new(),
+            endpoint_addresses: String::new(),
+            username: String::new(),
+            password: String::new(),
+            certificate_pem: String::new(),
+            skip_verification: false,
+            upstream_protocol: default_trusttunnel_upstream_protocol(),
+            anti_dpi: false,
+            custom_sni: String::new(),
             http1_upload_buffer_size: default_http1_upload_buffer_size(),
             http2_initial_connection_window_size: default_http2_initial_connection_window_size(),
             http2_initial_stream_window_size: default_http2_initial_stream_window_size(),
@@ -534,6 +561,10 @@ impl Default for TrustTunnelOutboundDraft {
             http2_header_table_size: default_http2_header_table_size(),
         }
     }
+}
+
+fn default_trusttunnel_upstream_protocol() -> String {
+    "http2".to_string()
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
