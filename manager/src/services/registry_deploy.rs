@@ -387,7 +387,7 @@ fn build_trusttunnel_template(
     config: &crate::state::NodeConfigDraft,
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
-    let host = normalized_node_host(node)?;
+    let host = normalized_public_ip_host(node)?;
     let username = "{id}".to_string();
     let password = "{{token}}".to_string();
     let custom_sni = inbound.tls.server_name.trim().to_string();
@@ -496,7 +496,7 @@ fn build_naiveproxy_template(
     config: &crate::state::NodeConfigDraft,
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
-    let host = normalized_node_host(node)?;
+    let host = normalized_public_ip_host(node)?;
     let username = "{id}";
     let password = "{{token}}";
     let sni = if inbound.tls.server_name.trim().is_empty() {

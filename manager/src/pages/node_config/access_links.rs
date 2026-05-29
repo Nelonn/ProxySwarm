@@ -174,7 +174,7 @@ pub(super) fn build_trusttunnel_access_link(
         return Err("Selected inbound is not TrustTunnel".to_string());
     }
 
-    let host = normalized_node_host(node)?;
+    let host = normalized_public_ip_host(node)?;
     let username = if !account.id.trim().is_empty() {
         account.id.trim().to_string()
     } else {
@@ -317,7 +317,7 @@ pub(super) fn build_naiveproxy_access_link(
         return Err("Selected inbound is not NaiveProxy".to_string());
     }
 
-    let mut host = normalized_node_host(node)?;
+    let mut host = normalized_public_ip_host(node)?;
     if host.contains(':') && !host.starts_with('[') && !host.contains('.') {
         host = format!("[{}]", host);
     }
