@@ -187,10 +187,6 @@ func buildTrustTunnelClientConfig(hostname string, addresses []string, username,
 	b.WriteString("address = " + tomlQuote(fmt.Sprintf("127.0.0.1:%d", socksPort)) + "\n")
 	b.WriteString("username = \"\"\n")
 	b.WriteString("password = \"\"\n\n")
-	b.WriteString("[listener.tun]\n")
-	b.WriteString("included_routes = []\n")
-	b.WriteString("change_system_dns = false\n")
-	b.WriteString("mtu_size = 1280\n")
 	return b.String()
 }
 
