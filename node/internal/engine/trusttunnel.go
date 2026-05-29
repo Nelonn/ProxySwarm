@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 )
 
-var TrustTunnelBinary = "trusttunnel_endpoint"
+var TrustTunnelEndpointBinary = "trusttunnel_endpoint"
 var TrustTunnelClientBinary = "trusttunnel_client"
 
 type TrustTunnelEngine struct {
@@ -204,7 +204,7 @@ func (e *TrustTunnelEngine) UpdateConfig(ctx context.Context, inbounds []*pb.Inb
 	}
 	logging.Debugf("[trusttunnel] generated vpn.toml=%s", vpnBuilder.String())
 
-	return e.supervisor.restart(ctx, []string{TrustTunnelBinary, vpnPath, hostsPath})
+	return e.supervisor.restart(ctx, []string{TrustTunnelEndpointBinary, vpnPath, hostsPath})
 }
 
 func (e *TrustTunnelEngine) GetMetrics(ctx context.Context) (*RuntimeMetrics, error) {
