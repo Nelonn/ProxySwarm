@@ -528,8 +528,14 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 			if tlsCertificate == nil || strings.TrimSpace(tlsCertificate.CertificatePath) == "" || strings.TrimSpace(tlsCertificate.KeyPath) == "" {
 				return inbound, fmt.Errorf("vless tls requires tls certificate_name with valid certificate_path and key_path")
 			}
+			alpn := conf.StringList{"h2", "http/1.1"}
+			if isXHTTPTransmission(vlessCfg.Transmission) {
+				alpn = conf.StringList{"h3", "h2", "http/1.1"}
+			}
 			stream.Security = "tls"
 			stream.TLSSettings = &conf.TLSConfig{
+				ServerName: tlsConfig.ServerName,
+				ALPN:       &alpn,
 				Certs: []*conf.TLSCertConfig{{
 					CertFile: tlsCertificate.CertificatePath,
 					KeyFile:  tlsCertificate.KeyPath,
@@ -833,13 +839,22 @@ func xrayVlessNetwork(transmission string) *conf.TransportProtocol {
 	case "HttpUpgrade":
 		network = "httpupgrade"
 	case "SplitHTTP":
-		network = "splithttp"
+		network = "xhttp"
 	case "XHTTP":
 		network = "xhttp"
 	default:
 		network = "tcp"
 	}
 	return &network
+}
+
+func isXHTTPTransmission(transmission string) bool {
+	switch strings.TrimSpace(strings.ToUpper(transmission)) {
+	case "SPLITHTTP", "XHTTP":
+		return true
+	default:
+		return false
+	}
 }
 
 func xrayHysteriaNetwork() *conf.TransportProtocol {
@@ -1137,10 +1152,15 @@ func (e *XrayEngine) convertToConfig(configs []*pb.InboundConfig, outbounds []*p
 				if tlsCfg := v.GetTls(); tlsCfg != nil {
 					serverName = strings.TrimSpace(tlsCfg.ServerName)
 				}
+				alpn := conf.StringList{"h2", "http/1.1"}
+				if isXHTTPTransmission(v.Transmission) {
+					alpn = conf.StringList{"h3", "h2", "http/1.1"}
+				}
 				stream.Security = "tls"
 				stream.TLSSettings = &conf.TLSConfig{
 					AllowInsecure: true,
 					ServerName:    serverName,
+					ALPN:          &alpn,
 				}
 			} else if v.Security == pb.SecurityMode_REALITY {
 				realityCfg := v.GetReality()
