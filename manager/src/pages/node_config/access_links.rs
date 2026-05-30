@@ -252,6 +252,10 @@ pub(super) fn build_hysteria2_access_link(
     }
 
     let host = normalized_public_ip_host(node)?;
+    let mut link_host = host.clone();
+    if link_host.contains(':') && !link_host.starts_with('[') && !link_host.contains('.') {
+        link_host = format!("[{}]", link_host);
+    }
     let password = if !account.token.trim().is_empty() {
         account.token.trim().to_string()
     } else {
@@ -273,16 +277,10 @@ pub(super) fn build_hysteria2_access_link(
     if !inbound.hysteria2.obfs_type.trim().is_empty() {
         query.push(("obfs", inbound.hysteria2.obfs_type.trim().to_string()));
     }
-    if !inbound.hysteria2.obfs_password.trim().is_empty() {
+    if !inbound.hysteria2.obfs_type.trim().is_empty() && !inbound.hysteria2.obfs_password.trim().is_empty() {
         query.push((
             "obfs-password",
             inbound.hysteria2.obfs_password.trim().to_string(),
-        ));
-    }
-    if !inbound.hysteria2.masquerade.trim().is_empty() {
-        query.push((
-            "masquerade",
-            inbound.hysteria2.masquerade.trim().to_string(),
         ));
     }
 
@@ -300,7 +298,7 @@ pub(super) fn build_hysteria2_access_link(
     Ok(format!(
         "hysteria2://{}@{}:{}{}#{}",
         js_sys::encode_uri_component(&password),
-        host,
+        link_host,
         inbound.port,
         suffix,
         js_sys::encode_uri_component(&rendered_link_remark(draft, node, inbound, account))

@@ -73,13 +73,6 @@ func NewXrayEngine(name string) *XrayEngine {
 	}
 }
 
-func accountRuntimeID(acc *pb.Account) string {
-	if acc == nil {
-		return ""
-	}
-	return strings.TrimSpace(acc.Id)
-}
-
 func (e *XrayEngine) UpdateConfig(ctx context.Context, inbounds []*pb.InboundConfig, outbounds []*pb.OutboundConfig, rules []*pb.RoutingRule, dns *pb.DnsConfig, certificates *CertificatesManager) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -169,7 +162,7 @@ func (e *XrayEngine) restart(inbounds []*pb.InboundConfig, outbounds []*pb.Outbo
 		}
 		accounts := make(map[string]string)
 		for _, acc := range inbound.GetAccounts() {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -281,7 +274,7 @@ func (e *XrayEngine) syncAccounts(ctx context.Context, config *pb.InboundConfig,
 
 	newAccounts := make(map[string]string)
 	for _, acc := range accounts {
-		id := accountRuntimeID(acc)
+		id := acc.GetId()
 		if id == "" {
 			continue
 		}
@@ -595,7 +588,7 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		inbound.Protocol = "vless"
 		var clients []map[string]any
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -635,7 +628,7 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		inbound.Protocol = "hysteria"
 		clients := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -666,7 +659,7 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		}
 		accountsList := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -690,7 +683,7 @@ func buildXrayInboundConfig(config *pb.InboundConfig, certificates *Certificates
 		inbound.Protocol = "shadowsocks"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}

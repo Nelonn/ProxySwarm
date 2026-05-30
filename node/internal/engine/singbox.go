@@ -80,14 +80,27 @@ func parseSingBoxMasquerade(value string) (any, error) {
 	if value == "" {
 		return nil, nil
 	}
-	if strings.HasPrefix(value, "{") || strings.HasPrefix(value, "[") {
+	if strings.HasPrefix(value, "{") {
 		var parsed any
 		if err := json.Unmarshal([]byte(value), &parsed); err != nil {
 			return nil, fmt.Errorf("invalid hysteria2 masquerade JSON: %w", err)
 		}
+		if _, ok := parsed.(map[string]any); !ok {
+			return nil, fmt.Errorf("invalid hysteria2 masquerade JSON: expected object")
+		}
 		return parsed, nil
 	}
 	return value, nil
+}
+
+func normalizeSingBoxBBRProfile(value string) string {
+	profile := strings.ToLower(strings.TrimSpace(value))
+	switch profile {
+	case "conservative", "standard", "aggressive":
+		return profile
+	default:
+		return ""
+	}
 }
 
 func appendShadowsocksPrefix(pluginOpts string, prefix string) string {
@@ -242,7 +255,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		inbound["type"] = "vless"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -267,17 +280,30 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		if tlsOptions == nil {
 			return nil, fmt.Errorf("hysteria2 requires tls to be enabled")
 		}
-		inbound["up_mbps"] = p.Hysteria2.UpMbps
-		inbound["down_mbps"] = p.Hysteria2.DownMbps
-		inbound["ignore_client_bandwidth"] = p.Hysteria2.IgnoreClientBandwidth
+		tlsOptions["alpn"] = []string{"h3"}
+		if p.Hysteria2.UpMbps > 0 {
+			inbound["up_mbps"] = p.Hysteria2.UpMbps
+		}
+		if p.Hysteria2.DownMbps > 0 {
+			inbound["down_mbps"] = p.Hysteria2.DownMbps
+		}
+		if p.Hysteria2.UpMbps == 0 && p.Hysteria2.DownMbps == 0 {
+			inbound["ignore_client_bandwidth"] = p.Hysteria2.IgnoreClientBandwidth
+		}
 		inbound["brutal_debug"] = p.Hysteria2.BrutalDebug
-		if strings.TrimSpace(p.Hysteria2.BbrProfile) != "" {
-			inbound["bbr_profile"] = p.Hysteria2.BbrProfile
+		if bbrProfile := normalizeSingBoxBBRProfile(p.Hysteria2.BbrProfile); bbrProfile != "" {
+			inbound["bbr_profile"] = bbrProfile
 		}
 		if strings.TrimSpace(p.Hysteria2.ObfsType) != "" {
+			if !strings.EqualFold(strings.TrimSpace(p.Hysteria2.ObfsType), "salamander") {
+				return nil, fmt.Errorf("hysteria2 obfs type %q is not supported by sing-box", p.Hysteria2.ObfsType)
+			}
+			if strings.TrimSpace(p.Hysteria2.ObfsPassword) == "" {
+				return nil, fmt.Errorf("hysteria2 obfs_password is required when obfs_type is set")
+			}
 			inbound["obfs"] = map[string]any{
-				"type":     p.Hysteria2.ObfsType,
-				"password": p.Hysteria2.ObfsPassword,
+				"type":     "salamander",
+				"password": strings.TrimSpace(p.Hysteria2.ObfsPassword),
 			}
 		}
 		if masquerade, err := parseSingBoxMasquerade(p.Hysteria2.Masquerade); err != nil {
@@ -287,7 +313,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		}
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -306,7 +332,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		inbound["type"] = "naive"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -335,7 +361,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		inbound["type"] = "socks"
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}
@@ -362,7 +388,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		}
 		users := make([]map[string]any, 0, len(accounts))
 		for _, acc := range accounts {
-			id := accountRuntimeID(acc)
+			id := acc.GetId()
 			if id == "" {
 				continue
 			}

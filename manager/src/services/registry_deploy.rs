@@ -443,6 +443,10 @@ fn build_hysteria2_template(
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
     let host = normalized_public_ip_host(node)?;
+    let mut link_host = host.clone();
+    if link_host.contains(':') && !link_host.starts_with('[') && !link_host.contains('.') {
+        link_host = format!("[{}]", link_host);
+    }
     let password = "{{token}}";
 
     let mut query = Vec::new();
@@ -457,16 +461,12 @@ fn build_hysteria2_template(
     if !inbound.hysteria2.obfs_type.trim().is_empty() {
         query.push(("obfs", inbound.hysteria2.obfs_type.trim().to_string()));
     }
-    if !inbound.hysteria2.obfs_password.trim().is_empty() {
+    if !inbound.hysteria2.obfs_type.trim().is_empty()
+        && !inbound.hysteria2.obfs_password.trim().is_empty()
+    {
         query.push((
             "obfs-password",
             inbound.hysteria2.obfs_password.trim().to_string(),
-        ));
-    }
-    if !inbound.hysteria2.masquerade.trim().is_empty() {
-        query.push((
-            "masquerade",
-            inbound.hysteria2.masquerade.trim().to_string(),
         ));
     }
 
@@ -483,8 +483,8 @@ fn build_hysteria2_template(
 
     Ok(format!(
         "hysteria2://{}@{}:{}{}#{}",
-        js_sys::encode_uri_component(password),
-        host,
+        password,
+        link_host,
         inbound.port,
         suffix,
         template_label(node, config, inbound)
