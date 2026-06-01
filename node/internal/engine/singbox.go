@@ -414,6 +414,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 	singCfg["inbounds"] = append(singCfg["inbounds"].([]map[string]any), inbound)
 
 	convertedOutbounds := make([]map[string]any, 0, len(outbounds))
+	convertedEndpoints := make([]map[string]any, 0)
 	for _, out := range outbounds {
 		if out.Type == pb.OutboundType_CUSTOM {
 			return nil, fmt.Errorf("custom outbound %q requires Xray engine", out.Tag)
@@ -424,8 +425,10 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		switch out.Type {
 		case pb.OutboundType_DIRECT:
 			o["type"] = "direct"
+			convertedOutbounds = append(convertedOutbounds, o)
 		case pb.OutboundType_BLOCK:
 			o["type"] = "block"
+			convertedOutbounds = append(convertedOutbounds, o)
 		case pb.OutboundType_VLESS:
 			o["type"] = "vless"
 			v := out.GetVless()
@@ -472,6 +475,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 				}
 				o["tls"] = tlsOptions
 			}
+			convertedOutbounds = append(convertedOutbounds, o)
 		case pb.OutboundType_WIREGUARD:
 			o["type"] = "wireguard"
 			w := out.GetWireguard()
@@ -530,6 +534,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 			if len(peers) > 0 {
 				o["peers"] = peers
 			}
+			convertedEndpoints = append(convertedEndpoints, o)
 		case pb.OutboundType_SOCKS5:
 			o["type"] = "socks"
 			s := out.GetSocks5()
@@ -540,11 +545,13 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 				o["username"] = s.Username
 				o["password"] = s.Password
 			}
+			convertedOutbounds = append(convertedOutbounds, o)
 		case pb.OutboundType_TRUSTTUNNEL:
 			o["type"] = "socks"
 			o["server"] = "127.0.0.1"
 			o["server_port"] = trustTunnelOutboundSocksPort(strings.TrimSpace(out.Tag))
 			o["version"] = "5"
+			convertedOutbounds = append(convertedOutbounds, o)
 		case pb.OutboundType_SHADOWSOCKS:
 			o["type"] = "shadowsocks"
 			s := out.GetShadowsocks()
@@ -562,12 +569,15 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 			if pluginOpts := appendShadowsocksPrefix(s.PluginOpts, s.Prefix); pluginOpts != "" {
 				o["plugin_opts"] = pluginOpts
 			}
+			convertedOutbounds = append(convertedOutbounds, o)
 		default:
 			continue
 		}
-		convertedOutbounds = append(convertedOutbounds, o)
 	}
 	singCfg["outbounds"] = convertedOutbounds
+	if len(convertedEndpoints) > 0 {
+		singCfg["endpoints"] = convertedEndpoints
+	}
 
 	convertedRules := make([]map[string]any, 0, len(rules))
 	for _, rule := range rules {
