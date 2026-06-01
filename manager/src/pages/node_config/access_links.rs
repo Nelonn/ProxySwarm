@@ -277,7 +277,9 @@ pub(super) fn build_hysteria2_access_link(
     if !inbound.hysteria2.obfs_type.trim().is_empty() {
         query.push(("obfs", inbound.hysteria2.obfs_type.trim().to_string()));
     }
-    if !inbound.hysteria2.obfs_type.trim().is_empty() && !inbound.hysteria2.obfs_password.trim().is_empty() {
+    if !inbound.hysteria2.obfs_type.trim().is_empty()
+        && !inbound.hysteria2.obfs_password.trim().is_empty()
+    {
         query.push((
             "obfs-password",
             inbound.hysteria2.obfs_password.trim().to_string(),

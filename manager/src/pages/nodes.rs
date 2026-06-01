@@ -25,6 +25,25 @@ fn format_max_traffic_gb(value: Option<u64>) -> String {
         .unwrap_or_default()
 }
 
+fn is_valid_public_address(value: &str) -> bool {
+    let host = value.trim();
+    if host.is_empty() || host.parse::<IpAddr>().is_ok() {
+        return true;
+    }
+    if host.len() > 253 || host.starts_with('.') || host.ends_with('.') {
+        return false;
+    }
+    host.split('.').all(|label| {
+        !label.is_empty()
+            && label.len() <= 63
+            && !label.starts_with('-')
+            && !label.ends_with('-')
+            && label
+                .chars()
+                .all(|char| char.is_ascii_alphanumeric() || char == '-')
+    })
+}
+
 #[function_component(Nodes)]
 pub fn nodes() -> Html {
     let state = use_context::<UseStateHandle<State>>().expect("state context");
@@ -506,9 +525,9 @@ fn node_modal(props: &NodeModalProps) -> Html {
             }
 
             let public_ip_value = public_ip_for_submit.trim().to_string();
-            if !public_ip_value.is_empty() && public_ip_value.parse::<IpAddr>().is_err() {
+            if !is_valid_public_address(&public_ip_value) {
                 public_ip_error_for_submit.set(Some(
-                    "Public IP must be valid IPv4 or IPv6 address.".to_string(),
+                    "Public address must be a valid IPv4, IPv6, or domain name.".to_string(),
                 ));
                 has_error = true;
             }
