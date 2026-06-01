@@ -1,4 +1,5 @@
 use super::*;
+use crate::services::link_builder::{build_vless_link, VlessLinkInput};
 
 pub(super) fn build_vless_access_link(
     draft: &NodeConfigDraft,
@@ -6,10 +7,6 @@ pub(super) fn build_vless_access_link(
     inbound: &InboundEntryDraft,
     account: &AccountInfo,
 ) -> Result<String, String> {
-    if inbound.protocol.trim().to_uppercase() != "VLESS" {
-        return Err("Selected inbound is not VLESS".to_string());
-    }
-
     let token = if !account.token.trim().is_empty() {
         account.token.trim().to_string()
     } else {
@@ -19,91 +16,17 @@ pub(super) fn build_vless_access_link(
         return Err("User token is empty".to_string());
     }
 
-    let mut host = normalized_public_ip_host(node)?;
-    if host.contains(':') && !host.starts_with('[') && !host.contains('.') {
-        host = format!("[{}]", host);
-    }
-
-    let security = inbound.vless.security.trim().to_uppercase();
-    let transmission = vless_link_type(&inbound.vless.transmission).to_string();
-
-    let mut query: Vec<(String, String)> = vec![
-        ("encryption".to_string(), "none".to_string()),
-        ("type".to_string(), transmission.clone()),
-    ];
-
-    if !inbound.vless.flow.trim().is_empty() {
-        query.push(("flow".to_string(), inbound.vless.flow.trim().to_string()));
-    }
-
-    let default_sni = if inbound.tls.server_name.trim().is_empty() {
-        host.clone()
-    } else {
-        inbound.tls.server_name.trim().to_string()
-    };
-
-    match security.as_str() {
-        "TLS" => {
-            query.push(("security".to_string(), "tls".to_string()));
-            query.push(("sni".to_string(), default_sni.clone()));
-        }
-        "REALITY" => {
-            query.push(("security".to_string(), "reality".to_string()));
-            let sni = if inbound.vless.reality_sni.trim().is_empty() {
-                default_sni.clone()
-            } else {
-                inbound.vless.reality_sni.trim().to_string()
-            };
-            query.push(("sni".to_string(), sni));
-            if !inbound.vless.reality_public_key.trim().is_empty() {
-                query.push((
-                    "pbk".to_string(),
-                    inbound.vless.reality_public_key.trim().to_string(),
-                ));
-            }
-            if !inbound.vless.reality_spider_x.trim().is_empty() {
-                query.push((
-                    "spx".to_string(),
-                    inbound.vless.reality_spider_x.trim().to_string(),
-                ));
-            }
-            if !inbound.vless.reality_utls.trim().is_empty() {
-                query.push((
-                    "fp".to_string(),
-                    inbound.vless.reality_utls.trim().to_string(),
-                ));
-            }
-        }
-        _ => {
-            query.push(("security".to_string(), "none".to_string()));
-        }
-    }
-
-    match transmission.as_str() {
-        "ws" | "httpupgrade" | "splithttp" | "xhttp" | "http" => {
-            query.push(("path".to_string(), "/".to_string()));
-            query.push(("host".to_string(), default_sni.clone()));
-        }
-        "grpc" => {
-            query.push(("serviceName".to_string(), "".to_string()));
-        }
-        _ => {}
-    }
-
-    let query_string = query
-        .into_iter()
-        .map(|(k, v)| format!("{}={}", k, js_sys::encode_uri_component(&v)))
-        .collect::<Vec<_>>()
-        .join("&");
-
-    Ok(format!(
-        "vless://{}@{}:{}?{}#{}",
-        token,
-        host,
-        inbound.port,
-        query_string,
+    let label_fragment =
         js_sys::encode_uri_component(&rendered_link_remark(draft, node, inbound, account))
-    ))
+            .as_string()
+            .unwrap_or_default();
+    let host = normalized_public_ip_host(node)?;
+    build_vless_link(VlessLinkInput {
+        inbound,
+        host: &host,
+        user: &token,
+        label_fragment: &label_fragment,
+    })
 }
 
 pub(super) fn normalized_public_ip_host(node: &ProxyNode) -> Result<String, String> {

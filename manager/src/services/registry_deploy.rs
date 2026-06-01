@@ -1,6 +1,7 @@
 use trusttunnel_deeplink::{encode, DeepLinkConfig};
 
 use crate::pb::proxyswarm::{Account, RegistryServiceConfig, RegistryTemplateLink};
+use crate::services::link_builder::{build_vless_link, VlessLinkInput};
 use crate::services::registry_api::RegistryApiService;
 use crate::state::{
     effective_inbound_groups, format_link_remark, normalize_groups, AccountInfo, InboundEntryDraft,
@@ -301,85 +302,13 @@ fn build_vless_template(
     config: &crate::state::NodeConfigDraft,
     inbound: &InboundEntryDraft,
 ) -> Result<String, String> {
-    let mut host = normalized_public_ip_host(node)?;
-    if host.contains(':') && !host.starts_with('[') && !host.contains('.') {
-        host = format!("[{}]", host);
-    }
-
-    let security = inbound.vless.security.trim().to_uppercase();
-    let transmission = vless_link_type(&inbound.vless.transmission).to_string();
-    let mut query: Vec<(String, String)> = vec![
-        ("encryption".to_string(), "none".to_string()),
-        ("type".to_string(), transmission.clone()),
-    ];
-
-    if !inbound.vless.flow.trim().is_empty() {
-        query.push(("flow".to_string(), inbound.vless.flow.trim().to_string()));
-    }
-
-    let default_sni = if inbound.tls.server_name.trim().is_empty() {
-        host.clone()
-    } else {
-        inbound.tls.server_name.trim().to_string()
-    };
-
-    match security.as_str() {
-        "TLS" => {
-            query.push(("security".to_string(), "tls".to_string()));
-            query.push(("sni".to_string(), default_sni.clone()));
-        }
-        "REALITY" => {
-            query.push(("security".to_string(), "reality".to_string()));
-            let sni = if inbound.vless.reality_sni.trim().is_empty() {
-                default_sni.clone()
-            } else {
-                inbound.vless.reality_sni.trim().to_string()
-            };
-            query.push(("sni".to_string(), sni));
-            if !inbound.vless.reality_public_key.trim().is_empty() {
-                query.push((
-                    "pbk".to_string(),
-                    inbound.vless.reality_public_key.trim().to_string(),
-                ));
-            }
-            if !inbound.vless.reality_spider_x.trim().is_empty() {
-                query.push((
-                    "spx".to_string(),
-                    inbound.vless.reality_spider_x.trim().to_string(),
-                ));
-            }
-            if !inbound.vless.reality_utls.trim().is_empty() {
-                query.push((
-                    "fp".to_string(),
-                    inbound.vless.reality_utls.trim().to_string(),
-                ));
-            }
-        }
-        _ => query.push(("security".to_string(), "none".to_string())),
-    }
-
-    match transmission.as_str() {
-        "ws" | "httpupgrade" | "splithttp" | "xhttp" | "http" => {
-            query.push(("path".to_string(), "/".to_string()));
-            query.push(("host".to_string(), default_sni));
-        }
-        "grpc" => query.push(("serviceName".to_string(), "".to_string())),
-        _ => {}
-    }
-
-    let query_string = query
-        .into_iter()
-        .map(|(key, value)| format!("{}={}", key, js_sys::encode_uri_component(&value)))
-        .collect::<Vec<_>>()
-        .join("&");
-
-    Ok(format!(
-        "vless://{{{{token}}}}@{}:{}?{}#{}",
-        host,
-        inbound.port,
-        query_string,
-        template_label(node, config, inbound)
-    ))
+    let host = normalized_public_ip_host(node)?;
+    build_vless_link(VlessLinkInput {
+        inbound,
+        host: &host,
+        user: "{{token}}",
+        label_fragment: &template_label(node, config, inbound),
+    })
 }
 
 fn build_trusttunnel_template(
@@ -607,49 +536,5 @@ fn normalize_host(value: &str) -> Option<String> {
         None
     } else {
         Some(host)
-    }
-}
-
-fn split_lines_csv(value: &str) -> Vec<String> {
-    value
-        .split(|char| char == ',' || char == '\n' || char == '\r')
-        .map(|entry| entry.trim())
-        .filter(|entry| !entry.is_empty())
-        .map(|entry| entry.to_string())
-        .collect()
-}
-
-fn normalize_reality_short_ids(value: &str) -> Vec<String> {
-    split_lines_csv(value)
-        .into_iter()
-        .map(|value| value.trim().to_lowercase())
-        .filter(|value| !value.is_empty())
-        .filter(|value| value.len() <= 16 && value.len() % 2 == 0)
-        .filter(|value| value.chars().all(|char| char.is_ascii_hexdigit()))
-        .collect()
-}
-
-fn vless_transmission_from(value: &str) -> String {
-    match value.trim().to_uppercase().as_str() {
-        "TCP" | "TCP (RAW)" => "TCP".to_string(),
-        "HTTP" => "HTTP".to_string(),
-        "GRPC" => "gRPC".to_string(),
-        "WEBSOCKET" => "WebSocket".to_string(),
-        "MKCP" => "mKCP".to_string(),
-        "HTTPUPGRADE" => "HttpUpgrade".to_string(),
-        "SPLITHTTP" => "SplitHTTP".to_string(),
-        _ => "TCP".to_string(),
-    }
-}
-
-fn vless_link_type(value: &str) -> &'static str {
-    match vless_transmission_from(value).as_str() {
-        "HTTP" => "http",
-        "gRPC" => "grpc",
-        "WebSocket" => "ws",
-        "mKCP" => "kcp",
-        "HttpUpgrade" => "httpupgrade",
-        "SplitHTTP" => "splithttp",
-        _ => "tcp",
     }
 }

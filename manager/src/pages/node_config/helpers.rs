@@ -863,19 +863,6 @@ pub(super) fn vless_transmission_from(value: &str) -> String {
     }
 }
 
-pub(super) fn vless_link_type(value: &str) -> &'static str {
-    match vless_transmission_from(value).as_str() {
-        "HTTP" => "http",
-        "gRPC" => "grpc",
-        "WebSocket" => "ws",
-        "mKCP" => "kcp",
-        "HttpUpgrade" => "httpupgrade",
-        "SplitHTTP" => "splithttp",
-        "XHTTP" => "xhttp",
-        _ => "tcp",
-    }
-}
-
 pub(super) fn vless_transmission_options_for_core(core_type: &str) -> Vec<DropdownOption> {
     let mut options = vec![
         DropdownOption {
