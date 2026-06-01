@@ -89,6 +89,7 @@ func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
 
 func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	handler := makeUserAPIHandler(testStore(&pb.RegistryServiceConfig{
+		Brand: "AcmeVPN",
 		Accounts: []*pb.Account{
 			{Id: "a1", Name: "Alice", Token: "tok-1", ExpiryTime: 1735689600},
 		},
@@ -111,7 +112,7 @@ func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	if got := rec.Header().Get("subscription-userinfo"); got != "upload=0; download=0; total=0; expire=1735689600" {
 		t.Fatalf("unexpected subscription-userinfo: %q", got)
 	}
-	if got := rec.Header().Get("profile-title"); got != "base64:QWxpY2U=" {
+	if got := rec.Header().Get("profile-title"); got != "base64:QWxpY2UgKEFjbWVWUE4p" {
 		t.Fatalf("unexpected profile-title: %q", got)
 	}
 	if got := rec.Header().Get("profile-update-interval"); got != "12" {

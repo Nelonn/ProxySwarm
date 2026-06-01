@@ -25,6 +25,7 @@ type RegistryServiceConfig struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
 	Accounts      []*Account              `protobuf:"bytes,1,rep,name=accounts,proto3" json:"accounts,omitempty"`
 	TemplateLinks []*RegistryTemplateLink `protobuf:"bytes,2,rep,name=template_links,json=templateLinks,proto3" json:"template_links,omitempty"`
+	Brand         string                  `protobuf:"bytes,3,opt,name=brand,proto3" json:"brand,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -71,6 +72,13 @@ func (x *RegistryServiceConfig) GetTemplateLinks() []*RegistryTemplateLink {
 		return x.TemplateLinks
 	}
 	return nil
+}
+
+func (x *RegistryServiceConfig) GetBrand() string {
+	if x != nil {
+		return x.Brand
+	}
+	return ""
 }
 
 type RegistryTemplateLink struct {
@@ -362,10 +370,11 @@ var File_registry_registry_proto protoreflect.FileDescriptor
 const file_registry_registry_proto_rawDesc = "" +
 	"\n" +
 	"\x17registry/registry.proto\x12\n" +
-	"proxyswarm\x1a\raccount.proto\"\x91\x01\n" +
+	"proxyswarm\x1a\raccount.proto\"\xa7\x01\n" +
 	"\x15RegistryServiceConfig\x12/\n" +
 	"\baccounts\x18\x01 \x03(\v2\x13.proxyswarm.AccountR\baccounts\x12G\n" +
-	"\x0etemplate_links\x18\x02 \x03(\v2 .proxyswarm.RegistryTemplateLinkR\rtemplateLinks\"\xde\x01\n" +
+	"\x0etemplate_links\x18\x02 \x03(\v2 .proxyswarm.RegistryTemplateLinkR\rtemplateLinks\x12\x14\n" +
+	"\x05brand\x18\x03 \x01(\tR\x05brand\"\xde\x01\n" +
 	"\x14RegistryTemplateLink\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1b\n" +
 	"\tnode_name\x18\x02 \x01(\tR\bnodeName\x12\x1d\n" +

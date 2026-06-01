@@ -11,7 +11,7 @@ use crate::components::{
 use crate::pb::proxyswarm::RegistryStatusResponse;
 use crate::services::registry_api::RegistryApiService;
 use crate::services::registry_deploy::{deploy_all_registries, deploy_registry_by_id};
-use crate::state::{AccountInfo, RegistryInfo, State};
+use crate::state::{default_registry_brand, AccountInfo, RegistryInfo, State};
 
 #[function_component(Registries)]
 pub fn registries() -> Html {
@@ -765,6 +765,7 @@ struct RegistryModalProps {
 #[function_component(RegistryModal)]
 fn registry_modal(props: &RegistryModalProps) -> Html {
     let name = use_state(String::new);
+    let brand = use_state(default_registry_brand);
     let public_endpoint = use_state(String::new);
     let manage_endpoint = use_state(String::new);
     let master_key = use_state(String::new);
@@ -776,6 +777,7 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
 
     {
         let name = name.clone();
+        let brand = brand.clone();
         let public_endpoint = public_endpoint.clone();
         let manage_endpoint = manage_endpoint.clone();
         let master_key = master_key.clone();
@@ -788,12 +790,18 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
         use_effect_with(initial_registry, move |initial_registry| {
             if let Some(registry) = initial_registry {
                 name.set(registry.name.clone());
+                brand.set(if registry.brand.trim().is_empty() {
+                    default_registry_brand()
+                } else {
+                    registry.brand.clone()
+                });
                 public_endpoint.set(registry.public_endpoint.clone());
                 manage_endpoint.set(registry.manage_endpoint.clone());
                 master_key.set(registry.master_key.clone());
                 enabled.set(registry.enabled);
             } else {
                 name.set(String::new());
+                brand.set(default_registry_brand());
                 public_endpoint.set(String::new());
                 manage_endpoint.set(String::new());
                 master_key.set(String::new());
@@ -823,6 +831,11 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
             public_endpoint.set(value);
             public_endpoint_error.set(None);
         })
+    };
+
+    let on_brand_change = {
+        let brand = brand.clone();
+        Callback::from(move |value: String| brand.set(value))
     };
 
     let on_manage_endpoint_change = {
@@ -856,6 +869,7 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
     };
 
     let name_for_submit = name.clone();
+    let brand_for_submit = brand.clone();
     let public_endpoint_for_submit = public_endpoint.clone();
     let manage_endpoint_for_submit = manage_endpoint.clone();
     let master_key_for_submit = master_key.clone();
@@ -877,6 +891,11 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
             master_key_error_for_submit.set(None);
 
             let name_value = name_for_submit.trim().to_string();
+            let brand_value = if brand_for_submit.trim().is_empty() {
+                default_registry_brand()
+            } else {
+                brand_for_submit.trim().to_string()
+            };
             let public_endpoint_value = public_endpoint_for_submit.trim().to_string();
             let manage_endpoint_value = manage_endpoint_for_submit.trim().to_string();
             let master_key_value = master_key_for_submit.trim().to_string();
@@ -913,6 +932,7 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
                     .find(|item| item.id == existing.id)
                 {
                     registry.name = name_value;
+                    registry.brand = brand_value;
                     registry.public_endpoint = public_endpoint_value;
                     registry.manage_endpoint = manage_endpoint_value;
                     registry.master_key = master_key_value;
@@ -922,6 +942,7 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
                 new_state.registries.push(RegistryInfo {
                     id: uuid::Uuid::new_v4().to_string(),
                     name: name_value,
+                    brand: brand_value,
                     public_endpoint: public_endpoint_value,
                     manage_endpoint: manage_endpoint_value,
                     master_key: master_key_value,
@@ -950,6 +971,12 @@ fn registry_modal(props: &RegistryModalProps) -> Html {
                     onchange={on_name_change}
                     placeholder="Main Registry"
                     error={(*name_error).clone()}
+                />
+                <TextBox
+                    label="Brand Name"
+                    value={(*brand).clone()}
+                    onchange={on_brand_change}
+                    placeholder="ProxySwarm"
                 />
                 <TextBox
                     label="Public Endpoint"

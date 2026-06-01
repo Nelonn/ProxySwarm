@@ -12,6 +12,7 @@ service RegistryManagementService {
 message RegistryServiceConfig {
     repeated Account accounts = 1;
     repeated RegistryTemplateLink template_links = 2;
+    string brand = 3;
 }
 
 message RegistryTemplateLink {

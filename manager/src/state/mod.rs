@@ -920,6 +920,8 @@ pub struct AccountInfo {
 pub struct RegistryInfo {
     pub id: String,
     pub name: String,
+    #[serde(default = "default_registry_brand")]
+    pub brand: String,
     #[serde(default)]
     pub public_endpoint: String,
     #[serde(default)]
@@ -928,6 +930,10 @@ pub struct RegistryInfo {
     pub master_key: String,
     #[serde(default)]
     pub enabled: bool,
+}
+
+pub fn default_registry_brand() -> String {
+    "ProxySwarm".to_string()
 }
 
 fn sanitize_inbound_for_storage(inbound: &mut InboundEntryDraft) {

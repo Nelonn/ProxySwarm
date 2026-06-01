@@ -50,7 +50,9 @@ pub async fn deploy_all_registries(state: &State) -> DeployAllSummary {
     };
 
     for registry in enabled_registries {
-        match deploy_registry(&registry, generated.config.clone()).await {
+        let mut config = generated.config.clone();
+        config.brand = registry_brand(&registry);
+        match deploy_registry(&registry, config).await {
             Ok(()) => {
                 summary.registries_succeeded += 1;
                 summary.services_deployed += 1;
@@ -83,7 +85,9 @@ pub async fn deploy_registry_by_id(
         ..DeployAllSummary::default()
     };
 
-    match deploy_registry(&registry, generated.config).await {
+    let mut config = generated.config;
+    config.brand = registry_brand(&registry);
+    match deploy_registry(&registry, config).await {
         Ok(()) => {
             summary.registries_succeeded = 1;
             summary.services_deployed = 1;
@@ -162,6 +166,7 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
         config: RegistryServiceConfig {
             accounts: registry_accounts(&state.accounts),
             template_links: Vec::new(),
+            brand: "ProxySwarm".to_string(),
         },
         ..BuildConfigResult::default()
     };
@@ -209,6 +214,15 @@ fn build_registry_config(state: &State) -> BuildConfigResult {
     }
 
     result
+}
+
+fn registry_brand(registry: &RegistryInfo) -> String {
+    let brand = registry.brand.trim();
+    if brand.is_empty() {
+        "ProxySwarm".to_string()
+    } else {
+        brand.to_string()
+    }
 }
 
 fn effective_node_config(node: &ProxyNode) -> NodeConfigDraft {

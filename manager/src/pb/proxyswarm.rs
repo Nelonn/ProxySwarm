@@ -871,6 +871,8 @@ pub struct RegistryServiceConfig {
     pub accounts: ::prost::alloc::vec::Vec<Account>,
     #[prost(message, repeated, tag = "2")]
     pub template_links: ::prost::alloc::vec::Vec<RegistryTemplateLink>,
+    #[prost(string, tag = "3")]
+    pub brand: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

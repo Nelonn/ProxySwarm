@@ -284,7 +284,7 @@ func makeUserAPIHandler(store *registryStore, telemetry *telemetryStore, subscri
 		}
 		res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		res.Header().Set("subscription-userinfo", buildSubscriptionUserInfo(account))
-		res.Header().Set("profile-title", buildProfileTitle(account))
+		res.Header().Set("profile-title", buildProfileTitle(account, config.GetBrand()))
 		res.Header().Set("profile-update-interval", strconv.Itoa(subscriptionUpdateHours))
 		res.WriteHeader(http.StatusOK)
 		_, _ = res.Write([]byte(strings.Join(links, "\n")))
@@ -405,14 +405,26 @@ func buildSubscriptionUserInfo(account *pb.Account) string {
 	return fmt.Sprintf("upload=0; download=0; total=0; expire=%d", expire)
 }
 
-func buildProfileTitle(account *pb.Account) string {
-	title := "ProxySwarm"
+func buildProfileTitle(account *pb.Account, brand string) string {
+	brand = normalizedRegistryBrand(brand)
+	userName := "User"
 	if account != nil {
 		if strings.TrimSpace(account.GetName()) != "" {
-			title = account.GetName()
+			userName = account.GetName()
+		} else if strings.TrimSpace(account.GetId()) != "" {
+			userName = account.GetId()
 		}
 	}
+	title := fmt.Sprintf("%s (%s)", userName, brand)
 	return "base64:" + base64.StdEncoding.EncodeToString([]byte(title))
+}
+
+func normalizedRegistryBrand(brand string) string {
+	brand = strings.TrimSpace(brand)
+	if brand == "" {
+		return "ProxySwarm"
+	}
+	return brand
 }
 
 func newTelemetryStore() *telemetryStore {
@@ -660,6 +672,7 @@ func (s *registryStore) update(in *pb.RegistryServiceConfig) (*pb.RegistryServic
 	config := &pb.RegistryServiceConfig{
 		Accounts:      cloneRegistryAccounts(in.Accounts),
 		TemplateLinks: cloneRegistryTemplateLinks(in.TemplateLinks),
+		Brand:         normalizedRegistryBrand(in.Brand),
 	}
 
 	s.mu.Lock()
@@ -735,6 +748,7 @@ func cloneRegistryConfig(in *pb.RegistryServiceConfig) *pb.RegistryServiceConfig
 	return &pb.RegistryServiceConfig{
 		Accounts:      cloneRegistryAccounts(in.Accounts),
 		TemplateLinks: cloneRegistryTemplateLinks(in.TemplateLinks),
+		Brand:         normalizedRegistryBrand(in.Brand),
 	}
 }
 
