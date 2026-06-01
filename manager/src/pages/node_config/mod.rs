@@ -19,8 +19,8 @@ use crate::components::{
 use crate::pb::proxyswarm::{
     outbound_config, Account, AccountStatus, AcmeCertificateConfig, CertificateConfig, CoreType,
     CustomCertificateConfig, CustomOutboundConfig, DnsConfig, DnsHostMapping, DnsServerConfig,
-    FullConfig, Hysteria2Config, InboundConfig, InboundStatus, NaiveProxyConfig, NodeStatus,
-    OutboundConfig, OutboundStatus, OutboundType, RoutingRule, SecurityMode,
+    FullConfig, HourlyMetrics, Hysteria2Config, InboundConfig, InboundStatus, NaiveProxyConfig,
+    NodeStatus, OutboundConfig, OutboundStatus, OutboundType, RoutingRule, SecurityMode,
     ShadowsocksInboundConfig, ShadowsocksOutboundConfig, Socks5InboundConfig, Socks5OutboundConfig,
     TProxyConfig, TlsConfig, TrafficStats, TrojanInboundConfig, TrojanOutboundConfig,
     TrustTunnelConfig, TunnelConfig, VlessConfig, VlessOutboundConfig, VlessRealityConfig,
@@ -133,6 +133,19 @@ fn nav_items() -> Vec<WideNavigationBarItem> {
     ]
 }
 
+fn parse_datetime_local_unix(value: &str) -> Option<i64> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let millis = JsDate::parse(trimmed);
+    if millis.is_nan() {
+        None
+    } else {
+        Some((millis / 1000.0) as i64)
+    }
+}
+
 fn persist_revision(
     state: &UseStateHandle<State>,
     node_id: &str,
@@ -241,6 +254,9 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
     let live_status_error = use_state(|| Option::<String>::None);
     let status_auto_refresh = use_state(|| true);
     let status_refresh_interval_ms = use_state(|| 2000u32);
+    let status_history_hours = use_state(|| 24u32);
+    let status_history_from = use_state(String::new);
+    let status_history_to = use_state(String::new);
     let status_refresh_menu_open = use_state(|| false);
 
     let node = state.nodes.iter().find(|node| node.id == props.id).cloned();
@@ -400,17 +416,26 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
         let live_status = live_status.clone();
         let live_status_loading = live_status_loading.clone();
         let live_status_error = live_status_error.clone();
+        let status_history_hours = status_history_hours.clone();
+        let status_history_from = status_history_from.clone();
+        let status_history_to = status_history_to.clone();
         Callback::from(move |_: ()| {
             let address = address.clone();
             let master_key = master_key.clone();
             let live_status = live_status.clone();
             let live_status_loading = live_status_loading.clone();
             let live_status_error = live_status_error.clone();
+            let status_history_hours = *status_history_hours;
+            let from_unix = parse_datetime_local_unix(&status_history_from).unwrap_or(0);
+            let to_unix = parse_datetime_local_unix(&status_history_to).unwrap_or(0);
             live_status_loading.set(true);
             live_status_error.set(None);
             spawn_local(async move {
                 let api = ApiService::new(address);
-                match api.get_status(master_key).await {
+                match api
+                    .get_status(master_key, status_history_hours, from_unix, to_unix)
+                    .await
+                {
                     Ok(status) => {
                         live_status.set(Some(status));
                     }
@@ -434,13 +459,19 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
         let fetch_live_status = fetch_live_status.clone();
         let status_auto_refresh = status_auto_refresh.clone();
         let status_refresh_interval_ms = status_refresh_interval_ms.clone();
+        let status_history_hours = status_history_hours.clone();
+        let status_history_from = status_history_from.clone();
+        let status_history_to = status_history_to.clone();
         use_effect_with(
             (
                 (*active_tab).clone(),
                 *status_auto_refresh,
                 *status_refresh_interval_ms,
+                *status_history_hours,
+                (*status_history_from).clone(),
+                (*status_history_to).clone(),
             ),
-            move |(tab, auto_refresh, refresh_ms)| {
+            move |(tab, auto_refresh, refresh_ms, _history_hours, _from, _to)| {
                 let interval = if *tab == ConfigTab::Status {
                     fetch_live_status.emit(());
                     if *auto_refresh {
@@ -535,6 +566,9 @@ pub fn node_config_page(props: &NodeConfigPageProps) -> Html {
                         &live_status_error,
                         &status_auto_refresh,
                         &status_refresh_interval_ms,
+                        &status_history_hours,
+                        &status_history_from,
+                        &status_history_to,
                         &status_refresh_menu_open,
                         &on_refresh_live_status,
                     ),

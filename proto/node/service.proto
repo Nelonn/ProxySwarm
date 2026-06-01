@@ -163,6 +163,9 @@ message UpdateResponse {
 
 message StatusRequest {
     string master_key = 1;
+    uint32 hourly_metrics_hours = 2;
+    int64 hourly_metrics_from_unix = 3;
+    int64 hourly_metrics_to_unix = 4;
 }
 
 message AcmeIssueRequest {

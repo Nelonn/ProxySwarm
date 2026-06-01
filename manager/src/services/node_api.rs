@@ -148,9 +148,18 @@ impl ApiService {
         Ok(response)
     }
 
-    pub async fn get_status(&self, master_key: String) -> Result<NodeStatus, String> {
+    pub async fn get_status(
+        &self,
+        master_key: String,
+        hourly_metrics_hours: u32,
+        hourly_metrics_from_unix: i64,
+        hourly_metrics_to_unix: i64,
+    ) -> Result<NodeStatus, String> {
         let request = StatusRequest {
             master_key: hash_master_key(&master_key),
+            hourly_metrics_hours,
+            hourly_metrics_from_unix,
+            hourly_metrics_to_unix,
         };
         let encoded = request.encode_to_vec();
         let framed = frame_grpc_web_message(&encoded);

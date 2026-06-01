@@ -47,6 +47,15 @@ message OutboundStatus {
     bool excluded_from_totals = 4;
 }
 
+message HourlyMetrics {
+    int64 hour_start_unix = 1;
+    double max_speed = 2;
+    uint64 traffic_rx = 3;
+    uint64 traffic_tx = 4;
+    uint32 users = 5;
+    uint32 inbounds = 6;
+}
+
 message NodeStatus {
     HardwareStats hardware = 1;
     repeated InboundStatus inbounds = 2;
@@ -56,6 +65,7 @@ message NodeStatus {
     TrafficStats total_outbound_traffic = 6;
     ConnectionStats connections = 7;
     uint32 sample_window_seconds = 8;
+    repeated HourlyMetrics hourly_metrics = 9;
 }
 
 message AcmeCertificateConfig {

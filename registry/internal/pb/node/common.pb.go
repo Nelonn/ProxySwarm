@@ -465,6 +465,90 @@ func (x *OutboundStatus) GetExcludedFromTotals() bool {
 	return false
 }
 
+type HourlyMetrics struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HourStartUnix int64                  `protobuf:"varint,1,opt,name=hour_start_unix,json=hourStartUnix,proto3" json:"hour_start_unix,omitempty"`
+	MaxSpeed      float64                `protobuf:"fixed64,2,opt,name=max_speed,json=maxSpeed,proto3" json:"max_speed,omitempty"`
+	TrafficRx     uint64                 `protobuf:"varint,3,opt,name=traffic_rx,json=trafficRx,proto3" json:"traffic_rx,omitempty"`
+	TrafficTx     uint64                 `protobuf:"varint,4,opt,name=traffic_tx,json=trafficTx,proto3" json:"traffic_tx,omitempty"`
+	Users         uint32                 `protobuf:"varint,5,opt,name=users,proto3" json:"users,omitempty"`
+	Inbounds      uint32                 `protobuf:"varint,6,opt,name=inbounds,proto3" json:"inbounds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HourlyMetrics) Reset() {
+	*x = HourlyMetrics{}
+	mi := &file_node_common_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HourlyMetrics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HourlyMetrics) ProtoMessage() {}
+
+func (x *HourlyMetrics) ProtoReflect() protoreflect.Message {
+	mi := &file_node_common_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HourlyMetrics.ProtoReflect.Descriptor instead.
+func (*HourlyMetrics) Descriptor() ([]byte, []int) {
+	return file_node_common_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *HourlyMetrics) GetHourStartUnix() int64 {
+	if x != nil {
+		return x.HourStartUnix
+	}
+	return 0
+}
+
+func (x *HourlyMetrics) GetMaxSpeed() float64 {
+	if x != nil {
+		return x.MaxSpeed
+	}
+	return 0
+}
+
+func (x *HourlyMetrics) GetTrafficRx() uint64 {
+	if x != nil {
+		return x.TrafficRx
+	}
+	return 0
+}
+
+func (x *HourlyMetrics) GetTrafficTx() uint64 {
+	if x != nil {
+		return x.TrafficTx
+	}
+	return 0
+}
+
+func (x *HourlyMetrics) GetUsers() uint32 {
+	if x != nil {
+		return x.Users
+	}
+	return 0
+}
+
+func (x *HourlyMetrics) GetInbounds() uint32 {
+	if x != nil {
+		return x.Inbounds
+	}
+	return 0
+}
+
 type NodeStatus struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Hardware             *HardwareStats         `protobuf:"bytes,1,opt,name=hardware,proto3" json:"hardware,omitempty"`
@@ -475,13 +559,14 @@ type NodeStatus struct {
 	TotalOutboundTraffic *TrafficStats          `protobuf:"bytes,6,opt,name=total_outbound_traffic,json=totalOutboundTraffic,proto3" json:"total_outbound_traffic,omitempty"`
 	Connections          *ConnectionStats       `protobuf:"bytes,7,opt,name=connections,proto3" json:"connections,omitempty"`
 	SampleWindowSeconds  uint32                 `protobuf:"varint,8,opt,name=sample_window_seconds,json=sampleWindowSeconds,proto3" json:"sample_window_seconds,omitempty"`
+	HourlyMetrics        []*HourlyMetrics       `protobuf:"bytes,9,rep,name=hourly_metrics,json=hourlyMetrics,proto3" json:"hourly_metrics,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *NodeStatus) Reset() {
 	*x = NodeStatus{}
-	mi := &file_node_common_proto_msgTypes[7]
+	mi := &file_node_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -493,7 +578,7 @@ func (x *NodeStatus) String() string {
 func (*NodeStatus) ProtoMessage() {}
 
 func (x *NodeStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[7]
+	mi := &file_node_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +591,7 @@ func (x *NodeStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeStatus.ProtoReflect.Descriptor instead.
 func (*NodeStatus) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{7}
+	return file_node_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *NodeStatus) GetHardware() *HardwareStats {
@@ -565,6 +650,13 @@ func (x *NodeStatus) GetSampleWindowSeconds() uint32 {
 	return 0
 }
 
+func (x *NodeStatus) GetHourlyMetrics() []*HourlyMetrics {
+	if x != nil {
+		return x.HourlyMetrics
+	}
+	return nil
+}
+
 type AcmeCertificateConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AcmeType      string                 `protobuf:"bytes,1,opt,name=acme_type,json=acmeType,proto3" json:"acme_type,omitempty"`
@@ -579,7 +671,7 @@ type AcmeCertificateConfig struct {
 
 func (x *AcmeCertificateConfig) Reset() {
 	*x = AcmeCertificateConfig{}
-	mi := &file_node_common_proto_msgTypes[8]
+	mi := &file_node_common_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +683,7 @@ func (x *AcmeCertificateConfig) String() string {
 func (*AcmeCertificateConfig) ProtoMessage() {}
 
 func (x *AcmeCertificateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[8]
+	mi := &file_node_common_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +696,7 @@ func (x *AcmeCertificateConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcmeCertificateConfig.ProtoReflect.Descriptor instead.
 func (*AcmeCertificateConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{8}
+	return file_node_common_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AcmeCertificateConfig) GetAcmeType() string {
@@ -659,7 +751,7 @@ type CustomCertificateConfig struct {
 
 func (x *CustomCertificateConfig) Reset() {
 	*x = CustomCertificateConfig{}
-	mi := &file_node_common_proto_msgTypes[9]
+	mi := &file_node_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -671,7 +763,7 @@ func (x *CustomCertificateConfig) String() string {
 func (*CustomCertificateConfig) ProtoMessage() {}
 
 func (x *CustomCertificateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[9]
+	mi := &file_node_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -684,7 +776,7 @@ func (x *CustomCertificateConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CustomCertificateConfig.ProtoReflect.Descriptor instead.
 func (*CustomCertificateConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{9}
+	return file_node_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CustomCertificateConfig) GetCertificatePem() string {
@@ -715,7 +807,7 @@ type CertificateConfig struct {
 
 func (x *CertificateConfig) Reset() {
 	*x = CertificateConfig{}
-	mi := &file_node_common_proto_msgTypes[10]
+	mi := &file_node_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -727,7 +819,7 @@ func (x *CertificateConfig) String() string {
 func (*CertificateConfig) ProtoMessage() {}
 
 func (x *CertificateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[10]
+	mi := &file_node_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -740,7 +832,7 @@ func (x *CertificateConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificateConfig.ProtoReflect.Descriptor instead.
 func (*CertificateConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{10}
+	return file_node_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CertificateConfig) GetName() string {
@@ -802,7 +894,7 @@ type TLSConfig struct {
 
 func (x *TLSConfig) Reset() {
 	*x = TLSConfig{}
-	mi := &file_node_common_proto_msgTypes[11]
+	mi := &file_node_common_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -814,7 +906,7 @@ func (x *TLSConfig) String() string {
 func (*TLSConfig) ProtoMessage() {}
 
 func (x *TLSConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_node_common_proto_msgTypes[11]
+	mi := &file_node_common_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -827,7 +919,7 @@ func (x *TLSConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLSConfig.ProtoReflect.Descriptor instead.
 func (*TLSConfig) Descriptor() ([]byte, []int) {
-	return file_node_common_proto_rawDescGZIP(), []int{11}
+	return file_node_common_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TLSConfig) GetEnabled() bool {
@@ -888,7 +980,16 @@ const file_node_common_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x122\n" +
 	"\atraffic\x18\x03 \x01(\v2\x18.proxyswarm.TrafficStatsR\atraffic\x120\n" +
-	"\x14excluded_from_totals\x18\x04 \x01(\bR\x12excludedFromTotals\"\xfc\x03\n" +
+	"\x14excluded_from_totals\x18\x04 \x01(\bR\x12excludedFromTotals\"\xc4\x01\n" +
+	"\rHourlyMetrics\x12&\n" +
+	"\x0fhour_start_unix\x18\x01 \x01(\x03R\rhourStartUnix\x12\x1b\n" +
+	"\tmax_speed\x18\x02 \x01(\x01R\bmaxSpeed\x12\x1d\n" +
+	"\n" +
+	"traffic_rx\x18\x03 \x01(\x04R\ttrafficRx\x12\x1d\n" +
+	"\n" +
+	"traffic_tx\x18\x04 \x01(\x04R\ttrafficTx\x12\x14\n" +
+	"\x05users\x18\x05 \x01(\rR\x05users\x12\x1a\n" +
+	"\binbounds\x18\x06 \x01(\rR\binbounds\"\xbe\x04\n" +
 	"\n" +
 	"NodeStatus\x125\n" +
 	"\bhardware\x18\x01 \x01(\v2\x19.proxyswarm.HardwareStatsR\bhardware\x125\n" +
@@ -898,7 +999,8 @@ const file_node_common_proto_rawDesc = "" +
 	"\x15total_inbound_traffic\x18\x05 \x01(\v2\x18.proxyswarm.TrafficStatsR\x13totalInboundTraffic\x12N\n" +
 	"\x16total_outbound_traffic\x18\x06 \x01(\v2\x18.proxyswarm.TrafficStatsR\x14totalOutboundTraffic\x12=\n" +
 	"\vconnections\x18\a \x01(\v2\x1b.proxyswarm.ConnectionStatsR\vconnections\x122\n" +
-	"\x15sample_window_seconds\x18\b \x01(\rR\x13sampleWindowSeconds\"\xd0\x01\n" +
+	"\x15sample_window_seconds\x18\b \x01(\rR\x13sampleWindowSeconds\x12@\n" +
+	"\x0ehourly_metrics\x18\t \x03(\v2\x19.proxyswarm.HourlyMetricsR\rhourlyMetrics\"\xd0\x01\n" +
 	"\x15AcmeCertificateConfig\x12\x1b\n" +
 	"\tacme_type\x18\x01 \x01(\tR\bacmeType\x12\x17\n" +
 	"\aacme_ca\x18\x02 \x01(\tR\x06acmeCa\x12\x1d\n" +
@@ -934,7 +1036,7 @@ func file_node_common_proto_rawDescGZIP() []byte {
 	return file_node_common_proto_rawDescData
 }
 
-var file_node_common_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_node_common_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_node_common_proto_goTypes = []any{
 	(*HardwareStats)(nil),           // 0: proxyswarm.HardwareStats
 	(*TrafficStats)(nil),            // 1: proxyswarm.TrafficStats
@@ -943,11 +1045,12 @@ var file_node_common_proto_goTypes = []any{
 	(*InboundStatus)(nil),           // 4: proxyswarm.InboundStatus
 	(*AccountStatus)(nil),           // 5: proxyswarm.AccountStatus
 	(*OutboundStatus)(nil),          // 6: proxyswarm.OutboundStatus
-	(*NodeStatus)(nil),              // 7: proxyswarm.NodeStatus
-	(*AcmeCertificateConfig)(nil),   // 8: proxyswarm.AcmeCertificateConfig
-	(*CustomCertificateConfig)(nil), // 9: proxyswarm.CustomCertificateConfig
-	(*CertificateConfig)(nil),       // 10: proxyswarm.CertificateConfig
-	(*TLSConfig)(nil),               // 11: proxyswarm.TLSConfig
+	(*HourlyMetrics)(nil),           // 7: proxyswarm.HourlyMetrics
+	(*NodeStatus)(nil),              // 8: proxyswarm.NodeStatus
+	(*AcmeCertificateConfig)(nil),   // 9: proxyswarm.AcmeCertificateConfig
+	(*CustomCertificateConfig)(nil), // 10: proxyswarm.CustomCertificateConfig
+	(*CertificateConfig)(nil),       // 11: proxyswarm.CertificateConfig
+	(*TLSConfig)(nil),               // 12: proxyswarm.TLSConfig
 }
 var file_node_common_proto_depIdxs = []int32{
 	1,  // 0: proxyswarm.InboundStatus.traffic:type_name -> proxyswarm.TrafficStats
@@ -962,13 +1065,14 @@ var file_node_common_proto_depIdxs = []int32{
 	1,  // 9: proxyswarm.NodeStatus.total_inbound_traffic:type_name -> proxyswarm.TrafficStats
 	1,  // 10: proxyswarm.NodeStatus.total_outbound_traffic:type_name -> proxyswarm.TrafficStats
 	2,  // 11: proxyswarm.NodeStatus.connections:type_name -> proxyswarm.ConnectionStats
-	8,  // 12: proxyswarm.CertificateConfig.acme:type_name -> proxyswarm.AcmeCertificateConfig
-	9,  // 13: proxyswarm.CertificateConfig.custom:type_name -> proxyswarm.CustomCertificateConfig
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	7,  // 12: proxyswarm.NodeStatus.hourly_metrics:type_name -> proxyswarm.HourlyMetrics
+	9,  // 13: proxyswarm.CertificateConfig.acme:type_name -> proxyswarm.AcmeCertificateConfig
+	10, // 14: proxyswarm.CertificateConfig.custom:type_name -> proxyswarm.CustomCertificateConfig
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_node_common_proto_init() }
@@ -976,7 +1080,7 @@ func file_node_common_proto_init() {
 	if File_node_common_proto != nil {
 		return
 	}
-	file_node_common_proto_msgTypes[10].OneofWrappers = []any{
+	file_node_common_proto_msgTypes[11].OneofWrappers = []any{
 		(*CertificateConfig_Acme)(nil),
 		(*CertificateConfig_Custom)(nil),
 	}
@@ -986,7 +1090,7 @@ func file_node_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_node_common_proto_rawDesc), len(file_node_common_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

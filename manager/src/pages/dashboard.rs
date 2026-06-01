@@ -94,8 +94,8 @@ fn node_status_card(props: &NodeStatusCardProps) -> Html {
             error.set(None);
 
             spawn_local(async move {
-                let mut api = ApiService::new(address);
-                match api.get_status(master_key).await {
+                let api = ApiService::new(address);
+                match api.get_status(master_key, 0, 0, 0).await {
                     Ok(s) => {
                         status.set(Some(s));
                         loading.set(false);

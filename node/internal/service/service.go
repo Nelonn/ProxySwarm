@@ -51,6 +51,7 @@ func (s *NodeServiceServer) GetStatus(ctx context.Context, req *pb.StatusRequest
 		TotalOutboundTraffic: s.Manager.GetTotalOutboundTraffic(ctx),
 		Connections:          s.Manager.GetConnectionStats(ctx),
 		SampleWindowSeconds:  s.Manager.GetSampleWindowSeconds(),
+		HourlyMetrics:        s.Manager.GetHourlyMetrics(ctx, req.GetHourlyMetricsHours(), req.GetHourlyMetricsFromUnix(), req.GetHourlyMetricsToUnix()),
 	}, nil
 }
 
@@ -74,9 +75,9 @@ func (s *NodeServiceServer) IssueAcmeCertificate(ctx context.Context, req *pb.Ac
 	})
 	if err != nil {
 		return &pb.AcmeIssueResponse{
-			Success: false,
-			Error:   err.Error(),
-			Logs:    result.Logs,
+			Success:    false,
+			Error:      err.Error(),
+			Logs:       result.Logs,
 			ExpiryTime: result.ExpiryTime.Unix(),
 		}, nil
 	}

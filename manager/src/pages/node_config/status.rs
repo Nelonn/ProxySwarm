@@ -8,6 +8,9 @@ pub(super) fn render_status_tab(
     live_status_error: &UseStateHandle<Option<String>>,
     status_auto_refresh: &UseStateHandle<bool>,
     status_refresh_interval_ms: &UseStateHandle<u32>,
+    status_history_hours: &UseStateHandle<u32>,
+    status_history_from: &UseStateHandle<String>,
+    status_history_to: &UseStateHandle<String>,
     status_refresh_menu_open: &UseStateHandle<bool>,
     on_refresh_live_status: &Callback<MouseEvent>,
 ) -> Html {
@@ -50,9 +53,12 @@ pub(super) fn render_status_tab(
                             </div>
                             {
                                 if **status_refresh_menu_open {
-                                    let auto_refresh = **status_auto_refresh;
-                                    let refresh_ms = **status_refresh_interval_ms;
-                                    html! {
+                                     let auto_refresh = **status_auto_refresh;
+                                     let refresh_ms = **status_refresh_interval_ms;
+                                     let history_hours = **status_history_hours;
+                                     let history_from = (**status_history_from).clone();
+                                     let history_to = (**status_history_to).clone();
+                                     html! {
                                         <Popup
                                             title="Sampling & Refresh"
                                             size={PopupSize::Sm}
@@ -62,8 +68,8 @@ pub(super) fn render_status_tab(
                                             })}
                                         >
                                             <div class="space-y-4">
-                                                <Dropdown
-                                                    label="Sample rate"
+                                                 <Dropdown
+                                                     label="Sample rate"
                                                     value={refresh_ms.to_string()}
                                                     options={vec![
                                                         DropdownOption { value: "1000".to_string(), label: "1s".to_string() },
@@ -78,8 +84,47 @@ pub(super) fn render_status_tab(
                                                             status_refresh_interval_ms.set(next);
                                                         }
                                                     })}
-                                                />
-                                                <SwitchField
+                                                 />
+                                                 <Dropdown
+                                                     label="Graph history"
+                                                     value={history_hours.to_string()}
+                                                     options={vec![
+                                                         DropdownOption { value: "6".to_string(), label: "6 hours".to_string() },
+                                                         DropdownOption { value: "12".to_string(), label: "12 hours".to_string() },
+                                                         DropdownOption { value: "24".to_string(), label: "24 hours".to_string() },
+                                                         DropdownOption { value: "48".to_string(), label: "48 hours".to_string() },
+                                                         DropdownOption { value: "168".to_string(), label: "7 days".to_string() },
+                                                     ]}
+                                                     onchange={Callback::from({
+                                                         let status_history_hours = status_history_hours.clone();
+                                                         move |value: String| {
+                                                             let next = value.parse::<u32>().unwrap_or(24).clamp(1, 168);
+                                                             status_history_hours.set(next);
+                                                         }
+                                                     })}
+                                                 />
+                                                 <TextBox
+                                                     label="Statistics from"
+                                                     value={history_from}
+                                                     onchange={Callback::from({
+                                                         let status_history_from = status_history_from.clone();
+                                                         move |value: String| status_history_from.set(value)
+                                                     })}
+                                                     input_type="datetime-local"
+                                                 />
+                                                 <TextBox
+                                                     label="Statistics to"
+                                                     value={history_to}
+                                                     onchange={Callback::from({
+                                                         let status_history_to = status_history_to.clone();
+                                                         move |value: String| status_history_to.set(value)
+                                                     })}
+                                                     input_type="datetime-local"
+                                                 />
+                                                 <div class="opacity-70" style="font-size: 12px; line-height: 16px;">
+                                                     { "When From or To is set, the node loads hourly statistics for that exact range. Otherwise Graph history is used." }
+                                                 </div>
+                                                 <SwitchField
                                                     label="Auto refresh"
                                                     checked={auto_refresh}
                                                     onchange={Callback::from({

@@ -49,6 +49,112 @@ pub(super) fn format_optional_bandwidth(bandwidth_mbps: Option<u32>) -> String {
         .unwrap_or_else(|| "Not set".to_string())
 }
 
+fn format_hour_label(hour_start_unix: i64) -> String {
+    let hour = ((hour_start_unix / 3600) % 24 + 24) % 24;
+    format!("{:02}:00", hour)
+}
+
+fn format_hourly_count(value: f64) -> String {
+    format!("{}", value.round() as u32)
+}
+
+fn format_hourly_bytes(value: f64) -> String {
+    format_status_bytes(value.max(0.0) as u64)
+}
+
+fn format_hourly_rate(value: f64) -> String {
+    format_status_rate(value)
+}
+
+fn render_hourly_chart(
+    title: &str,
+    value_label: String,
+    values: Vec<(i64, f64)>,
+    formatter: fn(f64) -> String,
+) -> Html {
+    if values.is_empty() {
+        return html! {
+            <div class="md3-card bg-surface-container space-y-3">
+                <div class="opacity-70 uppercase" style="font-size: 12px; line-height: 16px;">{ title }</div>
+                <div class="font-bold" style="font-size: 20px; line-height: 28px;">{ "No hourly data yet" }</div>
+            </div>
+        };
+    }
+
+    let max_value = values.iter().map(|(_, value)| *value).fold(0.0, f64::max);
+    let denominator = if max_value <= 0.0 { 1.0 } else { max_value };
+    let first_label = values
+        .first()
+        .map(|(hour, _)| format_hour_label(*hour))
+        .unwrap_or_default();
+    let last_label = values
+        .last()
+        .map(|(hour, _)| format_hour_label(*hour))
+        .unwrap_or_default();
+    let points = values
+        .iter()
+        .enumerate()
+        .map(|(index, (_, value))| {
+            let x = if values.len() <= 1 {
+                50.0
+            } else {
+                (index as f64 / (values.len() - 1) as f64) * 100.0
+            };
+            let y = 88.0 - ((*value / denominator).clamp(0.0, 1.0) * 68.0);
+            format!("{:.2},{:.2}", x, y)
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    html! {
+        <div class="md3-card bg-surface-container space-y-3">
+            <div class="flex justify-between" style="align-items: baseline; gap: 12px;">
+                <div class="opacity-70 uppercase" style="font-size: 12px; line-height: 16px;">{ title }</div>
+                <div class="opacity-70" style="font-size: 12px; line-height: 16px;">{ format!("{} - {}", first_label, last_label) }</div>
+            </div>
+            <div class="font-bold" style="font-size: 20px; line-height: 28px;">{ value_label }</div>
+            <svg viewBox="0 0 100 96" preserveAspectRatio="none" style="width: 100%; height: 120px; overflow: visible;">
+                <line x1="0" y1="88" x2="100" y2="88" stroke="var(--md-sys-color-outline-variant)" stroke-width="1" />
+                <line x1="0" y1="54" x2="100" y2="54" stroke="var(--md-sys-color-outline-variant)" stroke-width="0.6" opacity="0.7" />
+                <line x1="0" y1="20" x2="100" y2="20" stroke="var(--md-sys-color-outline-variant)" stroke-width="0.6" opacity="0.7" />
+                <polyline points={points} fill="none" stroke="var(--md-sys-color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+            </svg>
+            <div class="opacity-70" style="font-size: 12px; line-height: 16px;">{ format!("Peak scale: {}", formatter(max_value)) }</div>
+        </div>
+    }
+}
+
+fn render_hourly_metrics(metrics: &[HourlyMetrics]) -> Html {
+    let latest = metrics.last();
+    let latest_speed = latest
+        .map(|metric| format_status_rate(metric.max_speed))
+        .unwrap_or_else(|| "No data".to_string());
+    let latest_traffic = latest
+        .map(|metric| format_status_bytes(metric.traffic_rx.saturating_add(metric.traffic_tx)))
+        .unwrap_or_else(|| "No data".to_string());
+    let latest_users = latest
+        .map(|metric| metric.users.to_string())
+        .unwrap_or_else(|| "No data".to_string());
+    let latest_inbounds = latest
+        .map(|metric| metric.inbounds.to_string())
+        .unwrap_or_else(|| "No data".to_string());
+
+    html! {
+        <div class="space-y-4">
+            <div>
+                <h3 class="text-xl font-bold">{ "Hourly Metrics" }</h3>
+                <div class="opacity-70" style="font-size: 13px; line-height: 18px;">{ "Stored hourly buckets for the selected graph history. Realtime status below remains live." }</div>
+            </div>
+            <div class="grid grid-cols-1 md-grid-cols-2 gap-4">
+                { render_hourly_chart("Max Speed in Hour", latest_speed, metrics.iter().map(|metric| (metric.hour_start_unix, metric.max_speed)).collect(), format_hourly_rate) }
+                { render_hourly_chart("Traffic in Hour", latest_traffic, metrics.iter().map(|metric| (metric.hour_start_unix, metric.traffic_rx.saturating_add(metric.traffic_tx) as f64)).collect(), format_hourly_bytes) }
+                { render_hourly_chart("Users in Hour", latest_users, metrics.iter().map(|metric| (metric.hour_start_unix, metric.users as f64)).collect(), format_hourly_count) }
+                { render_hourly_chart("Inbounds in Hour", latest_inbounds, metrics.iter().map(|metric| (metric.hour_start_unix, metric.inbounds as f64)).collect(), format_hourly_count) }
+            </div>
+        </div>
+    }
+}
+
 fn server_inbound_traffic(status: &NodeStatus) -> (u64, f64) {
     let from_clients = status
         .total_inbound_traffic
@@ -340,6 +446,8 @@ pub(super) fn node_status_panel(props: &NodeStatusPanelProps) -> Html {
                     </div>
                 </div>
             </div>
+
+            { render_hourly_metrics(&props.status.hourly_metrics) }
 
             {
                 if let Some(hw) = &props.status.hardware {

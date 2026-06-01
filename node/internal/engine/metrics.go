@@ -15,6 +15,7 @@ import (
 )
 
 const metricsSampleWindow = 2 * time.Second
+const maxHourlyMetricBuckets = 168
 
 type trafficTotals struct {
 	Rx uint64
@@ -41,6 +42,7 @@ type persistedMetricsState struct {
 	Inbounds             map[string]*pb.InboundStatus  `json:"inbounds"`
 	Accounts             map[string]*pb.AccountStatus  `json:"accounts"`
 	Outbounds            map[string]*pb.OutboundStatus `json:"outbounds"`
+	HourlyMetrics        []*pb.HourlyMetrics           `json:"hourly_metrics"`
 }
 
 func newPersistedMetricsState() *persistedMetricsState {
@@ -52,6 +54,7 @@ func newPersistedMetricsState() *persistedMetricsState {
 		Inbounds:             make(map[string]*pb.InboundStatus),
 		Accounts:             make(map[string]*pb.AccountStatus),
 		Outbounds:            make(map[string]*pb.OutboundStatus),
+		HourlyMetrics:        make([]*pb.HourlyMetrics, 0),
 	}
 }
 
@@ -91,6 +94,7 @@ func (s *persistedMetricsState) ensure() {
 	if s.Outbounds == nil {
 		s.Outbounds = make(map[string]*pb.OutboundStatus)
 	}
+	s.HourlyMetrics = normalizeHourlyMetrics(s.HourlyMetrics)
 	for name, inbound := range s.Inbounds {
 		if inbound == nil {
 			inbound = &pb.InboundStatus{Name: name}
@@ -180,6 +184,11 @@ func (m *Manager) sampleMetrics() {
 	m.metricsState.ensure()
 	resetCurrentSampleLocked(m.metricsState)
 	seenRaw := make(map[string]struct{})
+	sampleTrafficRx := uint64(0)
+	sampleTrafficTx := uint64(0)
+	sampleSpeed := 0.0
+	activeInbounds := make(map[string]struct{})
+	activeUsers := make(map[string]struct{})
 
 	windowSeconds := float64(metricsSampleWindow) / float64(time.Second)
 	for _, snapshot := range snapshots {
@@ -192,6 +201,11 @@ func (m *Manager) sampleMetrics() {
 			seenRaw[sourceKey] = struct{}{}
 			delta := applyTrafficDelta(m.lastRaw, sourceKey, inbound.Traffic, stateInbound.Traffic, windowSeconds)
 			addTrafficDelta(m.metricsState.TotalInboundTraffic, delta, windowSeconds)
+			sampleTrafficRx += delta.Rx + delta.Tx
+			sampleSpeed += float64(delta.Rx+delta.Tx) / windowSeconds
+			if delta.Rx > 0 || delta.Tx > 0 {
+				activeInbounds[inbound.Name] = struct{}{}
+			}
 		}
 
 		for _, account := range snapshot.metrics.Accounts {
@@ -211,6 +225,9 @@ func (m *Manager) sampleMetrics() {
 			if stateAccount.Online == 0 && (delta.Rx > 0 || delta.Tx > 0) {
 				stateAccount.Online = 1
 			}
+			if stateAccount.Online > 0 || delta.Rx > 0 || delta.Tx > 0 {
+				activeUsers[id] = struct{}{}
+			}
 		}
 
 		for _, outbound := range snapshot.metrics.Outbounds {
@@ -225,6 +242,8 @@ func (m *Manager) sampleMetrics() {
 			delta := applyTrafficDelta(m.lastRaw, sourceKey, outbound.Traffic, stateOutbound.Traffic, windowSeconds)
 			if !outbound.ExcludedFromTotals {
 				addTrafficDelta(m.metricsState.TotalOutboundTraffic, delta, windowSeconds)
+				sampleTrafficTx += delta.Rx + delta.Tx
+				sampleSpeed += float64(delta.Rx+delta.Tx) / windowSeconds
 			}
 		}
 	}
@@ -238,8 +257,20 @@ func (m *Manager) sampleMetrics() {
 	for inboundName, connections := range inboundConnections {
 		stateInbound := ensureInboundMetric(m.metricsState, inboundName)
 		stateInbound.Connections = cloneConnectionStats(connections)
+		if connections != nil && (connections.Tcp > 0 || connections.Udp > 0) {
+			activeInbounds[inboundName] = struct{}{}
+		}
 	}
 	m.metricsState.Connections = cloneConnectionStats(totalConnections)
+	updateHourlyMetricsLocked(
+		m.metricsState,
+		time.Now().UTC(),
+		sampleSpeed,
+		sampleTrafficRx,
+		sampleTrafficTx,
+		uint32(len(activeUsers)),
+		uint32(len(activeInbounds)),
+	)
 
 	_ = m.savePersistedMetricsLocked()
 }
@@ -282,6 +313,73 @@ func resetCurrentSampleLocked(state *persistedMetricsState) {
 		outbound.Traffic.RxRate = 0
 		outbound.Traffic.TxRate = 0
 	}
+}
+
+func updateHourlyMetricsLocked(state *persistedMetricsState, now time.Time, maxSpeed float64, trafficRx uint64, trafficTx uint64, users uint32, inbounds uint32) {
+	state.ensure()
+	hourStart := now.Truncate(time.Hour).Unix()
+	var bucket *pb.HourlyMetrics
+	for _, existing := range state.HourlyMetrics {
+		if existing != nil && existing.HourStartUnix == hourStart {
+			bucket = existing
+			break
+		}
+	}
+	if bucket == nil {
+		bucket = &pb.HourlyMetrics{HourStartUnix: hourStart}
+		state.HourlyMetrics = append(state.HourlyMetrics, bucket)
+	}
+	if maxSpeed > bucket.MaxSpeed {
+		bucket.MaxSpeed = maxSpeed
+	}
+	bucket.TrafficRx += trafficRx
+	bucket.TrafficTx += trafficTx
+	if users > bucket.Users {
+		bucket.Users = users
+	}
+	if inbounds > bucket.Inbounds {
+		bucket.Inbounds = inbounds
+	}
+	state.HourlyMetrics = normalizeHourlyMetrics(state.HourlyMetrics)
+}
+
+func normalizeHourlyMetrics(metrics []*pb.HourlyMetrics) []*pb.HourlyMetrics {
+	if len(metrics) == 0 {
+		return make([]*pb.HourlyMetrics, 0)
+	}
+	byHour := make(map[int64]*pb.HourlyMetrics, len(metrics))
+	for _, metric := range metrics {
+		if metric == nil || metric.HourStartUnix <= 0 {
+			continue
+		}
+		bucket := byHour[metric.HourStartUnix]
+		if bucket == nil {
+			byHour[metric.HourStartUnix] = cloneHourlyMetric(metric)
+			continue
+		}
+		if metric.MaxSpeed > bucket.MaxSpeed {
+			bucket.MaxSpeed = metric.MaxSpeed
+		}
+		bucket.TrafficRx += metric.TrafficRx
+		bucket.TrafficTx += metric.TrafficTx
+		if metric.Users > bucket.Users {
+			bucket.Users = metric.Users
+		}
+		if metric.Inbounds > bucket.Inbounds {
+			bucket.Inbounds = metric.Inbounds
+		}
+	}
+	result := make([]*pb.HourlyMetrics, 0, len(byHour))
+	for _, metric := range byHour {
+		result = append(result, metric)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].HourStartUnix < result[j].HourStartUnix
+	})
+	if len(result) > maxHourlyMetricBuckets {
+		result = result[len(result)-maxHourlyMetricBuckets:]
+	}
+	return result
 }
 
 func applyTrafficDelta(lastRaw map[string]trafficTotals, sourceKey string, current *pb.TrafficStats, aggregate *pb.TrafficStats, windowSeconds float64) trafficTotals {
@@ -487,6 +585,49 @@ func (m *Manager) outboundStatusesLocked() []*pb.OutboundStatus {
 	return result
 }
 
+func (m *Manager) hourlyMetricsLocked(hours uint32, fromUnix int64, toUnix int64) []*pb.HourlyMetrics {
+	m.metricsState.ensure()
+	metrics := normalizeHourlyMetrics(m.metricsState.HourlyMetrics)
+	if fromUnix > 0 || toUnix > 0 {
+		fromHour := int64(0)
+		toHour := int64(0)
+		if fromUnix > 0 {
+			fromHour = time.Unix(fromUnix, 0).UTC().Truncate(time.Hour).Unix()
+		}
+		if toUnix > 0 {
+			toHour = time.Unix(toUnix, 0).UTC().Truncate(time.Hour).Unix()
+		}
+		filtered := metrics[:0]
+		for _, metric := range metrics {
+			if metric == nil {
+				continue
+			}
+			if fromHour > 0 && metric.HourStartUnix < fromHour {
+				continue
+			}
+			if toHour > 0 && metric.HourStartUnix > toHour {
+				continue
+			}
+			filtered = append(filtered, metric)
+		}
+		metrics = filtered
+	} else if hours > 0 {
+		cutoff := time.Now().UTC().Add(-time.Duration(hours) * time.Hour).Truncate(time.Hour).Unix()
+		filtered := metrics[:0]
+		for _, metric := range metrics {
+			if metric != nil && metric.HourStartUnix >= cutoff {
+				filtered = append(filtered, metric)
+			}
+		}
+		metrics = filtered
+	}
+	result := make([]*pb.HourlyMetrics, 0, len(metrics))
+	for _, metric := range metrics {
+		result = append(result, cloneHourlyMetric(metric))
+	}
+	return result
+}
+
 func cloneTrafficStats(in *pb.TrafficStats) *pb.TrafficStats {
 	if in == nil {
 		return &pb.TrafficStats{}
@@ -496,6 +637,20 @@ func cloneTrafficStats(in *pb.TrafficStats) *pb.TrafficStats {
 		Tx:     in.Tx,
 		RxRate: in.RxRate,
 		TxRate: in.TxRate,
+	}
+}
+
+func cloneHourlyMetric(in *pb.HourlyMetrics) *pb.HourlyMetrics {
+	if in == nil {
+		return &pb.HourlyMetrics{}
+	}
+	return &pb.HourlyMetrics{
+		HourStartUnix: in.HourStartUnix,
+		MaxSpeed:      in.MaxSpeed,
+		TrafficRx:     in.TrafficRx,
+		TrafficTx:     in.TrafficTx,
+		Users:         in.Users,
+		Inbounds:      in.Inbounds,
 	}
 }
 

@@ -94,6 +94,22 @@ pub struct OutboundStatus {
     pub excluded_from_totals: bool,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct HourlyMetrics {
+    #[prost(int64, tag = "1")]
+    pub hour_start_unix: i64,
+    #[prost(double, tag = "2")]
+    pub max_speed: f64,
+    #[prost(uint64, tag = "3")]
+    pub traffic_rx: u64,
+    #[prost(uint64, tag = "4")]
+    pub traffic_tx: u64,
+    #[prost(uint32, tag = "5")]
+    pub users: u32,
+    #[prost(uint32, tag = "6")]
+    pub inbounds: u32,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NodeStatus {
     #[prost(message, optional, tag = "1")]
@@ -112,6 +128,8 @@ pub struct NodeStatus {
     pub connections: ::core::option::Option<ConnectionStats>,
     #[prost(uint32, tag = "8")]
     pub sample_window_seconds: u32,
+    #[prost(message, repeated, tag = "9")]
+    pub hourly_metrics: ::prost::alloc::vec::Vec<HourlyMetrics>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -674,6 +692,12 @@ pub struct UpdateResponse {
 pub struct StatusRequest {
     #[prost(string, tag = "1")]
     pub master_key: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "2")]
+    pub hourly_metrics_hours: u32,
+    #[prost(int64, tag = "3")]
+    pub hourly_metrics_from_unix: i64,
+    #[prost(int64, tag = "4")]
+    pub hourly_metrics_to_unix: i64,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

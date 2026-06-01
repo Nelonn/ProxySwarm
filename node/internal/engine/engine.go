@@ -343,6 +343,12 @@ func (m *Manager) GetSampleWindowSeconds() uint32 {
 	return m.metricsState.SampleWindowSeconds
 }
 
+func (m *Manager) GetHourlyMetrics(ctx context.Context, hours uint32, fromUnix int64, toUnix int64) []*pb.HourlyMetrics {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.hourlyMetricsLocked(hours, fromUnix, toUnix)
+}
+
 func preparedInboundConfig(inbound *pb.InboundConfig, activeAccounts []*pb.Account) *pb.InboundConfig {
 	cloned := cloneProtoMessage(inbound)
 	if cloned == nil {

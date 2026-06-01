@@ -1323,10 +1323,13 @@ func (x *UpdateResponse) GetError() string {
 }
 
 type StatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MasterKey     string                 `protobuf:"bytes,1,opt,name=master_key,json=masterKey,proto3" json:"master_key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	MasterKey             string                 `protobuf:"bytes,1,opt,name=master_key,json=masterKey,proto3" json:"master_key,omitempty"`
+	HourlyMetricsHours    uint32                 `protobuf:"varint,2,opt,name=hourly_metrics_hours,json=hourlyMetricsHours,proto3" json:"hourly_metrics_hours,omitempty"`
+	HourlyMetricsFromUnix int64                  `protobuf:"varint,3,opt,name=hourly_metrics_from_unix,json=hourlyMetricsFromUnix,proto3" json:"hourly_metrics_from_unix,omitempty"`
+	HourlyMetricsToUnix   int64                  `protobuf:"varint,4,opt,name=hourly_metrics_to_unix,json=hourlyMetricsToUnix,proto3" json:"hourly_metrics_to_unix,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *StatusRequest) Reset() {
@@ -1364,6 +1367,27 @@ func (x *StatusRequest) GetMasterKey() string {
 		return x.MasterKey
 	}
 	return ""
+}
+
+func (x *StatusRequest) GetHourlyMetricsHours() uint32 {
+	if x != nil {
+		return x.HourlyMetricsHours
+	}
+	return 0
+}
+
+func (x *StatusRequest) GetHourlyMetricsFromUnix() int64 {
+	if x != nil {
+		return x.HourlyMetricsFromUnix
+	}
+	return 0
+}
+
+func (x *StatusRequest) GetHourlyMetricsToUnix() int64 {
+	if x != nil {
+		return x.HourlyMetricsToUnix
+	}
+	return 0
 }
 
 type AcmeIssueRequest struct {
@@ -1984,10 +2008,13 @@ const file_node_service_proto_rawDesc = "" +
 	"\x06values\x18\x02 \x03(\tR\x06values\"@\n" +
 	"\x0eUpdateResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\".\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"\xce\x01\n" +
 	"\rStatusRequest\x12\x1d\n" +
 	"\n" +
-	"master_key\x18\x01 \x01(\tR\tmasterKey\"\xf0\x01\n" +
+	"master_key\x18\x01 \x01(\tR\tmasterKey\x120\n" +
+	"\x14hourly_metrics_hours\x18\x02 \x01(\rR\x12hourlyMetricsHours\x127\n" +
+	"\x18hourly_metrics_from_unix\x18\x03 \x01(\x03R\x15hourlyMetricsFromUnix\x123\n" +
+	"\x16hourly_metrics_to_unix\x18\x04 \x01(\x03R\x13hourlyMetricsToUnix\"\xf0\x01\n" +
 	"\x10AcmeIssueRequest\x12\x1d\n" +
 	"\n" +
 	"master_key\x18\x01 \x01(\tR\tmasterKey\x12\x14\n" +
