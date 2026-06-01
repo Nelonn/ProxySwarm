@@ -475,10 +475,10 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 		case pb.OutboundType_WIREGUARD:
 			o["type"] = "wireguard"
 			w := out.GetWireguard()
-			localAddresses := make([]string, 0, len(w.Addresses))
+			addresses := make([]string, 0, len(w.Addresses))
 			for _, addr := range w.Addresses {
 				if _, err := netip.ParsePrefix(addr); err == nil {
-					localAddresses = append(localAddresses, addr)
+					addresses = append(addresses, addr)
 				}
 			}
 			reserved := make([]uint32, 0, len(w.Reserved))
@@ -511,8 +511,8 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 				}
 				peerObject := map[string]any{
 					"public_key":  peer.PublicKey,
-					"server":      address,
-					"server_port": port,
+					"address":     address,
+					"port":        port,
 					"reserved":    peerReserved,
 					"allowed_ips": peerAllowedIPs,
 				}
@@ -525,7 +525,7 @@ func (e *SingBoxEngine) convertToConfig(config *pb.InboundConfig, accounts []*pb
 				peers = append(peers, peerObject)
 			}
 			o["private_key"] = w.PrivateKey
-			o["local_address"] = localAddresses
+			o["address"] = addresses
 			o["mtu"] = w.Mtu
 			if len(peers) > 0 {
 				o["peers"] = peers
