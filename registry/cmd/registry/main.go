@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"proxyswarm/registry/internal/pb"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -55,7 +56,7 @@ type telemetryStore struct {
 }
 
 type subscriptionTelemetryEntry struct {
-	Time  int64  `json:"time"`
+	Time      int64  `json:"time"`
 	UserAgent string `json:"user_agent"`
 	UserId    string `json:"user_id"`
 	Ip        string `json:"ip"`
@@ -98,6 +99,10 @@ func main() {
 	if mode != modeSharedPort && mode != modeSplitPorts {
 		log.Fatalf("invalid REGISTRY_MODE=%q (supported: %s, %s)", mode, modeSharedPort, modeSplitPorts)
 	}
+	subscriptionUpdateHours, err := subscriptionUpdateHoursFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
 	masterKeyHash := hashMasterKey(strings.TrimSpace(os.Getenv("PS_MASTER_KEY")))
 	if masterKeyHash == "" {
 		log.Fatal("PS_MASTER_KEY is required")
@@ -122,7 +127,7 @@ func main() {
 		server,
 		grpcweb.WithOriginFunc(func(origin string) bool { return true }),
 	)
-	userHandler := makeUserAPIHandler(store, telemetry)
+	userHandler := makeUserAPIHandler(store, telemetry, subscriptionUpdateHours)
 	manageHandler := makeManageAPIHandler(wrappedServer)
 
 	if mode == modeSharedPort {
@@ -228,7 +233,19 @@ func withRequestLogging(next http.Handler) http.Handler {
 	})
 }
 
-func makeUserAPIHandler(store *registryStore, telemetry *telemetryStore) http.Handler {
+func subscriptionUpdateHoursFromEnv() (int, error) {
+	value := strings.TrimSpace(os.Getenv("REGISTRY_SUB_UPDATE_HOURS"))
+	if value == "" {
+		return 1, nil
+	}
+	hours, err := strconv.Atoi(value)
+	if err != nil || hours <= 0 {
+		return 0, fmt.Errorf("invalid REGISTRY_SUB_UPDATE_HOURS=%q (must be a positive integer number of hours)", value)
+	}
+	return hours, nil
+}
+
+func makeUserAPIHandler(store *registryStore, telemetry *telemetryStore, subscriptionUpdateHours int) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/subscription", func(res http.ResponseWriter, req *http.Request) {
 		setUserCORSHeaders(res)
@@ -268,6 +285,7 @@ func makeUserAPIHandler(store *registryStore, telemetry *telemetryStore) http.Ha
 		res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		res.Header().Set("subscription-userinfo", buildSubscriptionUserInfo(account))
 		res.Header().Set("profile-title", buildProfileTitle(account))
+		res.Header().Set("profile-update-interval", strconv.Itoa(subscriptionUpdateHours))
 		res.WriteHeader(http.StatusOK)
 		_, _ = res.Write([]byte(strings.Join(links, "\n")))
 	})
@@ -390,8 +408,8 @@ func buildSubscriptionUserInfo(account *pb.Account) string {
 func buildProfileTitle(account *pb.Account) string {
 	title := "ProxySwarm"
 	if account != nil {
-		if strings.TrimSpace(account.GetId()) != "" {
-			title = account.GetId()
+		if strings.TrimSpace(account.GetName()) != "" {
+			title = account.GetName()
 		}
 	}
 	return "base64:" + base64.StdEncoding.EncodeToString([]byte(title))
@@ -414,7 +432,7 @@ func recordSubscriptionTelemetry(store *telemetryStore, req *http.Request, accou
 	}
 	now := time.Now().UTC()
 	entry := subscriptionTelemetryEntry{
-		Time:  now.Unix(),
+		Time:      now.Unix(),
 		UserAgent: req.UserAgent(),
 		Ip:        forwardedClientIP(req),
 	}

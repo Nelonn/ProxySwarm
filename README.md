@@ -102,12 +102,13 @@ cd registry
 PS_MASTER_KEY="change-me" go run .\cmd\registry
 ```
 
-| Variable                 | Default | Description                                        |
-|--------------------------|---------|----------------------------------------------------|
-| `PS_MASTER_KEY`          | *(required)* | Shared secret between manager and registry manage API |
-| `REGISTRY_MODE`          | `1`     | `1`: user + manage on same port, `2`: split ports  |
-| `REGISTRY_LISTEN`        | `:9191` | User API listen address (mode `1`: shared address) |
-| `REGISTRY_MANAGE_LISTEN` | `:9291` | Manage gRPC-Web listen address (mode `2` only)     |
+| Variable                    | Default      | Description                                           |
+|-----------------------------|--------------|-------------------------------------------------------|
+| `PS_MASTER_KEY`             | *(required)* | Shared secret between manager and registry manage API |
+| `REGISTRY_MODE`             | `1`          | `1`: user + manage on same port, `2`: split ports     |
+| `REGISTRY_LISTEN`           | `:9191`      | User API listen address (mode `1`: shared address)    |
+| `REGISTRY_MANAGE_LISTEN`    | `:9291`      | Manage gRPC-Web listen address (mode `2` only)        |
+| `REGISTRY_SUB_UPDATE_HOURS` | `1`          | Subscription profile update interval in hours         |
 
 ### 4. Run via Docker
 

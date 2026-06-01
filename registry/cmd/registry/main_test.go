@@ -68,7 +68,7 @@ func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
 		TemplateLinks: []*pb.RegistryTemplateLink{
 			{Template: "vless://{{token}}@host:443"},
 		},
-	}), nil)
+	}), nil, 1)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/subscription?token=wrong", nil)
@@ -90,13 +90,13 @@ func TestSubscriptionEndpoint_InvalidTokenReturns403(t *testing.T) {
 func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	handler := makeUserAPIHandler(testStore(&pb.RegistryServiceConfig{
 		Accounts: []*pb.Account{
-			{Id: "a1", Token: "tok-1", ExpiryTime: 1735689600},
+			{Id: "a1", Name: "Alice", Token: "tok-1", ExpiryTime: 1735689600},
 		},
 		TemplateLinks: []*pb.RegistryTemplateLink{
 			{Template: "vless://{{token}}@host-a:443#{{name}}"},
 			{Template: "trojan://{token}@host-b:443#{id}"},
 		},
-	}), nil)
+	}), nil, 12)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/subscription?token=tok-1", nil)
@@ -111,15 +111,18 @@ func TestSubscriptionEndpoint_ValidTokenReturnsLinks(t *testing.T) {
 	if got := rec.Header().Get("subscription-userinfo"); got != "upload=0; download=0; total=0; expire=1735689600" {
 		t.Fatalf("unexpected subscription-userinfo: %q", got)
 	}
-	if got := rec.Header().Get("profile-title"); got != "base64:YTE=" {
+	if got := rec.Header().Get("profile-title"); got != "base64:QWxpY2U=" {
 		t.Fatalf("unexpected profile-title: %q", got)
+	}
+	if got := rec.Header().Get("profile-update-interval"); got != "12" {
+		t.Fatalf("unexpected profile-update-interval: %q", got)
 	}
 
 	lines := strings.Split(strings.TrimSpace(rec.Body.String()), "\n")
 	if len(lines) != 2 {
 		t.Fatalf("expected 2 links, got %d: %q", len(lines), rec.Body.String())
 	}
-	if lines[0] != "vless://tok-1@host-a:443#a1" {
+	if lines[0] != "vless://tok-1@host-a:443#Alice" {
 		t.Fatalf("unexpected first link: %q", lines[0])
 	}
 	if lines[1] != "trojan://tok-1@host-b:443#a1" {
@@ -136,7 +139,7 @@ func TestSubscriptionEndpointRecordsTelemetry(t *testing.T) {
 		TemplateLinks: []*pb.RegistryTemplateLink{
 			{Template: "vless://{{token}}@host:443"},
 		},
-	}), telemetry)
+	}), telemetry, 1)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/v1/subscription?token=tok-1", nil)
@@ -165,7 +168,7 @@ func TestSubscriptionEndpointRecordsTelemetry(t *testing.T) {
 }
 
 func TestOnlySubscriptionEndpointExposed(t *testing.T) {
-	handler := makeUserAPIHandler(testStore(nil), nil)
+	handler := makeUserAPIHandler(testStore(nil), nil, 1)
 
 	for _, path := range []string{"/healthz", "/v1/subscriptions"} {
 		rec := httptest.NewRecorder()
@@ -232,5 +235,22 @@ func TestDefaultStorePath_UsesBuildDefault(t *testing.T) {
 	}
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestSubscriptionUpdateHoursFromEnv(t *testing.T) {
+	t.Setenv("REGISTRY_SUB_UPDATE_HOURS", "")
+	if got, err := subscriptionUpdateHoursFromEnv(); err != nil || got != 1 {
+		t.Fatalf("expected default 1 hour, got %d err=%v", got, err)
+	}
+
+	t.Setenv("REGISTRY_SUB_UPDATE_HOURS", "12")
+	if got, err := subscriptionUpdateHoursFromEnv(); err != nil || got != 12 {
+		t.Fatalf("expected configured 12 hours, got %d err=%v", got, err)
+	}
+
+	t.Setenv("REGISTRY_SUB_UPDATE_HOURS", "0")
+	if _, err := subscriptionUpdateHoursFromEnv(); err == nil {
+		t.Fatal("expected invalid update hours to fail")
 	}
 }
